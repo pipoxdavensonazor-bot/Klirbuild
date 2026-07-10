@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Cool stone body — light, professional */
+  --background: 220 20% 97%;
+  --foreground: 213 48% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 213 48% 12%;
+  --primary: 213 56% 23%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 16% 94%;
+  --secondary-foreground: 213 48% 12%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 215 16% 42%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 18% 88%;
+  --input: 214 18% 88%;
+  --ring: 213 56% 23%;
+  --radius: 0.75rem;
+  --footer: 213 48% 8%;
+  --footer-foreground: 210 25% 92%;
+}
+
+.dark {
+  --background: 213 40% 6%;
+  --foreground: 210 30% 96%;
+  --card: 213 35% 9%;
+  --card-foreground: 210 30% 96%;
+  --primary: 213 45% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 28% 14%;
+  --secondary-foreground: 210 30% 96%;
+  --muted: 213 28% 14%;
+  --muted-foreground: 215 16% 68%;
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 213 22% 18%;
+  --input: 213 22% 18%;
+  --ring: 213 45% 48%;
+  --footer: 213 45% 5%;
+  --footer-foreground: 210 25% 88%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
