@@ -75,8 +75,20 @@ export function SettingsUsersPanel() {
         return;
       }
       setInviteEmail("");
-      setMessage(`Invitation envoyée à ${data.invitation.email}`);
-      setInviteUrl(data.inviteUrl);
+      if (data.email?.delivered) {
+        setMessage(`Courriel d'invitation envoyé à ${data.invitation.email}`);
+        setInviteUrl("");
+      } else if (data.email?.error) {
+        setMessage(
+          `Invitation créée pour ${data.invitation.email}, mais l'envoi du courriel a échoué : ${data.email.error}`
+        );
+        setInviteUrl(data.inviteUrl ?? "");
+      } else {
+        setMessage(
+          `Invitation créée pour ${data.invitation.email} (configurez RESEND_API_KEY pour l'envoi automatique).`
+        );
+        setInviteUrl(data.inviteUrl ?? "");
+      }
       await load();
     } catch {
       setError("Erreur réseau");

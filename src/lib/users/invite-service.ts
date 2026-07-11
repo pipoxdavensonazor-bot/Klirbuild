@@ -4,8 +4,22 @@ import { hasDatabase } from "@/lib/auth/auth-service";
 import { getBillingState } from "@/lib/billing/subscription-service";
 import { getPlan } from "@/lib/billing/plans";
 import { prisma } from "@/lib/db";
+import {
+  emailFromAddress,
+  logEmail,
+  sendEmail,
+} from "@/lib/email/email-service";
+import { inviteEmailHtml, inviteEmailText } from "@/lib/email/templates";
 
 const INVITE_TTL_DAYS = 7;
+
+function appUrl() {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.VERCEL_URL?.trim() ||
+    "http://localhost:3000";
+  return base.startsWith("http") ? base : `https://${base}`;
+}
 
 export function inviteRequiresDatabase() {
   return !hasDatabase();
@@ -91,6 +105,12 @@ export async function createInvitation(input: {
     },
   });
 
+  const company = await prisma.company.findUnique({
+    where: { id: input.companyId },
+    select: { name: true },
+  });
+  const companyName = company?.name ?? "Votre entreprise";
+
   await prisma.auditLog.create({
     data: {
       companyId: input.companyId,
@@ -99,11 +119,55 @@ export async function createInvitation(input: {
     },
   });
 
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.VERCEL_URL?.trim() ||
-    "http://localhost:3000";
-  const origin = base.startsWith("http") ? base : `https://${base}`;
+  const origin = appUrl();
+  const inviteUrl = `${origin}/register?invite=${token}`;
+
+  const html = inviteEmailHtml({
+    companyName,
+    inviteUrl,
+    role,
+    invitedByEmail: input.invitedByEmail,
+    expiresAt: invitation.expiresAt.toISOString(),
+    appUrl: origin,
+  });
+  const text = inviteEmailText({
+    companyName,
+    inviteUrl,
+    role,
+    invitedByEmail: input.invitedByEmail,
+    expiresAt: invitation.expiresAt.toISOString(),
+  });
+
+  const sent = await sendEmail({
+    to: email,
+    subject: `Invitation KlirBuild — ${companyName}`,
+    html,
+    text,
+  });
+
+  if ("error" in sent && sent.error) {
+    return {
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt.toISOString(),
+      },
+      inviteUrl,
+      email: { delivered: false, error: sent.error },
+    };
+  }
+
+  await logEmail({
+    companyId: input.companyId,
+    direction: "outbound",
+    fromEmail: emailFromAddress(),
+    toEmail: email,
+    subject: `Invitation KlirBuild — ${companyName}`,
+    bodyText: text,
+    bodyHtml: html,
+    providerId: "providerId" in sent ? sent.providerId : undefined,
+  });
 
   return {
     invitation: {
@@ -112,7 +176,12 @@ export async function createInvitation(input: {
       role: invitation.role,
       expiresAt: invitation.expiresAt.toISOString(),
     },
-    inviteUrl: `${origin}/register?invite=${token}`,
+    inviteUrl,
+    email: {
+      delivered: "delivered" in sent ? sent.delivered : false,
+      simulated: "simulated" in sent ? sent.simulated : false,
+      mailto: "mailto" in sent ? sent.mailto : undefined,
+    },
   };
 }
 
