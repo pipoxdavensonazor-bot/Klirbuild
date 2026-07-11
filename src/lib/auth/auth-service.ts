@@ -113,10 +113,27 @@ export function sessionResponse(
   return res;
 }
 
+/** Sessions anciennes peuvent manquer companyId — résout depuis la DB. */
+export async function enrichSession(session: DemoSession): Promise<DemoSession> {
+  if (session.companyId?.trim()) return session;
+
+  if (hasDatabase()) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.email },
+      select: { companyId: true },
+    });
+    if (user?.companyId) {
+      return { ...session, companyId: user.companyId };
+    }
+  }
+
+  return { ...session, companyId: DEMO_COMPANY_ID };
+}
+
 export async function requireSession(): Promise<DemoSession | NextResponse> {
   const session = await getRequestSession();
   if (!session) {
     return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
   }
-  return session;
+  return enrichSession(session);
 }

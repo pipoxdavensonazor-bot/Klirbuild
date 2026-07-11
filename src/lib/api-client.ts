@@ -1,3 +1,15 @@
+/** Évite les redirections 308 apex → www qui cassent certains POST. */
+export function apiUrl(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname === "klirline.app"
+  ) {
+    return `https://www.klirline.app${normalized}`;
+  }
+  return normalized;
+}
+
 export async function parseApiResponse(res: Response) {
   const text = await res.text();
   if (!text) return {};

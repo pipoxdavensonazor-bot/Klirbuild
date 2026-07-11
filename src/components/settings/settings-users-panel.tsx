@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
+import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import { demoUser } from "@/lib/mock-data";
 import type { Role } from "@/types";
 
@@ -35,17 +36,21 @@ export function SettingsUsersPanel() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/users");
-      const data = await res.json();
+      const res = await fetch(apiUrl("/api/users"), { credentials: "include" });
+      const data = await parseApiResponse(res);
       if (!res.ok) {
-        setError(data.error || "Impossible de charger les utilisateurs");
+        setError(
+          typeof data.error === "string"
+            ? data.error
+            : "Impossible de charger les utilisateurs"
+        );
         return;
       }
       setRequiresDatabase(Boolean(data.requiresDatabase));
-      setUsers(data.users ?? []);
-      setInvitations(data.invitations ?? []);
-    } catch {
-      setError("Erreur réseau");
+      setUsers((data.users as ApiUser[] | undefined) ?? []);
+      setInvitations((data.invitations as ApiInvitation[] | undefined) ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
     }
   }, []);
 
@@ -64,34 +69,41 @@ export function SettingsUsersPanel() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/users/invite", {
+      const res = await fetch(apiUrl("/api/users/invite"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, role: inviteRole }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) {
-        setError(data.error || "Invitation échouée");
+        setError(
+          typeof data.error === "string" ? data.error : "Invitation échouée"
+        );
         return;
       }
       setInviteEmail("");
-      if (data.email?.delivered) {
-        setMessage(`Courriel d'invitation envoyé à ${data.invitation.email}`);
+      const invitation = data.invitation as ApiInvitation | undefined;
+      const emailResult = data.email as
+        | { delivered?: boolean; error?: string; simulated?: boolean }
+        | undefined;
+      if (emailResult?.delivered && invitation) {
+        setMessage(`Courriel d'invitation envoyé à ${invitation.email}`);
         setInviteUrl("");
-      } else if (data.email?.error) {
+      } else if (emailResult?.error && invitation) {
         setMessage(
-          `Invitation créée pour ${data.invitation.email}, mais l'envoi du courriel a échoué : ${data.email.error}`
+          `Invitation créée pour ${invitation.email}, mais l'envoi du courriel a échoué : ${emailResult.error}`
         );
-        setInviteUrl(data.inviteUrl ?? "");
-      } else {
+        setInviteUrl(typeof data.inviteUrl === "string" ? data.inviteUrl : "");
+      } else if (invitation) {
         setMessage(
-          `Invitation créée pour ${data.invitation.email} (configurez RESEND_API_KEY pour l'envoi automatique).`
+          `Invitation créée pour ${invitation.email} (configurez RESEND_API_KEY pour l'envoi automatique).`
         );
-        setInviteUrl(data.inviteUrl ?? "");
+        setInviteUrl(typeof data.inviteUrl === "string" ? data.inviteUrl : "");
       }
       await load();
-    } catch {
-      setError("Erreur réseau");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
     } finally {
       setLoading(false);
     }

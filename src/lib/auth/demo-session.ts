@@ -31,6 +31,9 @@ function verify(token: string): DemoSession | null {
   if (expected !== token) return null;
   const session = JSON.parse(Buffer.from(data, "base64url").toString()) as DemoSession;
   if (session.exp < Date.now()) return null;
+  if (!session.companyId) {
+    session.companyId = DEMO_COMPANY_ID;
+  }
   return session;
 }
 

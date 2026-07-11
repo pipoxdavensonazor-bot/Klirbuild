@@ -61,6 +61,11 @@ export async function createInvitation(input: {
     return { error: "DATABASE_URL requis pour inviter des utilisateurs." as const };
   }
 
+  const companyId = input.companyId?.trim();
+  if (!companyId) {
+    return { error: "Session invalide — déconnectez-vous puis reconnectez-vous." as const };
+  }
+
   const email = input.email.trim().toLowerCase();
   if (!email || !email.includes("@")) {
     return { error: "Courriel invalide." as const };
@@ -71,9 +76,9 @@ export async function createInvitation(input: {
     return { error: "Rôle non autorisé pour une invitation." as const };
   }
 
-  const billing = await getBillingState(input.companyId);
+  const billing = await getBillingState(companyId);
   const plan = getPlan(billing.plan);
-  const seats = await countCompanySeats(input.companyId);
+  const seats = await countCompanySeats(companyId);
   if (plan.maxUsers < 9999 && seats >= plan.maxUsers) {
     return {
       error: `Limite du plan ${plan.name} atteinte (${plan.maxUsers} utilisateurs). Passez à un plan supérieur.`,
@@ -86,10 +91,18 @@ export async function createInvitation(input: {
   }
 
   const pending = await prisma.invitation.findFirst({
-    where: { companyId: input.companyId, email, acceptedAt: null, expiresAt: { gt: new Date() } },
+    where: { companyId, email, acceptedAt: null, expiresAt: { gt: new Date() } },
   });
   if (pending) {
     return { error: "Une invitation est déjà en attente pour ce courriel." as const };
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { name: true },
+  });
+  if (!company) {
+    return { error: "Entreprise introuvable — reconnectez-vous." as const };
   }
 
   const token = randomBytes(24).toString("hex");
@@ -97,7 +110,7 @@ export async function createInvitation(input: {
 
   const invitation = await prisma.invitation.create({
     data: {
-      companyId: input.companyId,
+      companyId,
       email,
       role,
       token,
@@ -105,15 +118,11 @@ export async function createInvitation(input: {
     },
   });
 
-  const company = await prisma.company.findUnique({
-    where: { id: input.companyId },
-    select: { name: true },
-  });
-  const companyName = company?.name ?? "Votre entreprise";
+  const companyName = company.name;
 
   await prisma.auditLog.create({
     data: {
-      companyId: input.companyId,
+      companyId,
       action: "user.invited",
       meta: { email, role, invitedBy: input.invitedByEmail },
     },
@@ -139,7 +148,7 @@ export async function createInvitation(input: {
   });
 
   const sent = await sendEmail({
-    companyId: input.companyId,
+    companyId,
     to: email,
     subject: `Invitation — ${companyName}`,
     html,
@@ -159,17 +168,21 @@ export async function createInvitation(input: {
     };
   }
 
-  const emailCtx = await getCompanyEmailContext(input.companyId);
-  await logEmail({
-    companyId: input.companyId,
-    direction: "outbound",
-    fromEmail: emailCtx.logicalFrom,
-    toEmail: email,
-    subject: `Invitation — ${companyName}`,
-    bodyText: text,
-    bodyHtml: html,
-    providerId: "providerId" in sent ? sent.providerId : undefined,
-  });
+  const emailCtx = await getCompanyEmailContext(companyId);
+  try {
+    await logEmail({
+      companyId,
+      direction: "outbound",
+      fromEmail: emailCtx.logicalFrom,
+      toEmail: email,
+      subject: `Invitation — ${companyName}`,
+      bodyText: text,
+      bodyHtml: html,
+      providerId: "providerId" in sent ? sent.providerId : undefined,
+    });
+  } catch (logError) {
+    console.warn("[invite] logEmail failed:", logError);
+  }
 
   return {
     invitation: {
