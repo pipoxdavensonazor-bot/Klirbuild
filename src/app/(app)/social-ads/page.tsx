@@ -7,11 +7,13 @@ import {
   Megaphone,
   RefreshCw,
   Share2,
+  ShieldAlert,
   Unplug,
 } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
+import { SocialAdLaunchWorkspace } from "@/components/social-ads/launch-workspace";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,8 +23,13 @@ import {
   socialAdCampaigns as initialCampaigns,
 } from "@/lib/reports/mock-data";
 import { PLATFORM_LABELS, type SocialAccount, type SocialAdCampaign } from "@/lib/reports/types";
+import {
+  canManageSocialAds,
+  socialAdsAccessLabel,
+} from "@/lib/social-ads/access";
+import { useSocialAdsStore } from "@/lib/social-ads/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { canApp } from "@/lib/workforce/types";
+import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -44,7 +51,15 @@ export default function SocialMarketingPage() {
 
 function SocialMarketingInner() {
   const role = useSessionStore((s) => s.role);
-  const canManage = canApp(role, "settings:manage") || canApp(role, "crm:write");
+  const employeeId = useSessionStore((s) => s.employeeId);
+  const employee = employees.find((e) => e.id === employeeId) ?? employees[0];
+  const canLaunch = canManageSocialAds(role, employee.jobTitle);
+  const accessLabel = socialAdsAccessLabel(role, employee.jobTitle);
+
+  const workspaces = useSocialAdsStore((s) => s.workspaces);
+  const activeWorkspaceId = useSocialAdsStore((s) => s.activeWorkspaceId);
+  const createWorkspace = useSocialAdsStore((s) => s.createWorkspace);
+  const setActiveWorkspace = useSocialAdsStore((s) => s.setActiveWorkspace);
 
   const [accounts, setAccounts] = useState<SocialAccount[]>(initialAccounts);
   const [campaigns, setCampaigns] = useState<SocialAdCampaign[]>(initialCampaigns);
@@ -64,7 +79,13 @@ function SocialMarketingInner() {
     [campaigns]
   );
 
+  const launchedWorkspaces = useMemo(
+    () => workspaces.filter((w) => w.status === "active"),
+    [workspaces]
+  );
+
   function connect(id: string) {
+    if (!canLaunch) return;
     setAccounts((prev) =>
       prev.map((a) =>
         a.id === id
@@ -81,6 +102,7 @@ function SocialMarketingInner() {
   }
 
   function disconnect(id: string) {
+    if (!canLaunch) return;
     setAccounts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "disconnected" } : a))
     );
@@ -88,24 +110,37 @@ function SocialMarketingInner() {
   }
 
   function reauth(id: string) {
+    if (!canLaunch) return;
     setAccounts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "connected" } : a))
     );
     setMessage("Autorisation renouvelée.");
   }
 
-  function launchAd() {
-    if (!canManage || !newAdName.trim() || !selectedAccount) return;
+  function openLaunchWorkspace() {
+    if (!canLaunch || !newAdName.trim() || !selectedAccount) return;
     const account = accounts.find((a) => a.id === selectedAccount);
     if (!account || account.status !== "connected") {
       setMessage("Connectez d'abord le compte publicitaire.");
       return;
     }
-    const ad: SocialAdCampaign = {
-      id: `ad_${Date.now()}`,
+    createWorkspace({
       name: newAdName.trim(),
       platform: account.platform === "meta" ? "facebook" : account.platform,
       accountId: account.id,
+    });
+    setMessage(
+      `Espace pub ouvert pour « ${newAdName.trim()} » — ajoutez textes, photos et commentaires.`
+    );
+  }
+
+  function handleLaunched(name: string) {
+    const account = accounts.find((a) => a.id === selectedAccount);
+    const ad: SocialAdCampaign = {
+      id: `ad_${Date.now()}`,
+      name,
+      platform: account?.platform === "meta" ? "facebook" : account?.platform ?? "facebook",
+      accountId: account?.id ?? selectedAccount,
       objective: "leads",
       status: "active",
       dailyBudget: 50,
@@ -117,7 +152,10 @@ function SocialMarketingInner() {
     };
     setCampaigns((prev) => [ad, ...prev]);
     setNewAdName("");
-    setMessage(`Publicité « ${ad.name} » lancée sur ${PLATFORM_LABELS[account.platform]}.`);
+    setActiveWorkspace(null);
+    setMessage(
+      `Publicité « ${name} » publiée sur ${account ? PLATFORM_LABELS[account.platform] : "la plateforme"}.`
+    );
   }
 
   return (
@@ -126,7 +164,7 @@ function SocialMarketingInner() {
         title="Marketing réseaux sociaux"
         description="Connectez les comptes de l'entreprise et gérez les publicités Meta, Google, Instagram, LinkedIn…"
         actions={
-          canManage ? (
+          canLaunch ? (
             <Button variant="outline" onClick={() => setMessage("Sync des insights… (API stub)")}>
               <RefreshCw className="h-4 w-4" />
               Synchroniser
@@ -143,7 +181,10 @@ function SocialMarketingInner() {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Comptes connectés" value={String(connected.length)} />
-        <StatCard label="Pubs actives" value={String(activeAds.length)} />
+        <StatCard
+          label="Pubs actives"
+          value={String(activeAds.length + launchedWorkspaces.length)}
+        />
         <StatCard label="Dépenses ads" value={formatCurrency(spend)} />
         <StatCard
           label="Leads ads"
@@ -184,30 +225,31 @@ function SocialMarketingInner() {
                   </div>
                   <StatusBadge status={account.status} />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {account.status === "disconnected" ? (
-                    <Button size="sm" disabled={!canManage} onClick={() => connect(account.id)}>
-                      <Link2 className="h-3.5 w-3.5" />
-                      Connecter
-                    </Button>
-                  ) : null}
-                  {account.status === "needs_reauth" ? (
-                    <Button size="sm" disabled={!canManage} onClick={() => reauth(account.id)}>
-                      Réautoriser
-                    </Button>
-                  ) : null}
-                  {account.status === "connected" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!canManage}
-                      onClick={() => disconnect(account.id)}
-                    >
-                      <Unplug className="h-3.5 w-3.5" />
-                      Déconnecter
-                    </Button>
-                  ) : null}
-                </div>
+                {canLaunch ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {account.status === "disconnected" ? (
+                      <Button size="sm" onClick={() => connect(account.id)}>
+                        <Link2 className="h-3.5 w-3.5" />
+                        Connecter
+                      </Button>
+                    ) : null}
+                    {account.status === "needs_reauth" ? (
+                      <Button size="sm" onClick={() => reauth(account.id)}>
+                        Réautoriser
+                      </Button>
+                    ) : null}
+                    {account.status === "connected" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => disconnect(account.id)}
+                      >
+                        <Unplug className="h-3.5 w-3.5" />
+                        Déconnecter
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))}
           </CardContent>
@@ -218,26 +260,69 @@ function SocialMarketingInner() {
             <CardTitle>Publicités</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {canManage ? (
-              <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row">
-                <select
-                  className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                  value={selectedAccount}
-                  onChange={(e) => setSelectedAccount(e.target.value)}
-                >
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id} disabled={a.status !== "connected"}>
-                      {PLATFORM_LABELS[a.platform]}
-                      {a.status !== "connected" ? " (non connecté)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  placeholder="Nom de la publicité…"
-                  value={newAdName}
-                  onChange={(e) => setNewAdName(e.target.value)}
-                />
-                <Button onClick={launchAd}>Lancer la pub</Button>
+            {canLaunch ? (
+              <>
+                <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row">
+                  <select
+                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                    value={selectedAccount}
+                    onChange={(e) => setSelectedAccount(e.target.value)}
+                  >
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id} disabled={a.status !== "connected"}>
+                        {PLATFORM_LABELS[a.platform]}
+                        {a.status !== "connected" ? " (non connecté)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    placeholder="Nom de la publicité…"
+                    value={newAdName}
+                    onChange={(e) => setNewAdName(e.target.value)}
+                  />
+                  <Button onClick={openLaunchWorkspace}>Lancer la pub</Button>
+                </div>
+                {accessLabel ? (
+                  <p className="text-xs text-muted-foreground">
+                    Accès {accessLabel} — textes, photos, tableau et commentaires
+                    synchronisés.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Accès restreint</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    Seuls l&apos;administrateur central et le chef marketing peuvent
+                    lancer une pub et accéder à l&apos;espace de création.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {canLaunch && activeWorkspaceId ? (
+              <SocialAdLaunchWorkspace
+                onLaunched={handleLaunched}
+                onClose={() => setActiveWorkspace(null)}
+              />
+            ) : null}
+
+            {canLaunch && workspaces.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {workspaces.map((w) => (
+                  <Button
+                    key={w.id}
+                    type="button"
+                    size="sm"
+                    variant={w.id === activeWorkspaceId ? "default" : "outline"}
+                    onClick={() => setActiveWorkspace(w.id)}
+                  >
+                    {w.name}
+                    <span className="ml-1 text-[10px] opacity-70">({w.status})</span>
+                  </Button>
+                ))}
               </div>
             ) : null}
 
