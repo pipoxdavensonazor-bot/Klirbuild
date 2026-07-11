@@ -11,6 +11,13 @@ const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/t
 const DEMO_AUTH_BYPASS = process.env.DEMO_AUTH_BYPASS === "true";
 
 export function middleware(request: NextRequest) {
+  const host = request.headers.get("host")?.split(":")[0];
+  if (host === "klirline.app") {
+    const url = request.nextUrl.clone();
+    url.host = "www.klirline.app";
+    return NextResponse.redirect(url, 308);
+  }
+
   const { pathname } = request.nextUrl;
 
   if (

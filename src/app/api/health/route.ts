@@ -9,6 +9,7 @@ export async function GET() {
   const checks: Record<string, { ok: boolean; detail?: string }> = {
     app: { ok: true },
     database: { ok: false, detail: "DATABASE_URL manquant" },
+    schema: { ok: false, detail: "DATABASE_URL manquant" },
     stripe: { ok: isStripeConfigured(), detail: isStripeConfigured() ? undefined : "STRIPE_SECRET_KEY manquant" },
     auth: {
       ok: process.env.DEMO_AUTH_BYPASS !== "true",
@@ -37,6 +38,18 @@ export async function GET() {
     try {
       await prisma.$queryRaw`SELECT 1`;
       checks.database = { ok: true };
+      try {
+        await prisma.company.count();
+        checks.schema = { ok: true };
+      } catch (e) {
+        checks.schema = {
+          ok: false,
+          detail:
+            e instanceof Error && e.message.includes("does not exist")
+              ? "Tables manquantes — exécutez npm run db:push"
+              : "Schéma Prisma non synchronisé",
+        };
+      }
     } catch (e) {
       checks.database = {
         ok: false,

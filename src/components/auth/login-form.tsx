@@ -8,6 +8,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { parseApiResponse } from "@/lib/api-client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -28,15 +29,17 @@ export function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) {
-        setError(data.error || "Connexion échouée");
+        setError(
+          typeof data.error === "string" ? data.error : "Connexion échouée"
+        );
         return;
       }
       router.push(next);
       router.refresh();
-    } catch {
-      setError("Erreur réseau");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
     } finally {
       setLoading(false);
     }

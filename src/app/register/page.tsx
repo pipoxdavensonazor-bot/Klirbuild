@@ -8,6 +8,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { parseApiResponse } from "@/lib/api-client";
 
 function RegisterForm() {
   const router = useRouter();
@@ -58,15 +59,17 @@ function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) {
-        setError(data.error || "Inscription échouée");
+        setError(
+          typeof data.error === "string" ? data.error : "Inscription échouée"
+        );
         return;
       }
       router.push("/dashboard");
       router.refresh();
-    } catch {
-      setError("Erreur réseau");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import {
   COOKIE,
   createDemoSession,
   parseSessionCookie,
+  sessionCookieOptions,
   type DemoSession,
 } from "@/lib/auth/demo-session";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -103,13 +104,7 @@ export function sessionResponse(
     role: session.role,
     companyId: session.companyId,
   });
-  res.cookies.set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: maxAge ?? age,
-  });
+  res.cookies.set(COOKIE, token, sessionCookieOptions(maxAge ?? age));
   return res;
 }
 
