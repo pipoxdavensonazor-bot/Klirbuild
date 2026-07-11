@@ -131,7 +131,7 @@ function RegisterForm() {
                   ? "Création…"
                   : inviteToken
                     ? "Rejoindre l'équipe"
-                    : "Démarrer l'essai"}
+                    : "Inscription"}
               </Button>
             </form>
             <p className="mt-3 text-center text-xs text-muted-foreground">
