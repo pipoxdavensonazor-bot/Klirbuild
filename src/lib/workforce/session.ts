@@ -12,11 +12,15 @@ import type {
 import { getMarket } from "@/lib/markets/regions";
 import { employees } from "@/lib/workforce/mock-data";
 
+type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "incomplete";
+
 type SessionState = {
   role: Role;
   employeeId: string;
   plan: SubscriptionPlanId;
   billingCycle: "monthly" | "yearly";
+  subscriptionStatus: SubscriptionStatus;
+  stripeCustomerId: string | null;
   marketRegion: MarketRegionId;
   currency: CurrencyCode;
   locale: LocaleCode;
@@ -25,6 +29,14 @@ type SessionState = {
   setEmployeeId: (id: string) => void;
   setPlan: (plan: SubscriptionPlanId) => void;
   setBillingCycle: (cycle: "monthly" | "yearly") => void;
+  setSubscriptionStatus: (status: SubscriptionStatus) => void;
+  setStripeCustomerId: (id: string | null) => void;
+  syncBilling: (data: {
+    plan: SubscriptionPlanId;
+    billingCycle?: "monthly" | "yearly";
+    subscriptionStatus?: SubscriptionStatus;
+    stripeCustomerId?: string | null;
+  }) => void;
   setMarketRegion: (id: MarketRegionId) => void;
   setCurrency: (c: CurrencyCode) => void;
   setLocale: (l: LocaleCode) => void;
@@ -38,6 +50,8 @@ export const useSessionStore = create<SessionState>()(
       employeeId: employees[0]?.id ?? "emp_1",
       plan: "growth",
       billingCycle: "monthly",
+      subscriptionStatus: "trialing",
+      stripeCustomerId: null,
       marketRegion: "CA-QC",
       currency: "CAD",
       locale: "fr",
@@ -58,6 +72,16 @@ export const useSessionStore = create<SessionState>()(
       },
       setPlan: (plan) => set({ plan }),
       setBillingCycle: (billingCycle) => set({ billingCycle }),
+      setSubscriptionStatus: (subscriptionStatus) => set({ subscriptionStatus }),
+      setStripeCustomerId: (stripeCustomerId) => set({ stripeCustomerId }),
+      syncBilling: (data) =>
+        set((s) => ({
+          plan: data.plan ?? s.plan,
+          billingCycle: data.billingCycle ?? s.billingCycle,
+          subscriptionStatus: data.subscriptionStatus ?? s.subscriptionStatus,
+          stripeCustomerId:
+            data.stripeCustomerId !== undefined ? data.stripeCustomerId : s.stripeCustomerId,
+        })),
       setMarketRegion: (marketRegion) => {
         const m = getMarket(marketRegion);
         set({

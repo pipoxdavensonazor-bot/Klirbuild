@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "stripe:setup": "tsx scripts/stripe-setup.ts",
+    "stripe:verify": "tsx scripts/stripe-verify.ts",
+    "production:verify": "tsx scripts/production-verify.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -31,6 +34,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.8",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

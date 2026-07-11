@@ -20,7 +20,7 @@ export const demoCompany: Company = {
   name: "Klirline Demo Co",
   email: "ops@klirline.demo",
   phone: "+1 (514) 555-0142",
-  website: "https://klirline.com",
+  website: "https://www.klirline.ca/",
   plan: "growth",
   subscriptionStatus: "trialing",
   enabledModules: ["construction-os", "cleaning-os"],

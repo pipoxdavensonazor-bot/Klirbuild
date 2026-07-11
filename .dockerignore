@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build
+.next
+out
+build
+dist
+
+# Env & secrets
+.env
+.env*.local
+
+# Git & IDE
+.git
+.gitignore
+.cursor
+.vscode
+.netlify
+
+# Local data
+.data
+
+# Docs (not needed in image)
+*.md
+!README.md
+
+# Misc
+_ref_construction

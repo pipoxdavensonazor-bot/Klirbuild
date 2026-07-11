@@ -138,7 +138,7 @@ export function AppFooter({ className }: { className?: string }) {
           <span className="font-semibold text-white">KlirBuild</span>
           {" développé par "}
           <Link
-            href="https://klirline.com"
+            href="https://www.klirline.ca/"
             className="font-medium text-accent-500 underline-offset-2 hover:underline"
             target="_blank"
             rel="noreferrer"
@@ -154,6 +154,23 @@ export function AppFooter({ className }: { className?: string }) {
           <Mail className="h-4 w-4" />
           Contact@klirline.ca
         </a>
+
+        <div className="flex flex-wrap justify-center gap-4 text-xs text-ink-muted">
+          <Link href="/privacy" className="hover:text-accent-500 hover:underline">
+            Confidentialité
+          </Link>
+          <Link href="/terms" className="hover:text-accent-500 hover:underline">
+            Conditions
+          </Link>
+          <Link
+            href="https://www.klirline.ca/"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-accent-500 hover:underline"
+          >
+            klirline.ca
+          </Link>
+        </div>
 
         <div>
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">

@@ -26,6 +26,9 @@ yarn-error.log*
 prisma/*.db
 prisma/*.db-journal
 
+# Local billing fallback (no DB)
+.data/
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts

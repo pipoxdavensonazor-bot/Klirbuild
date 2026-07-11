@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { Check, CreditCard, ExternalLink, Loader2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,13 +30,33 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const planId = useSessionStore((s) => s.plan);
   const billingCycle = useSessionStore((s) => s.billingCycle);
+  const subscriptionStatus = useSessionStore((s) => s.subscriptionStatus);
+  const stripeCustomerId = useSessionStore((s) => s.stripeCustomerId);
   const setPlan = useSessionStore((s) => s.setPlan);
   const setBillingCycle = useSessionStore((s) => s.setBillingCycle);
+  const syncBilling = useSessionStore((s) => s.syncBilling);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
   const current = getPlan(planId);
+
+  useEffect(() => {
+    fetch("/api/billing/subscription")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.plan) {
+          syncBilling({
+            plan: d.plan,
+            billingCycle: d.billingCycle,
+            subscriptionStatus: d.subscriptionStatus,
+            stripeCustomerId: d.stripeCustomerId,
+          });
+        }
+      })
+      .catch(() => undefined);
+  }, [syncBilling]);
 
   useEffect(() => {
     fetch("/api/stripe/status")
@@ -57,14 +77,56 @@ export default function BillingPage() {
 
   useEffect(() => {
     const checkout = searchParams.get("checkout");
-    if (checkout === "success") {
-      setMessage(
-        "Paiement Stripe réussi (ou essai démarré). Le webhook confirmera l'abonnement."
-      );
+    const sessionId = searchParams.get("session_id");
+
+    if (checkout === "success" && sessionId) {
+      fetch(`/api/stripe/checkout-session?session_id=${encodeURIComponent(sessionId)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.ok && d.plan) {
+            syncBilling({
+              plan: d.plan,
+              billingCycle: d.billingCycle,
+              subscriptionStatus: d.subscriptionStatus,
+              stripeCustomerId: d.stripeCustomerId,
+            });
+            setMessage(
+              `Abonnement ${getPlan(d.plan).name} activé — essai 14 jours ou paiement confirmé.`
+            );
+          } else {
+            setError(d.error || "Impossible de confirmer le paiement");
+          }
+        })
+        .catch(() => setError("Erreur lors de la confirmation Stripe"));
+    } else if (checkout === "success") {
+      setMessage("Paiement réussi. Actualisez si le plan ne se met pas à jour.");
     } else if (checkout === "cancel") {
       setError("Checkout annulé — aucun paiement effectué.");
     }
-  }, [searchParams]);
+  }, [searchParams, syncBilling]);
+
+  async function openPortal() {
+    setError("");
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ customerId: stripeCustomerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Portail indisponible");
+        return;
+      }
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   async function selectPlan(id: SubscriptionPlanId) {
     setError("");
@@ -81,10 +143,12 @@ export default function BillingPage() {
         const res = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             plan: id,
             cycle: billingCycle,
             email: "billing@klirline.demo",
+            customerId: stripeCustomerId,
           }),
         });
         const data = await res.json();
@@ -183,10 +247,29 @@ export default function BillingPage() {
           ) : null}
           {!stripeStatus?.configured ? (
             <ol className="list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
-              <li>Ouvrez Stripe Dashboard en mode <strong>Test</strong></li>
-              <li>Developers → API keys → copiez <code>sk_test_…</code></li>
-              <li>Collez dans <code>.env.local</code> → <code>STRIPE_SECRET_KEY=</code></li>
-              <li>Créez 3 produits + 6 prix → collez les <code>price_…</code></li>
+              <li>
+                Guide complet :{" "}
+                <code className="rounded bg-muted px-1">STRIPE_SETUP.md</code> à la racine
+              </li>
+              <li>
+                Clés test :{" "}
+                <a
+                  href="https://dashboard.stripe.com/test/apikeys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-brand-600 hover:underline"
+                >
+                  dashboard.stripe.com/test/apikeys
+                </a>
+              </li>
+              <li>
+                Collez <code>sk_test_</code> + <code>pk_test_</code> dans{" "}
+                <code>.env.local</code>
+              </li>
+              <li>
+                Terminal : <code>npm run stripe:setup</code> puis{" "}
+                <code>npm run stripe:verify</code>
+              </li>
               <li>Redémarrez <code>npm run dev</code></li>
             </ol>
           ) : null}
@@ -210,16 +293,37 @@ export default function BillingPage() {
             <p className="text-sm text-muted-foreground">Plan actuel</p>
             <p className="text-xl font-semibold">{current.name}</p>
             <p className="text-sm text-muted-foreground">{current.tagline}</p>
+            <p className="mt-1 text-xs capitalize text-muted-foreground">
+              Statut : {subscriptionStatus.replace("_", " ")}
+              {stripeCustomerId ? " · Client Stripe lié" : ""}
+            </p>
           </div>
-          <div className="text-right text-sm">
-            <p>
-              {current.maxUsers === 9999 ? "Illimité" : current.maxUsers}{" "}
-              utilisateurs
-            </p>
-            <p>
-              {current.maxJobs === 9999 ? "Illimité" : current.maxJobs} chantiers
-            </p>
-            <p>{current.maxStorageGb} Go stockage</p>
+          <div className="flex flex-col items-end gap-2 text-right text-sm">
+            <div>
+              <p>
+                {current.maxUsers === 9999 ? "Illimité" : current.maxUsers}{" "}
+                utilisateurs
+              </p>
+              <p>
+                {current.maxJobs === 9999 ? "Illimité" : current.maxJobs} chantiers
+              </p>
+              <p>{current.maxStorageGb} Go stockage</p>
+            </div>
+            {stripeCustomerId && stripeStatus?.connected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={portalLoading}
+                onClick={openPortal}
+              >
+                {portalLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" />
+                )}
+                Gérer l&apos;abonnement
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>

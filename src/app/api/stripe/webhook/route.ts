@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
+import {
+  getBillingState,
+  syncFromCheckoutSession,
+  syncFromStripeSubscription,
+  updateBillingStatus,
+} from "@/lib/billing/subscription-service";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import type Stripe from "stripe";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
@@ -17,12 +25,11 @@ export async function POST(request: Request) {
   try {
     if (webhookSecret && signature) {
       event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    } else if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Webhook secret required" }, { status: 400 });
     } else {
-      // Local/dev without webhook secret — parse only (never use in production)
       event = JSON.parse(rawBody) as Stripe.Event;
-      console.warn(
-        "[stripe/webhook] STRIPE_WEBHOOK_SECRET missing — signature not verified"
-      );
+      console.warn("[stripe/webhook] Dev mode — signature not verified");
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid webhook";
@@ -33,31 +40,35 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.info("[stripe] checkout.session.completed", {
-        customer: session.customer,
-        subscription: session.subscription,
-        plan: session.metadata?.plan,
-      });
-      // TODO: persist company.plan + stripeCustomerId in Prisma when DB is live
+      await syncFromCheckoutSession(session);
       break;
     }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
-      console.info(`[stripe] ${event.type}`, {
-        id: sub.id,
-        status: sub.status,
-        customer: sub.customer,
-      });
+      await syncFromStripeSubscription(sub);
       break;
     }
-    case "invoice.paid":
+    case "invoice.paid": {
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId =
+        typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+      if (!customerId) break;
+      const current = await getBillingState();
+      if (current.stripeCustomerId === customerId) {
+        await updateBillingStatus(current.companyId, "active");
+      }
+      break;
+    }
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      console.info(`[stripe] ${event.type}`, {
-        id: invoice.id,
-        customer: invoice.customer,
-      });
+      const customerId =
+        typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+      if (!customerId) break;
+      const current = await getBillingState();
+      if (current.stripeCustomerId === customerId) {
+        await updateBillingStatus(current.companyId, "past_due");
+      }
       break;
     }
     default:

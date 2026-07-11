@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { parseSessionCookie } from "@/lib/auth/demo-session";
 import { can, type Permission, type Role } from "@/types";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/terms"];
 
 /**
  * Demo middleware: allows all app routes.
@@ -35,7 +36,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  const parsed = parseSessionCookie(session.value);
+  const response = NextResponse.next();
+  if (parsed?.role) {
+    response.headers.set("x-klirline-role", parsed.role);
+  }
+  return response;
 }
 
 export const config = {

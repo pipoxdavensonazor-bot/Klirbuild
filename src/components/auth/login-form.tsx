@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
@@ -9,40 +9,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-export default function RegisterPage() {
+export function LoginForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [company, setCompany] = useState("");
-  const [password, setPassword] = useState("");
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/dashboard";
+  const [email, setEmail] = useState("alex@klirline.demo");
+  const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !email || !company || !password) {
-      setError("Tous les champs sont requis");
-      return;
-    }
-    setLoading(true);
     setError("");
+    setLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          companyName: company,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Inscription échouée");
+        setError(data.error || "Connexion échouée");
         return;
       }
-      router.push("/billing");
+      router.push(next);
       router.refresh();
     } catch {
       setError("Erreur réseau");
@@ -52,48 +43,50 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(26,54,93,0.08),_transparent_42%),linear-gradient(180deg,#f5f6f8,#e8ecf1)] dark:bg-slate-950">
+    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(26,54,93,0.1),_transparent_42%),linear-gradient(180deg,#f5f6f8,#e8ecf1)] dark:from-slate-950">
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <KlirBuildLogo className="mb-3 h-[80px] w-[220px]" priority />
-            <CardTitle>Créer votre entreprise</CardTitle>
+            <CardTitle>Connexion à KlirBuild</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Crée votre entreprise + compte admin. Nécessite une base Postgres en production.
+              Démo : alex@klirline.demo / password — ou tout email @klirline.demo
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-3">
-              <Input placeholder="Nom complet" value={name} onChange={(e) => setName(e.target.value)} />
               <Input
-                placeholder="Email professionnel"
                 type="email"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
               <Input
-                placeholder="Nom de l'entreprise"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-              />
-              <Input
-                placeholder="Mot de passe (8+ caractères)"
                 type="password"
+                placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
+                required
               />
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? (
+                <p className="text-sm text-red-600">{error}</p>
+              ) : null}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Création…" : "Démarrer l'essai"}
+                {loading ? "Connexion…" : "Continuer"}
               </Button>
             </form>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Déjà un compte ?{" "}
-              <Link href="/login" className="text-brand-600 hover:underline">
-                Connexion
+            <Button variant="outline" className="mt-3 w-full" disabled>
+              Google OAuth (à venir)
+            </Button>
+            <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+              <Link href="/forgot-password" className="hover:underline">
+                Mot de passe oublié
               </Link>
-            </p>
+              <Link href="/register" className="hover:underline">
+                Créer un compte
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
