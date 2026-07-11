@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu, Moon, Search, Sun, Command } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Search, Sun, Command } from "lucide-react";
 import { useTheme } from "next-themes";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,22 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
       c.label.toLowerCase().includes(query.toLowerCase()) &&
       routeAllowedForPlan(planId, c.href)
   );
+
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function signOut() {
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      useSessionStore.persist.clearStorage();
+      router.push("/login");
+      router.refresh();
+    } catch {
+      router.push("/login");
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -183,14 +199,27 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           <Bell className="h-4 w-4" />
         </Button>
 
-        <div className="flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
-            {employee?.avatarInitials ?? "AR"}
+        <div className="flex items-center gap-1 rounded-full border border-border py-1 pl-1 pr-1">
+          <div className="flex items-center gap-2 rounded-full py-0 pl-0 pr-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
+              {employee?.avatarInitials ?? "AR"}
+            </div>
+            <div className="hidden leading-tight sm:block">
+              <p className="text-xs font-medium">{employee?.name ?? "User"}</p>
+              <p className="text-[10px] text-muted-foreground">{role}</p>
+            </div>
           </div>
-          <div className="hidden leading-tight sm:block">
-            <p className="text-xs font-medium">{employee?.name ?? "User"}</p>
-            <p className="text-[10px] text-muted-foreground">{role}</p>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={signOut}
+            disabled={signingOut}
+            aria-label="Déconnexion"
+            title="Déconnexion"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
