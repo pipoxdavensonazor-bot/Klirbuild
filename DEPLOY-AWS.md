@@ -124,4 +124,39 @@ npm run db:seed
 - `.dockerignore`
 - `next.config.ts` — `output: "standalone"` pour Docker
 
+---
+
+## Dépannage — site Amplify en 404 (Platform: WEB)
+
+**Symptôme** : build vert, mais `https://staging.XXXX.amplifyapp.com` affiche 404. Dans **App settings → General**, **Platform** = `WEB` et **Framework** = `-`.
+
+**Cause** : l'app a été créée en hébergement **statique** (zip / mauvaise détection), pas en **Next.js SSR** (`WEB_COMPUTE`).
+
+L'écran **Edit general settings** ne permet **que** de renommer l'app — la plateforme ne se change pas depuis la console.
+
+### Solution A — Nouvelle app depuis GitHub (recommandé, 100 % GUI)
+
+1. [AWS Amplify Console](https://console.aws.amazon.com/amplify/home) → **Create new app** → **Host web app**
+2. **GitHub** → autoriser AWS → repo `pipoxdavensonazor-bot/Klirbuild` → branche `master`
+3. Vérifiez que **Framework** = **Next.js - SSR** (pas « Web » seul)
+4. Build : `amplify.yml` à la racine (déjà dans le repo)
+5. Variables d'env (voir tableau ci-dessus) → **Save and deploy**
+6. Test : `/api/health` et `/login`
+7. (Optionnel) Supprimez l'ancienne app `app7361` une fois la nouvelle OK
+
+### Solution B — Corriger l'app existante (AWS CLI)
+
+Prérequis : [AWS CLI](https://aws.amazon.com/cli/) + identifiants IAM (`aws configure` ou `aws login`).
+
+```powershell
+aws amplify update-app --app-id d2inlatygxuxmp --platform WEB_COMPUTE --region us-east-1
+aws amplify update-branch --app-id d2inlatygxuxmp --branch-name staging --framework "Next.js - SSR" --region us-east-1
+```
+
+Puis dans Amplify → branche **staging** → **Redeploy this version**.
+
+Vérification : **General settings** doit afficher **Platform** = `WEB_COMPUTE` et **Framework** = `Next.js - SSR`.
+
+---
+
 Contact : Contact@klirline.ca

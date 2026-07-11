@@ -5,10 +5,10 @@ import { can, type Permission, type Role } from "@/types";
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/terms"];
 
 /**
- * Demo middleware: allows all app routes.
- * When Better Auth / Clerk is wired, replace DEMO_AUTH_BYPASS with real session checks.
+ * La connexion est obligatoire par défaut (SIGN IN / SIGN UP requis).
+ * Mettre DEMO_AUTH_BYPASS="true" uniquement pour une démo sans login.
  */
-const DEMO_AUTH_BYPASS = process.env.DEMO_AUTH_BYPASS !== "false";
+const DEMO_AUTH_BYPASS = process.env.DEMO_AUTH_BYPASS === "true";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

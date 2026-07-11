@@ -77,6 +77,16 @@ function T4ReportsInner() {
     setMessage(`Période fiscale ${year} chargée.`);
   }
 
+  function printSlip() {
+    document.body.classList.add("printing-target");
+    window.addEventListener(
+      "afterprint",
+      () => document.body.classList.remove("printing-target"),
+      { once: true }
+    );
+    window.print();
+  }
+
   function exportCsv() {
     if (!visible.length) return;
     const header = [
@@ -200,11 +210,7 @@ function T4ReportsInner() {
                 : "Feuillet T4"}
             </CardTitle>
             {selected ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => window.print()}
-              >
+              <Button size="sm" variant="outline" onClick={printSlip}>
                 <Printer className="h-3.5 w-3.5" />
                 Imprimer
               </Button>
@@ -212,7 +218,12 @@ function T4ReportsInner() {
           </CardHeader>
           <CardContent>
             {selected ? (
-              <div className="space-y-4" id="t4-print">
+              <div className="space-y-4" id="t4-print" data-print-target>
+                <div className="hidden print:block">
+                  <h1 className="text-lg font-semibold">
+                    Feuillet T4 — {selected.employeeName} ({selected.taxYear})
+                  </h1>
+                </div>
                 <div className="grid gap-3 rounded-lg border border-border bg-slate-50/70 p-4 text-sm dark:bg-slate-900/40 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-muted-foreground">Employeur</p>

@@ -11,9 +11,9 @@ export async function GET() {
     database: { ok: false, detail: "DATABASE_URL manquant" },
     stripe: { ok: isStripeConfigured(), detail: isStripeConfigured() ? undefined : "STRIPE_SECRET_KEY manquant" },
     auth: {
-      ok: process.env.DEMO_AUTH_BYPASS === "false" || hasDatabase(),
+      ok: process.env.DEMO_AUTH_BYPASS !== "true",
       detail:
-        process.env.DEMO_AUTH_BYPASS !== "false" && !hasDatabase()
+        process.env.DEMO_AUTH_BYPASS === "true"
           ? "DEMO_AUTH_BYPASS=true — désactiver en production"
           : undefined,
     },

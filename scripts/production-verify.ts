@@ -76,9 +76,9 @@ const checks: Check[] = [
     hint: "Chaîne aléatoire longue (sessions)",
   },
   {
-    name: "DEMO_AUTH_BYPASS=false",
-    ok: process.env.DEMO_AUTH_BYPASS === "false",
-    hint: "Obligatoire en production",
+    name: "DEMO_AUTH_BYPASS désactivé",
+    ok: process.env.DEMO_AUTH_BYPASS !== "true",
+    hint: "Ne jamais mettre à true en production",
   },
 ];
 

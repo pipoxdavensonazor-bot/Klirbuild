@@ -45,6 +45,7 @@ export const ROUTE_PLAN_FEATURE: Record<string, PlanFeatureKey | undefined> = {
   "/dashboard": "dashboard",
   "/crm": "crm",
   "/clients": "crm",
+  "/inbox": "crm",
   "/quotes": "quotes_invoices",
   "/invoices": "quotes_invoices",
   "/payments": "quotes_invoices",

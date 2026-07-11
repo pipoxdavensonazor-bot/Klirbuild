@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
@@ -9,40 +9,61 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite")?.trim() ?? "";
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!inviteToken) return;
+    fetch(`/api/users/invite/preview?token=${encodeURIComponent(inviteToken)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.email) {
+          setEmail(data.email);
+          setCompanyName(data.companyName ?? "");
+        }
+      })
+      .catch(() => {});
+  }, [inviteToken]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !email || !company || !password) {
+    if (!name || !password) {
+      setError("Tous les champs sont requis");
+      return;
+    }
+    if (!inviteToken && (!email || !company)) {
       setError("Tous les champs sont requis");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/register", {
+      const url = inviteToken ? "/api/auth/accept-invite" : "/api/auth/register";
+      const body = inviteToken
+        ? { token: inviteToken, name, password }
+        : { name, email, companyName: company, password };
+
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          companyName: company,
-          password,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Inscription échouée");
         return;
       }
-      router.push("/billing");
+      router.push("/dashboard");
       router.refresh();
     } catch {
       setError("Erreur réseau");
@@ -57,35 +78,57 @@ export default function RegisterPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <KlirBuildLogo className="mb-3 h-[80px] w-[220px]" priority />
-            <CardTitle>Créer votre entreprise</CardTitle>
+            <CardTitle>
+              {inviteToken ? "Accepter l'invitation" : "Créer votre entreprise"}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Crée votre entreprise + compte admin. Nécessite une base Postgres en production.
+              {inviteToken
+                ? companyName
+                  ? `Rejoignez ${companyName} sur KlirBuild.`
+                  : "Complétez votre profil pour rejoindre l'équipe."
+                : "Crée votre entreprise + compte admin. Nécessite une base Postgres en production."}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-3">
-              <Input placeholder="Nom complet" value={name} onChange={(e) => setName(e.target.value)} />
               <Input
-                placeholder="Email professionnel"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Nom complet"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
               />
-              <Input
-                placeholder="Nom de l'entreprise"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-              />
+              {!inviteToken ? (
+                <>
+                  <Input
+                    placeholder="Email professionnel"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Nom de l'entreprise"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                  />
+                </>
+              ) : (
+                <Input placeholder="Email" type="email" value={email} disabled />
+              )}
               <Input
                 placeholder="Mot de passe (8+ caractères)"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={8}
+                required
               />
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Création…" : "Démarrer l'essai"}
+                {loading
+                  ? "Création…"
+                  : inviteToken
+                    ? "Rejoindre l'équipe"
+                    : "Démarrer l'essai"}
               </Button>
             </form>
             <p className="mt-3 text-center text-xs text-muted-foreground">
@@ -99,5 +142,13 @@ export default function RegisterPage() {
       </div>
       <AppFooter />
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm">Chargement…</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

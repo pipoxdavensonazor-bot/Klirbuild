@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
     "stripe:verify": "tsx scripts/stripe-verify.ts",
-    "production:verify": "tsx scripts/production-verify.ts"
+    "production:verify": "tsx scripts/production-verify.ts",
+    "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

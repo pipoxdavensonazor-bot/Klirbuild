@@ -52,3 +52,20 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Impression ciblée : n'imprime que la zone marquée data-print-target (ex. feuillet T4) */
+@media print {
+  body.printing-target * {
+    visibility: hidden;
+  }
+  body.printing-target [data-print-target],
+  body.printing-target [data-print-target] * {
+    visibility: visible;
+  }
+  body.printing-target [data-print-target] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 1.5rem;
+  }
+}

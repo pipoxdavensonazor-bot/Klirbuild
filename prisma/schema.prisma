@@ -58,6 +58,7 @@ model Company {
   chatThreads        ChatThread[]
   auditLogs          AuditLog[]
   apiKeys            ApiKey[]
+  emailMessages      EmailMessage[]
 }
 
 model User {
@@ -134,8 +135,32 @@ model Client {
   quotes        Quote[]
   invoices      Invoice[]
   projects      Project[]
+  emailMessages EmailMessage[]
 
   @@index([companyId, status, createdAt])
+}
+
+model EmailMessage {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  direction  String   @default("outbound")
+  fromEmail  String
+  toEmail    String
+  subject    String
+  bodyText   String?
+  bodyHtml   String?
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id])
+  quoteId    String?
+  invoiceId  String?
+  providerId String?
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, clientId])
+  @@index([companyId, direction])
 }
 
 model Lead {

@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
-import { demoCompany, demoUser } from "@/lib/mock-data";
+import { demoCompany } from "@/lib/mock-data";
 import { getPlan } from "@/lib/billing/plans";
 import { moduleRegistry } from "@/modules/registry";
 import { useSessionStore } from "@/lib/workforce/session";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
 
 const tabs = [
   "Company",
@@ -80,21 +81,7 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            {tab === "Users" ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-                  <div>
-                    <p className="font-medium">{demoUser.name}</p>
-                    <p className="text-sm text-muted-foreground">{demoUser.email}</p>
-                  </div>
-                  <StatusBadge status={demoUser.role} />
-                </div>
-                <div className="flex gap-2">
-                  <Input placeholder="Invite email" className="max-w-sm" />
-                  <Button>Send invite</Button>
-                </div>
-              </div>
-            ) : null}
+            {tab === "Users" ? <SettingsUsersPanel /> : null}
 
             {tab === "Roles" ? (
               <div className="space-y-2 text-sm">
@@ -161,7 +148,19 @@ export default function SettingsPage() {
             ) : null}
 
             {tab === "Integrations" ? (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-border p-4 sm:col-span-2">
+                  <p className="font-medium">Courriel (Resend)</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Envoi des soumissions et factures aux clients. Variables Vercel :
+                    RESEND_API_KEY, EMAIL_FROM, COMPANY_INBOX_EMAIL
+                  </p>
+                  <p className="mt-2 text-xs">
+                    <a href="/inbox" className="text-brand-600 hover:underline">
+                      Ouvrir la boîte courriel →
+                    </a>
+                  </p>
+                </div>
                 {["Stripe", "Google OAuth", "OpenAI"].map((name) => (
                   <div key={name} className="rounded-lg border border-border p-4">
                     <p className="font-medium">{name}</p>

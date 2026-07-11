@@ -24,7 +24,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) → redirects to `/dashboard`.
 
-Demo auth bypass is **on** by default (`DEMO_AUTH_BYPASS=true`) so you can explore without a database.
+Sign in is **required** by default. Without a database, use the demo account `alex@klirline.demo` / `password`. Set `DEMO_AUTH_BYPASS=true` only for a local demo without login.
 
 ## Connect the database
 
