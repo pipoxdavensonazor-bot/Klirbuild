@@ -12,6 +12,7 @@ export function InboxPageClient() {
   const [emails, setEmails] = useState<EmailRecord[]>([]);
   const [selected, setSelected] = useState<EmailRecord | null>(null);
   const [inboxAddress, setInboxAddress] = useState("");
+  const [senderName, setSenderName] = useState("");
   const [hasResend, setHasResend] = useState(false);
 
   const load = useCallback(async () => {
@@ -19,6 +20,7 @@ export function InboxPageClient() {
     const data = await res.json();
     setEmails(data.emails ?? []);
     setInboxAddress(data.inboxAddress ?? "");
+    setSenderName(data.senderName ?? data.companyName ?? "");
     setHasResend(Boolean(data.hasResend));
     setSelected((prev) => prev ?? data.emails?.[0] ?? null);
   }, []);
@@ -45,9 +47,8 @@ export function InboxPageClient() {
 
       {!hasResend ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          Ajoutez <code className="font-mono text-xs">RESEND_API_KEY</code> et{" "}
-          <code className="font-mono text-xs">EMAIL_FROM</code> sur Vercel pour
-          l&apos;envoi automatique. En mode démo, un lien courriel s&apos;ouvre à la place.
+          L&apos;envoi automatique n&apos;est pas encore activé sur la plateforme.
+          Contactez l&apos;administrateur système pour configurer Resend.
         </div>
       ) : null}
 
@@ -56,7 +57,8 @@ export function InboxPageClient() {
           <strong>Boîte entreprise :</strong> {inboxAddress || "—"}
         </p>
         <p className="mt-1 text-muted-foreground">
-          {inbound} reçus · {outbound} envoyés
+          Courriels envoyés au nom de <strong>{senderName || "votre entreprise"}</strong>
+          {" · "}{inbound} reçus · {outbound} envoyés
         </p>
       </div>
 

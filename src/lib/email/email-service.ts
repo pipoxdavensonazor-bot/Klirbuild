@@ -3,6 +3,11 @@ import path from "path";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 
+import {
+  getCompanyEmailContext,
+  type CompanyEmailContext,
+} from "@/lib/email/company-email";
+
 export type EmailDirection = "inbound" | "outbound";
 
 export type EmailRecord = {
@@ -83,7 +88,8 @@ function mapRow(row: {
   };
 }
 
-export function emailFromAddress() {
+/** @deprecated Utilisez getCompanyEmailContext(companyId).logicalFrom */
+export function platformEmailFallback() {
   return (
     process.env.EMAIL_FROM?.trim() ||
     process.env.COMPANY_INBOX_EMAIL?.trim() ||
@@ -91,16 +97,19 @@ export function emailFromAddress() {
   );
 }
 
-export function companyInboxAddress() {
-  return process.env.COMPANY_INBOX_EMAIL?.trim() || emailFromAddress();
+export async function companyInboxAddress(companyId: string) {
+  const ctx = await getCompanyEmailContext(companyId);
+  return ctx.inboxEmail;
 }
 
 export async function sendEmail(input: {
+  companyId: string;
   to: string;
   subject: string;
   html: string;
   text?: string;
 }) {
+  const ctx = await getCompanyEmailContext(input.companyId);
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (apiKey) {
     const res = await fetch("https://api.resend.com/emails", {
@@ -110,7 +119,8 @@ export async function sendEmail(input: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: emailFromAddress(),
+        from: ctx.displayFrom,
+        reply_to: ctx.replyTo,
         to: [input.to],
         subject: input.subject,
         html: input.html,
@@ -121,12 +131,13 @@ export async function sendEmail(input: {
     if (!res.ok) {
       return { error: data.message || "Envoi courriel échoué" as const };
     }
-    return { providerId: data.id, delivered: true as const };
+    return { providerId: data.id, delivered: true as const, emailContext: ctx };
   }
 
   return {
     delivered: false as const,
     simulated: true as const,
+    emailContext: ctx,
     mailto: `mailto:${encodeURIComponent(input.to)}?subject=${encodeURIComponent(input.subject)}&body=${encodeURIComponent(input.text || "")}`,
   };
 }
@@ -168,7 +179,7 @@ export async function logEmail(record: Omit<EmailRecord, "id" | "createdAt"> & {
 }
 
 export async function listEmails(companyId: string, clientId?: string) {
-  const demoSeed = getDemoInboxSeed(companyId);
+  const demoSeed = await getDemoInboxSeed(companyId);
 
   if (hasDatabase()) {
     const rows = await prisma.emailMessage.findMany({
@@ -199,14 +210,15 @@ export async function markEmailRead(companyId: string, emailId: string) {
   return true;
 }
 
-function getDemoInboxSeed(companyId: string): EmailRecord[] {
+async function getDemoInboxSeed(companyId: string): Promise<EmailRecord[]> {
+  const ctx = await getCompanyEmailContext(companyId);
   return [
     {
       id: "em_demo_1",
       companyId,
       direction: "inbound",
       fromEmail: "billing@nordicfacilities.com",
-      toEmail: companyInboxAddress(),
+      toEmail: ctx.inboxEmail,
       subject: "Re: Soumission Q-2026-014 — questions",
       bodyText: "Bonjour, pouvez-vous confirmer les délais pour le lot peinture?",
       clientId: "cli_1",
@@ -216,9 +228,9 @@ function getDemoInboxSeed(companyId: string): EmailRecord[] {
       id: "em_demo_2",
       companyId,
       direction: "outbound",
-      fromEmail: emailFromAddress(),
+      fromEmail: ctx.logicalFrom,
       toEmail: "admin@harbourdental.ca",
-      subject: "Facture INV-2026-094 — KlirBuild",
+      subject: `Facture INV-2026-094 — ${ctx.companyName}`,
       bodyText: "Veuillez trouver ci-joint votre facture.",
       clientId: "cli_2",
       invoiceId: "inv_2",

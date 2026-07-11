@@ -10,6 +10,7 @@ import {
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { prisma } from "@/lib/db";
+import { deriveCompanyEmailFields } from "@/lib/email/company-email";
 
 export function hasDatabase() {
   return Boolean(process.env.DATABASE_URL?.trim());
@@ -53,10 +54,14 @@ export async function registerCompany(input: {
   if (existing) return { error: "Un compte existe déjà avec cet email." };
 
   const passwordHash = await hashPassword(input.password);
+  const emailFields = deriveCompanyEmailFields({
+    companyName: input.companyName,
+    adminEmail: input.email,
+  });
   const company = await prisma.company.create({
     data: {
       name: input.companyName,
-      email: input.email,
+      ...emailFields,
       plan: "starter",
       subscriptionStatus: "trialing",
       enabledModules: ["construction-os", "crm"],

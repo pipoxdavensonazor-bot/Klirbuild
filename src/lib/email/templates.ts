@@ -21,7 +21,7 @@ export function quoteEmailHtml(input: {
             <td style="padding:8px;border:1px solid #e2e8f0">${formatDate(input.validUntil)}</td></tr>
       </table>
       <p>Pour toute question, répondez à ce courriel.</p>
-      <p style="font-size:12px;color:#64748b">Envoyé via <a href="${input.appUrl}">KlirBuild</a></p>
+      <p style="font-size:12px;color:#64748b">— ${input.companyName}</p>
     </div>
   `;
 }
@@ -47,7 +47,7 @@ export function invoiceEmailHtml(input: {
             <td style="padding:8px;border:1px solid #e2e8f0">${formatDate(input.dueDate)}</td></tr>
       </table>
       <p>Merci de procéder au paiement avant la date d'échéance.</p>
-      <p style="font-size:12px;color:#64748b">Envoyé via <a href="${input.appUrl}">KlirBuild</a></p>
+      <p style="font-size:12px;color:#64748b">— ${input.companyName}</p>
     </div>
   `;
 }
@@ -60,7 +60,7 @@ export function quoteEmailText(input: {
   currency: string;
   validUntil: string;
 }) {
-  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la soumission ${input.quoteNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nValide jusqu'au: ${formatDate(input.validUntil)}\n\n— KlirBuild`;
+  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la soumission ${input.quoteNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nValide jusqu'au: ${formatDate(input.validUntil)}\n\n— ${input.companyName}`;
 }
 
 export function invoiceEmailText(input: {
@@ -71,7 +71,7 @@ export function invoiceEmailText(input: {
   currency: string;
   dueDate: string;
 }) {
-  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la facture ${input.invoiceNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nÉchéance: ${formatDate(input.dueDate)}\n\n— KlirBuild`;
+  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la facture ${input.invoiceNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nÉchéance: ${formatDate(input.dueDate)}\n\n— ${input.companyName}`;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -91,9 +91,9 @@ export function inviteEmailHtml(input: {
   const roleLabel = ROLE_LABELS[input.role] ?? input.role;
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a365d">
-      <h2 style="color:#004F6E">Invitation KlirBuild</h2>
+      <h2 style="color:#004F6E">Invitation — ${input.companyName}</h2>
       <p>Bonjour,</p>
-      <p><strong>${input.invitedByEmail}</strong> vous invite à rejoindre <strong>${input.companyName}</strong> sur KlirBuild.</p>
+      <p><strong>${input.invitedByEmail}</strong> vous invite à rejoindre <strong>${input.companyName}</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0">
         <tr><td style="padding:8px;border:1px solid #e2e8f0">Rôle</td>
             <td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold">${roleLabel}</td></tr>
@@ -106,7 +106,7 @@ export function inviteEmailHtml(input: {
         </a>
       </p>
       <p style="font-size:13px;color:#64748b">Ou copiez ce lien :<br><a href="${input.inviteUrl}">${input.inviteUrl}</a></p>
-      <p style="font-size:12px;color:#64748b">Envoyé via <a href="${input.appUrl}">KlirBuild</a></p>
+      <p style="font-size:12px;color:#64748b">— ${input.companyName}</p>
     </div>
   `;
 }
@@ -119,5 +119,5 @@ export function inviteEmailText(input: {
   expiresAt: string;
 }) {
   const roleLabel = ROLE_LABELS[input.role] ?? input.role;
-  return `Bonjour,\n\n${input.invitedByEmail} vous invite à rejoindre ${input.companyName} sur KlirBuild.\n\nRôle: ${roleLabel}\nExpire le: ${formatDate(input.expiresAt)}\n\nAcceptez l'invitation ici:\n${input.inviteUrl}\n\n— KlirBuild`;
+  return `Bonjour,\n\n${input.invitedByEmail} vous invite à rejoindre ${input.companyName}.\n\nRôle: ${roleLabel}\nExpire le: ${formatDate(input.expiresAt)}\n\nAcceptez l'invitation ici:\n${input.inviteUrl}\n\n— ${input.companyName}`;
 }

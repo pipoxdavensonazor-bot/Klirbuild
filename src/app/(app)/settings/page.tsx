@@ -13,6 +13,7 @@ import { useSessionStore } from "@/lib/workforce/session";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
+import { SettingsCompanyPanel } from "@/components/settings/settings-company-panel";
 
 const tabs = [
   "Company",
@@ -71,15 +72,7 @@ export default function SettingsPage() {
             <CardTitle>{tab}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {tab === "Company" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input defaultValue={demoCompany.name} />
-                <Input defaultValue={demoCompany.email} />
-                <Input defaultValue={demoCompany.phone} />
-                <Input defaultValue={demoCompany.website} />
-                <Button className="sm:col-span-2 w-fit">Save company</Button>
-              </div>
-            ) : null}
+            {tab === "Company" ? <SettingsCompanyPanel /> : null}
 
             {tab === "Users" ? <SettingsUsersPanel /> : null}
 
@@ -150,10 +143,11 @@ export default function SettingsPage() {
             {tab === "Integrations" ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-border p-4 sm:col-span-2">
-                  <p className="font-medium">Courriel (Resend)</p>
+                  <p className="font-medium">Courriel par entreprise</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Envoi des soumissions et factures aux clients. Variables Vercel :
-                    RESEND_API_KEY, EMAIL_FROM, COMPANY_INBOX_EMAIL
+                    Chaque compte entreprise envoie les soumissions, factures et invitations
+                    au nom de son organisation. Configurez l&apos;identité dans l&apos;onglet
+                    Company. La plateforme utilise Resend (RESEND_API_KEY sur Vercel).
                   </p>
                   <p className="mt-2 text-xs">
                     <a href="/inbox" className="text-brand-600 hover:underline">

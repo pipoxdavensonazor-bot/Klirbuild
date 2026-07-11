@@ -4,8 +4,8 @@ import { hasDatabase } from "@/lib/auth/auth-service";
 import { getBillingState } from "@/lib/billing/subscription-service";
 import { getPlan } from "@/lib/billing/plans";
 import { prisma } from "@/lib/db";
+import { getCompanyEmailContext } from "@/lib/email/company-email";
 import {
-  emailFromAddress,
   logEmail,
   sendEmail,
 } from "@/lib/email/email-service";
@@ -139,8 +139,9 @@ export async function createInvitation(input: {
   });
 
   const sent = await sendEmail({
+    companyId: input.companyId,
     to: email,
-    subject: `Invitation KlirBuild — ${companyName}`,
+    subject: `Invitation — ${companyName}`,
     html,
     text,
   });
@@ -158,12 +159,13 @@ export async function createInvitation(input: {
     };
   }
 
+  const emailCtx = await getCompanyEmailContext(input.companyId);
   await logEmail({
     companyId: input.companyId,
     direction: "outbound",
-    fromEmail: emailFromAddress(),
+    fromEmail: emailCtx.logicalFrom,
     toEmail: email,
-    subject: `Invitation KlirBuild — ${companyName}`,
+    subject: `Invitation — ${companyName}`,
     bodyText: text,
     bodyHtml: html,
     providerId: "providerId" in sent ? sent.providerId : undefined,

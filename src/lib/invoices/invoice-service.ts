@@ -4,8 +4,8 @@ import type { Invoice, InvoiceStatus, Quote } from "@/types";
 import { invoices as mockInvoices } from "@/lib/mock-data";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
+import { getCompanyEmailContext } from "@/lib/email/company-email";
 import {
-  emailFromAddress,
   logEmail,
   sendEmail,
 } from "@/lib/email/email-service";
@@ -180,6 +180,7 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
   });
 
   const sent = await sendEmail({
+    companyId,
     to: clientEmail,
     subject: `Facture ${invoice.number} — ${companyName}`,
     html,
@@ -188,12 +189,13 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
 
   if ("error" in sent && sent.error) return { error: sent.error };
 
+  const emailCtx = await getCompanyEmailContext(companyId);
   await updateInvoiceStatus(companyId, id, "sent");
 
   await logEmail({
     companyId,
     direction: "outbound",
-    fromEmail: emailFromAddress(),
+    fromEmail: emailCtx.logicalFrom,
     toEmail: clientEmail,
     subject: `Facture ${invoice.number} — ${companyName}`,
     bodyText: text,
