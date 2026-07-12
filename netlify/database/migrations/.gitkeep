@@ -1,0 +1,2 @@
+-- Netlify Database migrations are managed via prisma db push at build time.
+-- Add new .sql files here only if you switch to Netlify-managed migration files.
