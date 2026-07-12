@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Repeat, Send } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CreditCard, Pencil, Plus, Repeat, Send } from "lucide-react";
 import { DocumentFormCard } from "@/components/billing/document-form-card";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ type RecurringInvoice = {
 };
 
 export function InvoicesPageClient() {
+  const searchParams = useSearchParams();
   const marketRegion = useSessionStore((s) => s.marketRegion);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -61,6 +63,31 @@ export function InvoicesPageClient() {
       .then((d) => setRecurringInvoices(d.recurringInvoices ?? []))
       .catch(() => setRecurringInvoices([]));
   }, [load]);
+
+  useEffect(() => {
+    const paid = searchParams.get("paid");
+    const sessionId = searchParams.get("session_id");
+    if (paid === "cancel") {
+      setMessage("Paiement Stripe annulé.");
+      return;
+    }
+    if (paid === "success" && sessionId) {
+      void fetch(
+        apiUrl(`/api/stripe/checkout-session?session_id=${encodeURIComponent(sessionId)}`),
+        { credentials: "include" }
+      )
+        .then(async (res) => {
+          const data = await parseApiResponse(res);
+          if (!res.ok) {
+            setError(typeof data.error === "string" ? data.error : "Sync paiement échouée");
+            return;
+          }
+          setMessage("Paiement Stripe reçu — facture marquée payée.");
+          await load();
+        })
+        .catch(() => setError("Impossible de confirmer le paiement Stripe."));
+    }
+  }, [searchParams, load]);
 
   const overdue = invoices.filter((i) => i.status === "overdue").length;
   const pending = invoices.filter((i) => ["pending", "sent"].includes(i.status)).length;
@@ -117,11 +144,47 @@ export function InvoicesPageClient() {
       }
       if (data.simulated && data.mailto) {
         window.open(String(data.mailto), "_blank");
-        setMessage(`Courriel préparé pour ${data.to} (mode démo).`);
+        setMessage(
+          data.paymentUrl
+            ? `Courriel préparé pour ${data.to} (mode démo) — lien Stripe inclus.`
+            : `Courriel préparé pour ${data.to} (mode démo).`
+        );
       } else {
-        setMessage(`Facture envoyée à ${data.to}`);
+        setMessage(
+          data.paymentUrl
+            ? `Facture envoyée à ${data.to} avec lien de paiement Stripe.`
+            : `Facture envoyée à ${data.to}`
+        );
       }
       await load();
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function openStripeCheckout(id: string) {
+    setError("");
+    setMessage("");
+    setLoadingId(id);
+    try {
+      const res = await fetch(apiUrl(`/api/invoices/${id}`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "stripe_checkout" }),
+      });
+      const data = await parseApiResponse(res);
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Checkout Stripe échoué");
+        return;
+      }
+      if (typeof data.url === "string") {
+        window.location.href = data.url;
+        return;
+      }
+      setError("URL Stripe manquante.");
     } catch {
       setError("Erreur réseau");
     } finally {
@@ -400,6 +463,16 @@ export function InvoicesPageClient() {
                         <Send className="h-3.5 w-3.5" />
                         Envoyer
                       </Button>
+                      {invoice.status !== "paid" && invoice.status !== "cancelled" ? (
+                        <Button
+                          size="sm"
+                          disabled={loadingId === invoice.id}
+                          onClick={() => void openStripeCheckout(invoice.id)}
+                        >
+                          <CreditCard className="h-3.5 w-3.5" />
+                          Payer en ligne
+                        </Button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

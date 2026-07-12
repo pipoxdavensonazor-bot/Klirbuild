@@ -6,6 +6,7 @@ import {
   sendInvoiceToClient,
   updateInvoice,
 } from "@/lib/invoices/invoice-service";
+import { createInvoiceStripeCheckout } from "@/lib/payments/stripe-invoice-checkout";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,14 @@ export async function POST(request: Request, ctx: Ctx) {
 
   if (action === "send") {
     const result = await sendInvoiceToClient(companyId, id);
+    if ("error" in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (action === "stripe_checkout") {
+    const result = await createInvoiceStripeCheckout(companyId, id);
     if ("error" in result && result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }

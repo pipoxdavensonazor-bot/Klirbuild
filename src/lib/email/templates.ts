@@ -44,7 +44,13 @@ export function invoiceEmailHtml(input: {
   currency: string;
   dueDate: string;
   appUrl: string;
+  paymentUrl?: string;
 }) {
+  const payBlock = input.paymentUrl
+    ? `<p style="margin:24px 0"><a href="${input.paymentUrl}" style="background:#004F6E;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold">Payer en ligne</a></p>
+      <p style="font-size:12px;color:#64748b">Ou ouvrez ce lien : ${input.paymentUrl}</p>`
+    : `<p>Merci de procéder au paiement avant la date d'échéance.</p>`;
+
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a365d">
       <h2 style="color:#004F6E">Facture ${input.invoiceNumber}</h2>
@@ -56,7 +62,7 @@ export function invoiceEmailHtml(input: {
         <tr><td style="padding:8px;border:1px solid #e2e8f0">Date d'échéance</td>
             <td style="padding:8px;border:1px solid #e2e8f0">${formatDate(input.dueDate)}</td></tr>
       </table>
-      <p>Merci de procéder au paiement avant la date d'échéance.</p>
+      ${payBlock}
       <p style="font-size:12px;color:#64748b">— ${input.companyName}</p>
     </div>
   `;
@@ -80,8 +86,10 @@ export function invoiceEmailText(input: {
   total: number;
   currency: string;
   dueDate: string;
+  paymentUrl?: string;
 }) {
-  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la facture ${input.invoiceNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nÉchéance: ${formatDate(input.dueDate)}\n\n— ${input.companyName}`;
+  const pay = input.paymentUrl ? `\nPayer en ligne: ${input.paymentUrl}\n` : "\n";
+  return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la facture ${input.invoiceNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nÉchéance: ${formatDate(input.dueDate)}${pay}\n— ${input.companyName}`;
 }
 
 export function inviteEmailHtml(input: {

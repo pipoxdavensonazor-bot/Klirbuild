@@ -1,12 +1,22 @@
-import type { Invoice, InvoiceStatus, Quote } from "@/types";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 import { getCompanyEmailContext } from "@/lib/email/company-email";
 import { logEmail, sendEmail } from "@/lib/email/email-service";
 import { invoiceEmailHtml, invoiceEmailText } from "@/lib/email/templates";
+import { createInvoiceStripeCheckout } from "@/lib/payments/stripe-invoice-checkout";
+import { isStripeConfigured } from "@/lib/stripe";
 import { computeDocumentTax, type LineItemInput } from "@/lib/tax/document-tax";
 import type { MarketRegionId } from "@/lib/markets/regions";
+import type { Invoice, InvoiceStatus, Quote } from "@/types";
+
+function appUrl() {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.VERCEL_URL?.trim() ||
+    "http://localhost:3000";
+  return base.startsWith("http") ? base : `https://${base}`;
+}
 
 function dec(v: { toNumber(): number } | number) {
   return typeof v === "number" ? v : v.toNumber();
@@ -155,14 +165,6 @@ export async function updateInvoiceStatus(
   return { invoice: mapDbInvoice(updated), clientEmail: updated.client?.email };
 }
 
-function appUrl() {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.VERCEL_URL?.trim() ||
-    "http://localhost:3000";
-  return base.startsWith("http") ? base : `https://${base}`;
-}
-
 export async function sendInvoiceToClient(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
@@ -181,6 +183,14 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
     return { error: "Le client n'a pas de courriel. Ajoutez-le dans Clients." as const };
   }
 
+  let paymentUrl: string | undefined;
+  if (isStripeConfigured() && invoice.status !== "paid") {
+    const checkout = await createInvoiceStripeCheckout(companyId, id);
+    if ("url" in checkout && checkout.url) {
+      paymentUrl = checkout.url;
+    }
+  }
+
   const html = invoiceEmailHtml({
     companyName,
     clientName,
@@ -189,6 +199,7 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
     currency: invoice.currency,
     dueDate: invoice.dueDate,
     appUrl: appUrl(),
+    paymentUrl,
   });
   const text = invoiceEmailText({
     companyName,
@@ -197,6 +208,7 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
     total: invoice.total,
     currency: invoice.currency,
     dueDate: invoice.dueDate,
+    paymentUrl,
   });
 
   const sent = await sendEmail({
@@ -231,6 +243,7 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
     simulated: "simulated" in sent ? sent.simulated : false,
     mailto: "mailto" in sent ? sent.mailto : undefined,
     to: clientEmail,
+    paymentUrl,
   };
 }
 

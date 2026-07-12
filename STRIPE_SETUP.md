@@ -74,9 +74,21 @@ Ouvrez **http://localhost:3000/billing** — vous devez voir **Stripe: connecté
 
 ## Étape 6 — Tester un paiement
 
-1. Cliquez **Payer — Growth**
+### Abonnement KlirBuild
+
+1. Cliquez **Payer — Growth** sur `/billing`
 2. Carte test Stripe : `4242 4242 4242 4242`
 3. Date : n'importe quelle date future · CVC : `123`
+
+### Facture client (paiement automatique)
+
+1. Créez / ouvrez une facture sur `/invoices`
+2. Cliquez **Payer en ligne** → Checkout Stripe one-shot
+3. Ou **Envoyer** : le courriel inclut automatiquement le lien Stripe si `STRIPE_SECRET_KEY` est configuré
+4. Après paiement, le webhook marque la facture `paid` et crée un enregistrement `Payment`
+
+Événements webhook utiles (en plus des abonnements) : `checkout.session.completed` (déjà listé).
+
 
 ---
 
