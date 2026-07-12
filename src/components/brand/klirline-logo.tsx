@@ -7,7 +7,7 @@ type KlirBuildLogoProps = {
   variant?: "full" | "mark";
   /** rounded = coins arrondis · circle = rond (avatar) */
   shape?: "rounded" | "circle";
-  /** Zoom du visuel (défaut 1.5) */
+  /** Zoom du visuel (défaut 1.0 — logo centré dans le fond) */
   zoom?: number;
   priority?: boolean;
 };
@@ -17,15 +17,17 @@ const shapeClass = {
   circle: "rounded-full",
 } as const;
 
-const DEFAULT_ZOOM = 1.5;
+const DEFAULT_ZOOM = 1;
+const MARK_ZOOM = 0.92;
 
 export function KlirBuildLogo({
   className,
   variant = "full",
   shape = "rounded",
-  zoom = DEFAULT_ZOOM,
+  zoom,
   priority = false,
 }: KlirBuildLogoProps) {
+  const scale = zoom ?? (variant === "mark" ? MARK_ZOOM : DEFAULT_ZOOM);
   if (variant === "mark") {
     return (
       <div
@@ -41,7 +43,7 @@ export function KlirBuildLogo({
           fill
           priority={priority}
           className="object-contain object-center origin-center"
-          style={{ transform: `scale(${zoom})` }}
+          style={{ transform: `scale(${scale})` }}
           sizes="48px"
         />
       </div>
@@ -62,7 +64,7 @@ export function KlirBuildLogo({
         fill
         priority={priority}
         className="object-contain object-center origin-center"
-        style={{ transform: `scale(${zoom})` }}
+        style={{ transform: `scale(${scale})` }}
         sizes="220px"
       />
     </div>
