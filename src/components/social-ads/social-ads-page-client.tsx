@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { SocialAdLaunchWorkspace } from "@/components/social-ads/launch-workspace";
 import { SocialPublishComposer } from "@/components/social-ads/publish-composer";
+import { ZernioConnectionsPanel } from "@/components/social-ads/zernio-connections-panel";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,8 @@ import {
   socialAdsAccessLabel,
 } from "@/lib/social-ads/access";
 import { useSocialAdsStore } from "@/lib/social-ads/store";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import type { ConnectionTile } from "@/lib/social-ads/zernio-connections-service";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 
@@ -36,7 +38,16 @@ type ProviderMeta = {
   managedBy?: string;
   enabled?: boolean;
   dashboardUrl?: string;
+  profileId?: string | null;
 };
+
+type TabId = "connections" | "publications" | "campaigns";
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "connections", label: "Connexions" },
+  { id: "publications", label: "Publications" },
+  { id: "campaigns", label: "Campagnes" },
+];
 
 function PlatformIcon({ platform }: { platform: string }) {
   if (platform === "google") return <Globe2 className="h-4 w-4" />;
@@ -59,10 +70,12 @@ export function SocialAdsPageClient() {
   const setActiveWorkspace = useSocialAdsStore((s) => s.setActiveWorkspace);
 
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
+  const [connections, setConnections] = useState<ConnectionTile[]>([]);
   const [campaigns, setCampaigns] = useState<SocialAdCampaign[]>([]);
   const [klirline, setKlirline] = useState<ProviderMeta | null>(null);
   const [zernio, setZernio] = useState<ProviderMeta | null>(null);
   const [provider, setProvider] = useState<"zernio" | "klirline">("klirline");
+  const [tab, setTab] = useState<TabId>("connections");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -75,6 +88,7 @@ export function SocialAdsPageClient() {
       const data = await res.json();
       const list: SocialAccount[] = data.accounts ?? [];
       setAccounts(list);
+      setConnections(data.connections ?? []);
       setCampaigns(data.campaigns ?? []);
       setKlirline(data.klirline ?? null);
       setZernio(data.zernio ?? null);
@@ -97,10 +111,22 @@ export function SocialAdsPageClient() {
   }, []);
 
   useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab === "connections" || urlTab === "publications" || urlTab === "campaigns") {
+      setTab(urlTab);
+    } else if (searchParams.get("connected") || searchParams.get("error")) {
+      setTab("connections");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
     if (connected) {
-      const via = searchParams.get("provider") === "zernio" ? "Zernio" : provider === "zernio" ? "Zernio" : "Klirline.ca";
+      const via =
+        searchParams.get("provider") === "zernio" || provider === "zernio"
+          ? "Zernio"
+          : "Klirline.ca";
       setMessage(
         `Compte ${PLATFORM_LABELS[connected as keyof typeof PLATFORM_LABELS] ?? connected} connecté via ${via}.`
       );
@@ -111,7 +137,7 @@ export function SocialAdsPageClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const connected = accounts.filter((a) => a.status === "connected");
+  const connectedAccounts = accounts.filter((a) => a.status === "connected");
   const spend = campaigns.reduce((s, c) => s + c.spend, 0);
   const leads = campaigns.reduce((s, c) => s + c.leads, 0);
   const impressions = campaigns.reduce((s, c) => s + c.impressions, 0);
@@ -126,7 +152,7 @@ export function SocialAdsPageClient() {
     [workspaces]
   );
 
-  async function connectAccount(account: SocialAccount) {
+  async function oauthPlatform(platformId: string) {
     if (!canLaunch || busy) return;
     setBusy(true);
     try {
@@ -134,17 +160,21 @@ export function SocialAdsPageClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ action: "oauth_url", platform: account.platform }),
+        body: JSON.stringify({ action: "oauth_url", platformId }),
       });
       const data = await res.json();
       if (data.oauthUrl) {
         window.location.href = data.oauthUrl;
         return;
       }
-      setMessage("Impossible d'ouvrir la connexion.");
+      setMessage(data.error ?? "Impossible d'ouvrir la connexion.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function connectAccount(account: SocialAccount) {
+    await oauthPlatform(account.platform);
   }
 
   async function syncZernioAccounts() {
@@ -163,6 +193,7 @@ export function SocialAdsPageClient() {
         return;
       }
       setAccounts(data.accounts ?? accounts);
+      setConnections(data.connections ?? connections);
       setMessage(`${data.synced ?? 0} compte(s) synchronisé(s) depuis Zernio.`);
     } finally {
       setBusy(false);
@@ -187,29 +218,7 @@ export function SocialAdsPageClient() {
   }
 
   async function reauth(account: SocialAccount) {
-    if (!canLaunch || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch(apiUrl("/api/social-ads"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "reauth",
-          id: account.id,
-          platform: account.platform,
-        }),
-      });
-      const data = await res.json();
-      if (data.oauthUrl) {
-        window.location.href = data.oauthUrl;
-        return;
-      }
-      setMessage("Réautorisation lancée.");
-      await load();
-    } finally {
-      setBusy(false);
-    }
+    await oauthPlatform(account.platform);
   }
 
   async function syncInsights() {
@@ -239,6 +248,7 @@ export function SocialAdsPageClient() {
     const account = accounts.find((a) => a.id === selectedAccount);
     if (!account || account.status !== "connected") {
       setMessage("Connectez d'abord le compte via Zernio ou Klirline.");
+      setTab("connections");
       return;
     }
     createWorkspace({
@@ -251,12 +261,15 @@ export function SocialAdsPageClient() {
     );
   }
 
-  async function handleLaunched(name: string, workspace?: {
-    headline: string;
-    primaryText: string;
-    callToAction: string;
-    dailyBudget: number;
-  }) {
+  async function handleLaunched(
+    name: string,
+    workspace?: {
+      headline: string;
+      primaryText: string;
+      callToAction: string;
+      dailyBudget: number;
+    }
+  ) {
     const account = accounts.find((a) => a.id === selectedAccount);
     const res = await fetch(apiUrl("/api/social-ads"), {
       method: "POST",
@@ -287,6 +300,7 @@ export function SocialAdsPageClient() {
     }
     setNewAdName("");
     setActiveWorkspace(null);
+    setTab("campaigns");
     setMessage(
       data.message ??
         `Publicité « ${name} » publiée sur ${account ? PLATFORM_LABELS[account.platform] : "la plateforme"}.`
@@ -300,19 +314,19 @@ export function SocialAdsPageClient() {
   return (
     <div>
       <PageHeader
-        title="Marketing réseaux sociaux"
-        description="Connectez vos comptes via Zernio, publiez sur toutes les plateformes et planifiez aux heures d'audience optimales."
+        title="Marketing et promotion"
+        description="Connectez vos réseaux via Zernio, publiez sur toutes les plateformes et planifiez aux heures d'audience optimales."
         actions={
           canLaunch ? (
             <div className="flex gap-2">
               {provider === "zernio" ? (
                 <Button variant="outline" disabled={busy} onClick={() => void syncZernioAccounts()}>
-                  <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+                  <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} />
                   Sync Zernio
                 </Button>
               ) : null}
               <Button variant="outline" disabled={busy} onClick={() => void syncInsights()}>
-                <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+                <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} />
                 Synchroniser
               </Button>
             </div>
@@ -328,11 +342,11 @@ export function SocialAdsPageClient() {
                 Zernio API — publication multi-réseaux
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {klirline?.managedBy ?? "Instagram, Facebook, LinkedIn, TikTok, YouTube…"} — style Metricool
+                {klirline?.managedBy ?? "Instagram, Facebook, LinkedIn, TikTok, YouTube…"}
               </p>
             </div>
             <a
-              href={zernio.dashboardUrl ?? "https://zernio.com"}
+              href={zernio.dashboardUrl ?? "https://zernio.com/dashboard/connections"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex"
@@ -374,7 +388,7 @@ export function SocialAdsPageClient() {
       ) : null}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Comptes connectés" value={String(connected.length)} />
+        <StatCard label="Comptes connectés" value={String(connectedAccounts.length)} />
         <StatCard
           label="Pubs actives"
           value={String(activeAds.length + launchedWorkspaces.length)}
@@ -387,91 +401,135 @@ export function SocialAdsPageClient() {
         />
       </div>
 
-      <div className="mb-6">
-        <SocialPublishComposer
-          accounts={accounts}
-          selectedAccountId={selectedAccount}
-          onAccountChange={setSelectedAccount}
-          canManage={canLaunch}
-          zernioEnabled={provider === "zernio"}
-          onPublished={(msg) => {
-            setMessage(msg);
-            void load();
-          }}
-        />
+      <div className="mb-6 flex border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "relative px-4 py-2.5 text-sm font-medium transition",
+              tab === t.id
+                ? "text-brand-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-brand-600"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+            {t.id === "connections" && provider === "zernio" ? (
+              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
+                {connections.filter((c) => c.status === "connected").length}
+              </span>
+            ) : null}
+          </button>
+        ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Comptes entreprise</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {accounts.map((account) => (
-              <div key={account.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2">
-                    <div className="mt-0.5 rounded-md bg-brand-50 p-2 text-brand-600 dark:bg-brand-900/40">
-                      <PlatformIcon platform={account.platform} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        {PLATFORM_LABELS[account.platform]}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {account.accountName} · {account.handle}
-                      </p>
-                      {account.adAccountId ? (
-                        <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                          {account.adAccountId}
+      {tab === "connections" ? (
+        provider === "zernio" ? (
+          <ZernioConnectionsPanel
+            connections={connections}
+            canManage={canLaunch}
+            busy={busy}
+            profileId={zernio?.profileId}
+            onConnect={(platformId) => void oauthPlatform(platformId)}
+            onDisconnect={(id) => void disconnect(id)}
+            onReauth={(platformId) => void oauthPlatform(platformId)}
+            onSync={() => void syncZernioAccounts()}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Comptes entreprise</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {accounts.map((account) => (
+                <div key={account.id} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 rounded-md bg-brand-50 p-2 text-brand-600 dark:bg-brand-900/40">
+                        <PlatformIcon platform={account.platform} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {PLATFORM_LABELS[account.platform]}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          {account.accountName} · {account.handle}
+                        </p>
+                      </div>
+                    </div>
+                    <StatusBadge status={account.status} />
+                  </div>
+                  {canLaunch ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {account.status === "disconnected" ? (
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void connectAccount(account)}
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                          Connecter via Klirline.ca
+                        </Button>
+                      ) : null}
+                      {account.status === "needs_reauth" ? (
+                        <Button size="sm" disabled={busy} onClick={() => void reauth(account)}>
+                          Réautoriser
+                        </Button>
+                      ) : null}
+                      {account.status === "connected" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => void disconnect(account.id)}
+                        >
+                          <Unplug className="h-3.5 w-3.5" />
+                          Déconnecter
+                        </Button>
                       ) : null}
                     </div>
-                  </div>
-                  <StatusBadge status={account.status} />
+                  ) : null}
                 </div>
-                {canLaunch ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {account.status === "disconnected" ? (
-                      <Button
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void connectAccount(account)}
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        {provider === "zernio" ? "Connecter via Zernio" : "Connecter via Klirline.ca"}
-                      </Button>
-                    ) : null}
-                    {account.status === "needs_reauth" ? (
-                      <Button
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void reauth(account)}
-                      >
-                        Réautoriser
-                      </Button>
-                    ) : null}
-                    {account.status === "connected" ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void disconnect(account.id)}
-                      >
-                        <Unplug className="h-3.5 w-3.5" />
-                        Déconnecter
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ))}
+            </CardContent>
+          </Card>
+        )
+      ) : null}
 
-        <Card className="xl:col-span-3">
+      {tab === "publications" ? (
+        <div className="space-y-6">
+          <SocialPublishComposer
+            accounts={accounts}
+            selectedAccountId={selectedAccount}
+            onAccountChange={setSelectedAccount}
+            canManage={canLaunch}
+            zernioEnabled={provider === "zernio"}
+            onPublished={(msg) => {
+              setMessage(msg);
+              void load();
+            }}
+          />
+          {connectedAccounts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              Connectez au moins un compte dans l&apos;onglet{" "}
+              <button
+                type="button"
+                className="font-medium text-brand-600 underline-offset-2 hover:underline"
+                onClick={() => setTab("connections")}
+              >
+                Connexions
+              </button>{" "}
+              avant de publier.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tab === "campaigns" ? (
+        <Card>
           <CardHeader>
-            <CardTitle>Publicités</CardTitle>
+            <CardTitle>Campagnes et publicités</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {canLaunch ? (
@@ -498,8 +556,8 @@ export function SocialAdsPageClient() {
                 </div>
                 {accessLabel ? (
                   <p className="text-xs text-muted-foreground">
-                    Accès {accessLabel} — textes, photos, tableau et commentaires
-                    synchronisés via {provider === "zernio" ? "Zernio" : "Klirline.ca"}.
+                    Accès {accessLabel} — textes, photos, tableau et commentaires synchronisés
+                    via {provider === "zernio" ? "Zernio" : "Klirline.ca"}.
                   </p>
                 ) : null}
               </>
@@ -509,8 +567,8 @@ export function SocialAdsPageClient() {
                 <div>
                   <p className="font-medium">Accès restreint</p>
                   <p className="mt-1 text-xs opacity-90">
-                    Seuls l&apos;administrateur central et le chef marketing peuvent
-                    lancer une pub et accéder à l&apos;espace de création.
+                    Seuls l&apos;administrateur central et le chef marketing peuvent lancer une pub
+                    et accéder à l&apos;espace de création.
                   </p>
                 </div>
               </div>
@@ -593,7 +651,7 @@ export function SocialAdsPageClient() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      ) : null}
     </div>
   );
 }

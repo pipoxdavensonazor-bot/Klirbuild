@@ -23,6 +23,11 @@ import {
   publishViaZernio,
   syncZernioAccounts,
 } from "@/lib/social-ads/zernio-service";
+import {
+  ensureConnectionSlot,
+  getZernioConnectionsMeta,
+  listZernioConnectionTiles,
+} from "@/lib/social-ads/zernio-connections-service";
 import { ZernioApiError } from "@/lib/social-ads/zernio-client";
 import type { SocialPlatform } from "@/lib/reports/types";
 
@@ -72,14 +77,25 @@ export async function GET(request: Request) {
       }
     }
 
+    const zernioEnabled = isZernioEnabled();
+    const [connections, zernioMeta] = zernioEnabled
+      ? await Promise.all([
+          listZernioConnectionTiles(companyId, companyName),
+          getZernioConnectionsMeta(companyId, companyName),
+        ])
+      : [[], { profileId: null, dashboardUrl: "https://zernio.com/dashboard/connections", enabled: false }];
+
     return NextResponse.json({
       accounts,
       campaigns,
-      provider: isZernioEnabled() ? "zernio" : "klirline",
+      connections,
+      zernioMeta,
+      provider: zernioEnabled ? "zernio" : "klirline",
       zernio: {
-        enabled: isZernioEnabled(),
-        dashboardUrl: "https://zernio.com",
+        enabled: zernioEnabled,
+        dashboardUrl: "https://zernio.com/dashboard/connections",
         docsUrl: "https://docs.zernio.com",
+        profileId: zernioMeta.profileId,
       },
       klirline: {
         hubUrl: klirlineMarketingPortalUrl(companyId),
@@ -123,14 +139,24 @@ export async function POST(request: Request) {
 
   try {
     if (action === "oauth_url") {
-      const platform = body.platform as SocialPlatform;
-      if (!platform) {
+      const platformOrKey =
+        (typeof body.platformId === "string" && body.platformId) ||
+        (body.platform as SocialPlatform | undefined);
+      if (!platformOrKey) {
         return NextResponse.json({ error: "Plateforme requise." }, { status: 400 });
       }
       if (isZernioEnabled()) {
-        const { authUrl } = await getZernioConnectUrl(companyId, companyName, platform);
+        await ensureConnectionSlot(companyId, platformOrKey, companyName);
+        const redirectUrl = `${callbackUrl}?company_id=${encodeURIComponent(companyId)}`;
+        const { authUrl } = await getZernioConnectUrl(
+          companyId,
+          companyName,
+          platformOrKey,
+          redirectUrl
+        );
         return NextResponse.json({ oauthUrl: authUrl, provider: "zernio" });
       }
+      const platform = platformOrKey as SocialPlatform;
       return NextResponse.json({
         oauthUrl: klirlineOAuthUrl({
           companyId,
@@ -147,8 +173,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "ZERNIO_API_KEY non configuré." }, { status: 503 });
       }
       const result = await syncZernioAccounts(companyId, companyName);
-      const accounts = await listSocialAccounts(companyId, companyName);
-      return NextResponse.json({ ...result, accounts });
+      const [accounts, connections] = await Promise.all([
+        listSocialAccounts(companyId, companyName),
+        listZernioConnectionTiles(companyId, companyName),
+      ]);
+      return NextResponse.json({ ...result, accounts, connections });
     }
 
     if (action === "connect") {

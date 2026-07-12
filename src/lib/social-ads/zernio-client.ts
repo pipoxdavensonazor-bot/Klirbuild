@@ -92,9 +92,13 @@ export async function zernioCreateProfile(name: string, description?: string) {
   return data.profile;
 }
 
-export async function zernioGetConnectUrl(platform: string, profileId: string) {
+export async function zernioGetConnectUrl(
+  platform: string,
+  profileId: string,
+  redirectUrl?: string
+) {
   const data = await zernioFetch<{ authUrl: string }>(`/connect/${platform}`, {
-    query: { profileId },
+    query: { profileId, redirect_url: redirectUrl },
   });
   return data.authUrl;
 }

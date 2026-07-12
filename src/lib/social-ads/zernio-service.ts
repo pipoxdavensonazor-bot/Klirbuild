@@ -15,6 +15,7 @@ import {
   zernioNextQueueSlot,
   ZernioApiError,
 } from "@/lib/social-ads/zernio-client";
+import { catalogPlatformById } from "@/lib/social-ads/zernio-connections-catalog";
 
 export function isZernioEnabled() {
   return hasZernioApiKey();
@@ -42,12 +43,17 @@ export async function ensureZernioProfile(companyId: string, companyName: string
 export async function getZernioConnectUrl(
   companyId: string,
   companyName: string,
-  platform: SocialPlatform
+  platformOrKey: string,
+  redirectUrl?: string
 ) {
   const profileId = await ensureZernioProfile(companyId, companyName);
-  const zernioPlatform = TO_ZERNIO[platform] ?? platform;
-  const authUrl = await zernioGetConnectUrl(zernioPlatform, profileId);
-  return { authUrl, profileId };
+  const fromCatalog = catalogPlatformById(platformOrKey);
+  const zernioPlatform =
+    fromCatalog?.zernioKey ??
+    TO_ZERNIO[platformOrKey as SocialPlatform] ??
+    platformOrKey;
+  const authUrl = await zernioGetConnectUrl(zernioPlatform, profileId, redirectUrl);
+  return { authUrl, profileId, zernioPlatform };
 }
 
 export async function syncZernioAccounts(companyId: string, companyName: string) {
