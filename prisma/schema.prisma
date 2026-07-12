@@ -74,6 +74,7 @@ model Company {
   auditLogs          AuditLog[]
   apiKeys            ApiKey[]
   emailMessages      EmailMessage[]
+  constructionWorkspace ConstructionWorkspace?
 }
 
 model User {
@@ -441,6 +442,15 @@ model JobSite {
   timeEntries TimeEntry[]
 
   @@index([companyId])
+}
+
+model ConstructionWorkspace {
+  id        String   @id @default(cuid())
+  companyId String   @unique
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model EmployeeProfile {
