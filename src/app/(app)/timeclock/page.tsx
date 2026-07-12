@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MapPin, Navigation, ShieldCheck, Timer } from "lucide-react";
+import { Coffee, MapPin, Navigation, Play, ShieldCheck, Timer } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import { useSessionStore } from "@/lib/workforce/session";
 import { isWithinGeofence } from "@/lib/workforce/payroll";
 import type { TimeEntryDto } from "@/lib/timeclock/timeclock-service";
-import { formatElapsed, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
+import { formatElapsed, formatPauseMinutes, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
 import { canApp } from "@/lib/workforce/types";
 import { formatDate } from "@/lib/utils";
 
@@ -50,7 +50,11 @@ function TimeclockInner() {
   const [selectedSiteId, setSelectedSiteId] = useState("");
   const [geoStatus, setGeoStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const elapsedMs = useLiveElapsed(openEntry?.clockInAt);
+  const elapsedMs = useLiveElapsed(openEntry?.clockInAt, {
+    onBreak: openEntry?.onBreak,
+    pauseStartedAt: openEntry?.pauseStartedAt,
+    totalPauseMs: openEntry?.totalPauseMs,
+  });
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
@@ -139,6 +143,31 @@ function TimeclockInner() {
           ? `Chronomètre démarré — ${fence.distanceM}m du chantier`
           : `Hors zone (${fence.distanceM}m) — revue requise`
       );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function togglePause() {
+    if (!openEntry) return;
+    setBusy(true);
+    try {
+      const action = openEntry.onBreak ? "resume" : "pause";
+      const res = await fetch(apiUrl("/api/timeclock"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      });
+      const data = await parseApiResponse(res);
+      if (!res.ok) {
+        setGeoStatus(typeof data.error === "string" ? data.error : "Pause échouée");
+        return;
+      }
+      const entry = data.entry as TimeEntryDto | undefined;
+      if (entry) setOpenEntry(entry);
+      setGeoStatus(openEntry.onBreak ? "Reprise ✓" : "Pause ✓");
       await load();
     } finally {
       setBusy(false);
@@ -287,16 +316,39 @@ function TimeclockInner() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Depuis {formatDate(openEntry.clockInAt)}
+                    {formatPauseMinutes(openEntry) > 0
+                      ? ` · Pauses ${formatPauseMinutes(openEntry)} min`
+                      : ""}
                   </p>
                 </div>
-                <Button
-                  className="w-full"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => void clockOut()}
-                >
-                  Fin — calculer les heures
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void togglePause()}
+                  >
+                    {openEntry.onBreak ? (
+                      <>
+                        <Play className="h-4 w-4" />
+                        Reprendre
+                      </>
+                    ) : (
+                      <>
+                        <Coffee className="h-4 w-4" />
+                        Pause
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => void clockOut()}
+                  >
+                    Fin
+                  </Button>
+                </div>
               </>
             )}
 

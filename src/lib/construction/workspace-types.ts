@@ -38,7 +38,16 @@ export type ConstructionWorkspaceData = {
   ccqDeclarations: CcqHourDeclaration[];
   progressInvoices: ProgressInvoice[];
   marketingCampaigns: MarketingCampaign[];
+  aiSuggestions: string[];
 };
+
+const DEFAULT_AI_SUGGESTIONS = [
+  "Résumé quotidien des chantiers actifs",
+  "Quels chantiers risquent un dépassement de budget ?",
+  "Brouillon d'ordre de changement pour renforcement dalle",
+  "Checklist toolbox talk — travaux en hauteur",
+  "Réponse commerciale pour lead agrandissement",
+];
 
 export function defaultWorkspace(): ConstructionWorkspaceData {
   return {
@@ -50,6 +59,7 @@ export function defaultWorkspace(): ConstructionWorkspaceData {
     ccqDeclarations: structuredClone(ccqDeclarations),
     progressInvoices: structuredClone(progressInvoices),
     marketingCampaigns: structuredClone(marketingCampaigns),
+    aiSuggestions: [...DEFAULT_AI_SUGGESTIONS],
   };
 }
 

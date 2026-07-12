@@ -17,6 +17,9 @@ export type TimeEntryDto = {
   distanceFromSiteM: number;
   status: string;
   notes?: string;
+  pauseStartedAt?: string;
+  totalPauseMs?: number;
+  onBreak?: boolean;
 };
 
 async function resolveEmployee(
@@ -55,6 +58,8 @@ function mapRow(row: {
   distanceFromSiteM: number | null;
   status: string;
   notes: string | null;
+  pauseStartedAt?: Date | null;
+  totalPauseMs?: number | null;
 }): TimeEntryDto {
   return {
     id: row.id,
@@ -69,7 +74,21 @@ function mapRow(row: {
     distanceFromSiteM: row.distanceFromSiteM ?? 0,
     status: row.status,
     notes: row.notes ?? undefined,
+    pauseStartedAt: row.pauseStartedAt?.toISOString(),
+    totalPauseMs: row.totalPauseMs ?? 0,
+    onBreak: row.status === "on_break",
   };
+}
+
+function accumulatedPauseMs(row: {
+  pauseStartedAt?: Date | null;
+  totalPauseMs?: number | null;
+}) {
+  let total = row.totalPauseMs ?? 0;
+  if (row.pauseStartedAt) {
+    total += Math.max(0, Date.now() - row.pauseStartedAt.getTime());
+  }
+  return total;
 }
 
 export async function listJobSites(companyId: string) {
@@ -112,7 +131,7 @@ export async function listTimeEntries(companyId: string, employeeId?: string) {
 /** Shift actif = pas encore pointé en sortie (inclut pending_review hors géofence). */
 const openEntryWhere = {
   clockOutAt: null,
-  status: { in: ["clocked_in", "pending_review"] as string[] },
+  status: { in: ["clocked_in", "pending_review", "on_break"] as string[] },
 } as const;
 
 export async function getOpenEntry(companyId: string, employeeId: string) {
@@ -216,10 +235,12 @@ export async function clockOut(input: {
 
   const breakMinutes = input.breakMinutes ?? 30;
   const clockOutAt = new Date();
+  const pauseMs = accumulatedPauseMs(open);
   const hours = hoursFromClock(
     open.clockInAt.toISOString(),
     clockOutAt.toISOString(),
-    breakMinutes
+    breakMinutes,
+    pauseMs
   );
 
   const row = await prisma.timeEntry.update({
@@ -229,6 +250,8 @@ export async function clockOut(input: {
       clockOutLat: input.lat,
       clockOutLng: input.lng,
       breakMinutes,
+      totalPauseMs: pauseMs,
+      pauseStartedAt: null,
       hoursWorked: hours,
       status: "approved",
     },
@@ -249,8 +272,66 @@ export async function clockOut(input: {
       hours,
       hourlyRate: rate,
       grossPay: Math.round(hours * rate * 100) / 100,
+      pauseMinutes: Math.round(pauseMs / 60000),
     },
   };
+}
+
+export async function pauseShift(companyId: string, employeeId: string) {
+  if (!hasDatabase()) return { error: "DATABASE_URL requis." as const };
+
+  const open = await prisma.timeEntry.findFirst({
+    where: { companyId, employeeId, ...openEntryWhere },
+    include: {
+      employee: { select: { name: true } },
+      jobSite: { select: { name: true } },
+    },
+    orderBy: { clockInAt: "desc" },
+  });
+  if (!open) return { error: "Aucun pointage en cours." as const };
+  if (open.status === "on_break") return { error: "Pause déjà en cours." as const };
+
+  const row = await prisma.timeEntry.update({
+    where: { id: open.id },
+    data: { status: "on_break", pauseStartedAt: new Date() },
+    include: {
+      employee: { select: { name: true } },
+      jobSite: { select: { name: true } },
+    },
+  });
+  return { entry: mapRow(row) };
+}
+
+export async function resumeShift(companyId: string, employeeId: string) {
+  if (!hasDatabase()) return { error: "DATABASE_URL requis." as const };
+
+  const open = await prisma.timeEntry.findFirst({
+    where: { companyId, employeeId, status: "on_break", clockOutAt: null },
+    include: {
+      employee: { select: { name: true } },
+      jobSite: { select: { name: true } },
+    },
+    orderBy: { clockInAt: "desc" },
+  });
+  if (!open) return { error: "Aucune pause en cours." as const };
+
+  const addedPause = open.pauseStartedAt
+    ? Math.max(0, Date.now() - open.pauseStartedAt.getTime())
+    : 0;
+
+  const row = await prisma.timeEntry.update({
+    where: { id: open.id },
+    data: {
+      status: open.withinGeofence ? "clocked_in" : "pending_review",
+      pauseStartedAt: null,
+      totalPauseMs: (open.totalPauseMs ?? 0) + addedPause,
+    },
+    include: {
+      employee: { select: { name: true } },
+      jobSite: { select: { name: true } },
+    },
+  });
+  return { entry: mapRow(row) };
 }
 
 export async function payrollSummary(companyId: string) {

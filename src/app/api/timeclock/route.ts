@@ -6,7 +6,9 @@ import {
   getOpenEntry,
   listJobSites,
   listTimeEntries,
+  pauseShift,
   payrollSummary,
+  resumeShift,
 } from "@/lib/timeclock/timeclock-service";
 import { isWithinGeofence } from "@/lib/workforce/payroll";
 import { canApp } from "@/lib/workforce/types";
@@ -89,6 +91,30 @@ export async function POST(request: Request) {
       lng: Number(body.lng) || 0,
       breakMinutes: Number(body.breakMinutes) || 30,
     });
+    if ("error" in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (action === "pause") {
+    const employeeId = await resolveEmployeeId(enriched.companyId, enriched.email);
+    if (!employeeId) {
+      return NextResponse.json({ error: "Employé introuvable." }, { status: 400 });
+    }
+    const result = await pauseShift(enriched.companyId, employeeId);
+    if ("error" in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (action === "resume") {
+    const employeeId = await resolveEmployeeId(enriched.companyId, enriched.email);
+    if (!employeeId) {
+      return NextResponse.json({ error: "Employé introuvable." }, { status: 400 });
+    }
+    const result = await resumeShift(enriched.companyId, employeeId);
     if ("error" in result && result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }

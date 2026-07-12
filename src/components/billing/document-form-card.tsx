@@ -46,6 +46,20 @@ export function DocumentFormCard({
 
   async function save() {
     setError("");
+    if (!clientId) {
+      setError("Choisissez un client.");
+      return;
+    }
+    const validLines = items.filter(
+      (i) =>
+        (i.description.trim() || (i.unit ?? "").trim()) &&
+        i.quantity > 0 &&
+        i.unitPrice >= 0
+    );
+    if (validLines.length === 0) {
+      setError("Ajoutez au moins une ligne avec description ou unité, quantité et prix.");
+      return;
+    }
     setLoading(true);
     try {
       const url = editingId

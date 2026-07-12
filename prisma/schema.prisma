@@ -239,6 +239,7 @@ model QuoteItem {
   quoteId     String
   quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   description String
+  unit        String?
   quantity    Decimal @default(1) @db.Decimal(12, 2)
   unitPrice   Decimal @default(0) @db.Decimal(12, 2)
   total       Decimal @default(0) @db.Decimal(12, 2)
@@ -276,6 +277,7 @@ model InvoiceItem {
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   description String
+  unit        String?
   quantity    Decimal @default(1) @db.Decimal(12, 2)
   unitPrice   Decimal @default(0) @db.Decimal(12, 2)
   total       Decimal @default(0) @db.Decimal(12, 2)
@@ -491,6 +493,8 @@ model TimeEntry {
   withinGeofence     Boolean  @default(true)
   distanceFromSiteM  Int?
   breakMinutes       Int      @default(0)
+  pauseStartedAt     DateTime?
+  totalPauseMs       Int      @default(0)
   hoursWorked        Decimal? @db.Decimal(8, 2)
   status             String   @default("clocked_in")
   notes              String?

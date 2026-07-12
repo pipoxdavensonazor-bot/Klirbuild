@@ -6,6 +6,8 @@ import {
 
 export type LineItemInput = {
   description: string;
+  /** Unité : Sac, Boîtes, m², h, forfait… */
+  unit?: string;
   quantity: number;
   unitPrice: number;
 };
@@ -27,10 +29,16 @@ export type TaxBreakdown = {
 
 export function computeLineItems(items: LineItemInput[]): ComputedLineItem[] {
   return items
-    .filter((i) => i.description.trim() && i.quantity > 0 && i.unitPrice >= 0)
+    .filter(
+      (i) =>
+        (i.description.trim() || (i.unit ?? "").trim()) &&
+        i.quantity > 0 &&
+        i.unitPrice >= 0
+    )
     .map((i) => ({
       ...i,
-      description: i.description.trim(),
+      description: i.description.trim() || (i.unit ?? "").trim() || "Article",
+      unit: (i.unit ?? "").trim() || undefined,
       total: Math.round(i.quantity * i.unitPrice * 100) / 100,
     }));
 }

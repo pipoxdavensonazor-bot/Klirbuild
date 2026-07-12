@@ -128,6 +128,7 @@ export async function getInvoiceDetail(companyId: string, id: string) {
       invoice: mapDbInvoice(row),
       items: row.items.map((item) => ({
         description: item.description,
+        unit: item.unit ?? undefined,
         quantity: dec(item.quantity),
         unitPrice: dec(item.unitPrice),
       })),
@@ -181,6 +182,7 @@ export async function updateInvoice(
           items: {
             create: breakdown.items.map((item) => ({
               description: item.description,
+              unit: item.unit ?? null,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               total: item.total,
@@ -369,6 +371,7 @@ export async function createInvoice(input: {
         items: {
           create: breakdown.items.map((item) => ({
             description: item.description,
+            unit: item.unit ?? null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             total: item.total,

@@ -129,6 +129,7 @@ export async function getQuoteDetail(companyId: string, id: string) {
       quote: mapDbQuote(row),
       items: row.items.map((item) => ({
         description: item.description,
+        unit: item.unit ?? undefined,
         quantity: dec(item.quantity),
         unitPrice: dec(item.unitPrice),
       })),
@@ -182,6 +183,7 @@ export async function updateQuote(
           items: {
             create: breakdown.items.map((item) => ({
               description: item.description,
+              unit: item.unit ?? null,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               total: item.total,
@@ -370,6 +372,7 @@ export async function createQuote(input: {
         items: {
           create: breakdown.items.map((item) => ({
             description: item.description,
+            unit: item.unit ?? null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             total: item.total,

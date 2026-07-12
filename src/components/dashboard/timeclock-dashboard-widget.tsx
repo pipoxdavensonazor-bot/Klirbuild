@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, MapPin, Navigation, Square, Timer } from "lucide-react";
+import { Clock, Coffee, MapPin, Navigation, Play, Square, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import type { TimeEntryDto } from "@/lib/timeclock/timeclock-service";
-import { formatElapsed, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
+import { formatElapsed, formatPauseMinutes, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
 import { formatDate } from "@/lib/utils";
 
 type Site = { id: string; name: string; lat?: number; lng?: number };
@@ -31,7 +31,11 @@ export function TimeclockDashboardWidget() {
   const [openEntry, setOpenEntry] = useState<TimeEntryDto | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState("");
-  const elapsedMs = useLiveElapsed(openEntry?.clockInAt);
+  const elapsedMs = useLiveElapsed(openEntry?.clockInAt, {
+    onBreak: openEntry?.onBreak,
+    pauseStartedAt: openEntry?.pauseStartedAt,
+    totalPauseMs: openEntry?.totalPauseMs,
+  });
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -109,6 +113,34 @@ export function TimeclockDashboardWidget() {
     }
   }
 
+  async function togglePause() {
+    if (!openEntry) return;
+    setBusy(true);
+    setError("");
+    try {
+      const action = openEntry.onBreak ? "resume" : "pause";
+      const res = await fetch(apiUrl("/api/timeclock"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      });
+      const data = await parseApiResponse(res);
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Pause échouée");
+        return;
+      }
+      const entry = data.entry as TimeEntryDto | undefined;
+      if (entry) setOpenEntry(entry);
+      setStatus(openEntry.onBreak ? "Reprise du travail ✓" : "Pause enregistrée ✓");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function clockOut() {
     if (!openEntry) return;
     setBusy(true);
@@ -153,8 +185,18 @@ export function TimeclockDashboardWidget() {
             Mon temps de travail
           </CardTitle>
           {openEntry ? (
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-              {openEntry.status === "pending_review" ? "En cours (hors zone)" : "En cours"}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                openEntry.onBreak
+                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+              }`}
+            >
+              {openEntry.onBreak
+                ? "En pause"
+                : openEntry.status === "pending_review"
+                  ? "En cours (hors zone)"
+                  : "En cours"}
             </span>
           ) : null}
         </div>
@@ -176,16 +218,43 @@ export function TimeclockDashboardWidget() {
               <strong>{openEntry.jobSiteName}</strong>
               <br />
               Depuis {formatDate(openEntry.clockInAt)}
+              {formatPauseMinutes(openEntry) > 0 ? (
+                <>
+                  <br />
+                  Pauses : {formatPauseMinutes(openEntry)} min (déduites du temps payé)
+                </>
+              ) : null}
             </p>
-            <Button
-              size="lg"
-              className="mt-4 w-full max-w-md bg-red-600 text-white hover:bg-red-700"
-              disabled={busy}
-              onClick={() => void clockOut()}
-            >
-              <Square className="h-5 w-5 fill-current" />
-              Terminer mon temps de travail
-            </Button>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="max-w-xs flex-1"
+                disabled={busy}
+                onClick={() => void togglePause()}
+              >
+                {openEntry.onBreak ? (
+                  <>
+                    <Play className="h-5 w-5" />
+                    Reprendre
+                  </>
+                ) : (
+                  <>
+                    <Coffee className="h-5 w-5" />
+                    Pause
+                  </>
+                )}
+              </Button>
+              <Button
+                size="lg"
+                className="max-w-xs flex-1 bg-red-600 text-white hover:bg-red-700"
+                disabled={busy}
+                onClick={() => void clockOut()}
+              >
+                <Square className="h-5 w-5 fill-current" />
+                Terminer
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">

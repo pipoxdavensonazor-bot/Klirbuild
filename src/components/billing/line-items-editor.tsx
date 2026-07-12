@@ -10,8 +10,22 @@ import {
 import type { MarketRegionId } from "@/lib/markets/regions";
 import { formatCurrency } from "@/lib/utils";
 
+export const BILLING_UNITS = [
+  { value: "", label: "Unité…" },
+  { value: "Sac", label: "Sac" },
+  { value: "Boîtes", label: "Boîtes" },
+  { value: "m²", label: "Mètre carré (m²)" },
+  { value: "m", label: "Mètre linéaire (m)" },
+  { value: "h", label: "Heure (h)" },
+  { value: "jour", label: "Jour" },
+  { value: "forfait", label: "Forfait" },
+  { value: "unité", label: "Unité" },
+  { value: "lot", label: "Lot" },
+];
+
 const emptyRow = (): LineItemInput => ({
   description: "",
+  unit: "",
   quantity: 1,
   unitPrice: 0,
 });
@@ -31,15 +45,33 @@ export function LineItemsEditor({ items, onChange, marketRegion = "CA-QC" }: Pro
 
   return (
     <div className="space-y-3">
+      <div className="hidden text-xs font-medium uppercase text-muted-foreground sm:grid sm:grid-cols-12 sm:gap-2">
+        <span className="sm:col-span-4">Description</span>
+        <span className="sm:col-span-2">Unité</span>
+        <span className="sm:col-span-2">Qté</span>
+        <span className="sm:col-span-2">Prix unit.</span>
+        <span className="sm:col-span-2 text-right">Total</span>
+      </div>
       <div className="space-y-2">
         {items.map((row, index) => (
           <div key={index} className="grid gap-2 sm:grid-cols-12">
             <Input
-              className="sm:col-span-5"
-              placeholder="Description / activité"
+              className="sm:col-span-4"
+              placeholder="Description (ex. Ciment, Main-d'œuvre)"
               value={row.description}
               onChange={(e) => updateRow(index, { description: e.target.value })}
             />
+            <select
+              className="h-10 rounded-md border border-border bg-background px-2 text-sm sm:col-span-2"
+              value={row.unit ?? ""}
+              onChange={(e) => updateRow(index, { unit: e.target.value })}
+            >
+              {BILLING_UNITS.map((u) => (
+                <option key={u.value || "empty"} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
             <Input
               className="sm:col-span-2"
               type="number"
@@ -52,11 +84,11 @@ export function LineItemsEditor({ items, onChange, marketRegion = "CA-QC" }: Pro
               }
             />
             <Input
-              className="sm:col-span-3"
+              className="sm:col-span-2"
               type="number"
               min={0}
               step="0.01"
-              placeholder="Prix unitaire"
+              placeholder="Prix unit."
               value={row.unitPrice || ""}
               onChange={(e) =>
                 updateRow(index, { unitPrice: Number(e.target.value) || 0 })

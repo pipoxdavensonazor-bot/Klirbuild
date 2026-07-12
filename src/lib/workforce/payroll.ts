@@ -58,10 +58,12 @@ export function calcSalesTaxes(subtotal: number) {
 export function hoursFromClock(
   clockInAt: string,
   clockOutAt: string,
-  breakMinutes = 0
+  breakMinutes = 0,
+  totalPauseMs = 0
 ): number {
   const ms = new Date(clockOutAt).getTime() - new Date(clockInAt).getTime();
-  const hours = Math.max(0, ms / 3_600_000 - breakMinutes / 60);
+  const pauseHours = totalPauseMs / 3_600_000;
+  const hours = Math.max(0, ms / 3_600_000 - breakMinutes / 60 - pauseHours);
   return round2(hours);
 }
 

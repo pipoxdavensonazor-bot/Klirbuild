@@ -28,6 +28,7 @@ function parseWorkspace(raw: unknown): ConstructionWorkspaceData {
     marketingCampaigns: Array.isArray(o.marketingCampaigns)
       ? o.marketingCampaigns
       : base.marketingCampaigns,
+    aiSuggestions: Array.isArray(o.aiSuggestions) ? o.aiSuggestions : base.aiSuggestions,
   };
 }
 
@@ -116,6 +117,16 @@ export async function deleteConstructionEntity(
   const next = list.filter((row) => row.id !== id);
   if (next.length === list.length) return { error: "Élément introuvable." as const };
   (ws[entity] as EntityRecord[]) = next;
+  await saveWorkspace(companyId, ws);
+  return { workspace: ws };
+}
+
+export async function saveAiSuggestions(companyId: string, suggestions: string[]) {
+  const ws = await loadWorkspace(companyId);
+  ws.aiSuggestions = suggestions.map((s) => s.trim()).filter(Boolean);
+  if (ws.aiSuggestions.length === 0) {
+    ws.aiSuggestions = defaultWorkspace().aiSuggestions;
+  }
   await saveWorkspace(companyId, ws);
   return { workspace: ws };
 }
