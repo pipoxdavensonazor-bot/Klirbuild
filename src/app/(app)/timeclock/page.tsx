@@ -11,6 +11,7 @@ import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import { useSessionStore } from "@/lib/workforce/session";
 import { isWithinGeofence } from "@/lib/workforce/payroll";
 import type { TimeEntryDto } from "@/lib/timeclock/timeclock-service";
+import { formatElapsed, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
 import { canApp } from "@/lib/workforce/types";
 import { formatDate } from "@/lib/utils";
 
@@ -28,14 +29,6 @@ type PayrollSummary = {
   totalGross: number;
   employees: { name: string; hours: number; gross: number; hourlyRate: number }[];
 };
-
-function formatElapsed(ms: number) {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
 export default function TimeclockPage() {
   return (
@@ -57,7 +50,7 @@ function TimeclockInner() {
   const [selectedSiteId, setSelectedSiteId] = useState("");
   const [geoStatus, setGeoStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const elapsedMs = useLiveElapsed(openEntry?.clockInAt);
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
@@ -80,21 +73,12 @@ function TimeclockInner() {
   }, [load]);
 
   useEffect(() => {
-    if (!openEntry) {
-      setElapsedMs(0);
-      return;
-    }
-    const tick = () => {
-      const start = new Date(openEntry.clockInAt).getTime();
-      setNow(Date.now());
-      setElapsedMs(Math.max(0, Date.now() - start));
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
+    if (!openEntry?.clockInAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [openEntry]);
+  }, [openEntry?.clockInAt]);
 
-  const onSiteNow = entries.filter((e) => e.status === "clocked_in").length;
+  const onSiteNow = entries.filter((e) => e.status === "clocked_in" || e.status === "pending_review").length;
 
   async function getPosition(): Promise<GeolocationPosition> {
     return new Promise((resolve, reject) => {
@@ -148,6 +132,8 @@ function TimeclockInner() {
         setGeoStatus(typeof data.error === "string" ? data.error : "Pointage échoué");
         return;
       }
+      const entry = data.entry as TimeEntryDto | undefined;
+      if (entry?.clockInAt) setOpenEntry(entry);
       setGeoStatus(
         fence.within
           ? `Chronomètre démarré — ${fence.distanceM}m du chantier`

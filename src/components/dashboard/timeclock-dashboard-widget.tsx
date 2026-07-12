@@ -7,17 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import type { TimeEntryDto } from "@/lib/timeclock/timeclock-service";
+import { formatElapsed, useLiveElapsed } from "@/lib/timeclock/use-live-elapsed";
 import { formatDate } from "@/lib/utils";
 
 type Site = { id: string; name: string; lat?: number; lng?: number };
-
-function formatElapsed(ms: number) {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
 async function getPosition(): Promise<{ lat: number; lng: number }> {
   return new Promise((resolve, reject) => {
@@ -38,7 +31,7 @@ export function TimeclockDashboardWidget() {
   const [openEntry, setOpenEntry] = useState<TimeEntryDto | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState("");
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const elapsedMs = useLiveElapsed(openEntry?.clockInAt);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -66,24 +59,10 @@ export function TimeclockDashboardWidget() {
   }, [load]);
 
   useEffect(() => {
-    if (!openEntry) return;
+    if (!openEntry?.id) return;
     const poll = window.setInterval(() => void load(), 30000);
     return () => window.clearInterval(poll);
-  }, [openEntry, load]);
-
-  useEffect(() => {
-    if (!openEntry) {
-      setElapsedMs(0);
-      return;
-    }
-    const tick = () => {
-      const start = new Date(openEntry.clockInAt).getTime();
-      setElapsedMs(Math.max(0, Date.now() - start));
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [openEntry]);
+  }, [openEntry?.id, load]);
 
   async function resolveCoords(site?: Site) {
     try {
@@ -119,6 +98,8 @@ export function TimeclockDashboardWidget() {
         setStatus("");
         return;
       }
+      const entry = data.entry as TimeEntryDto | undefined;
+      if (entry?.clockInAt) setOpenEntry(entry);
       setStatus("Chronomètre démarré ✓");
       await load();
     } catch (err) {
@@ -173,7 +154,7 @@ export function TimeclockDashboardWidget() {
           </CardTitle>
           {openEntry ? (
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-              En cours
+              {openEntry.status === "pending_review" ? "En cours (hors zone)" : "En cours"}
             </span>
           ) : null}
         </div>

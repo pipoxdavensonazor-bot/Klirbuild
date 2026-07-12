@@ -109,10 +109,16 @@ export async function listTimeEntries(companyId: string, employeeId?: string) {
   return rows.map(mapRow);
 }
 
+/** Shift actif = pas encore pointé en sortie (inclut pending_review hors géofence). */
+const openEntryWhere = {
+  clockOutAt: null,
+  status: { in: ["clocked_in", "pending_review"] as string[] },
+} as const;
+
 export async function getOpenEntry(companyId: string, employeeId: string) {
   if (!hasDatabase()) return null;
   const row = await prisma.timeEntry.findFirst({
-    where: { companyId, employeeId, status: "clocked_in", clockOutAt: null },
+    where: { companyId, employeeId, ...openEntryWhere },
     include: {
       employee: { select: { name: true } },
       jobSite: { select: { name: true } },
@@ -198,8 +204,7 @@ export async function clockOut(input: {
     where: {
       companyId: input.companyId,
       employeeId: input.employeeId,
-      status: "clocked_in",
-      clockOutAt: null,
+      ...openEntryWhere,
     },
     include: {
       employee: { select: { name: true, hourlyRate: true } },
