@@ -274,11 +274,16 @@ export async function POST(request: Request) {
       const callToAction = typeof body.callToAction === "string" ? body.callToAction : "";
       const content = [headline, primaryText, callToAction].filter(Boolean).join("\n\n");
 
+      const accountIds = Array.isArray(body.accountIds)
+        ? body.accountIds.filter((id: unknown) => typeof id === "string")
+        : undefined;
+
       const result = await publishViaZernio(companyId, companyName, {
         name: typeof body.name === "string" ? body.name : "Publication",
         content: content || (typeof body.content === "string" ? body.content : ""),
-        accountId: typeof body.accountId === "string" ? body.accountId : "",
-        platform: body.platform as SocialPlatform,
+        accountId: typeof body.accountId === "string" ? body.accountId : undefined,
+        accountIds,
+        platform: body.platform as SocialPlatform | undefined,
         mode: mode ?? "now",
         scheduledFor: typeof body.scheduledFor === "string" ? body.scheduledFor : undefined,
         timezone: typeof body.timezone === "string" ? body.timezone : "America/Toronto",

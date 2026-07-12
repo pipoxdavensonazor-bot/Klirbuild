@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { SocialPlatform } from "@/lib/reports/types";
+import { catalogPlatformById } from "@/lib/social-ads/zernio-connections-catalog";
 import {
   audienceSlotsForPlatform,
   fromZernioPlatform,
@@ -15,7 +16,6 @@ import {
   zernioNextQueueSlot,
   ZernioApiError,
 } from "@/lib/social-ads/zernio-client";
-import { catalogPlatformById } from "@/lib/social-ads/zernio-connections-catalog";
 
 export function isZernioEnabled() {
   return hasZernioApiKey();
@@ -128,8 +128,9 @@ export async function getAudienceRecommendations(platform: SocialPlatform) {
 export type PublishInput = {
   name: string;
   content: string;
-  accountId: string;
-  platform: SocialPlatform;
+  accountId?: string;
+  accountIds?: string[];
+  platform?: SocialPlatform;
   mode: "now" | "schedule" | "queue";
   scheduledFor?: string;
   timezone?: string;
@@ -137,6 +138,12 @@ export type PublishInput = {
   objective?: string;
   dailyBudget?: number;
 };
+
+function zernioPlatformForAccount(platform: string) {
+  const fromCatalog = catalogPlatformById(platform);
+  if (fromCatalog) return fromCatalog.zernioKey;
+  return TO_ZERNIO[platform as SocialPlatform] ?? platform;
+}
 
 export async function publishViaZernio(
   companyId: string,
@@ -146,24 +153,41 @@ export async function publishViaZernio(
   const content = input.content.trim();
   if (!content) return { error: "Contenu requis." as const };
 
-  const account = await prisma.socialAccountConnection.findFirst({
-    where: { id: input.accountId, companyId },
-  });
-  if (!account || account.status !== "connected") {
-    return { error: "Compte non connecté." as const };
+  const targetIds =
+    input.accountIds?.filter(Boolean) ??
+    (input.accountId ? [input.accountId] : []);
+
+  if (!targetIds.length) {
+    return { error: "Sélectionnez au moins un compte connecté." as const };
   }
 
-  const zernioAccountId = account.zernioAccountId ?? account.adAccountId;
-  if (!zernioAccountId) {
-    return { error: "Compte Zernio manquant — reconnectez le compte." as const };
+  const accounts = await prisma.socialAccountConnection.findMany({
+    where: { id: { in: targetIds }, companyId, status: "connected" },
+  });
+
+  if (!accounts.length) {
+    return { error: "Aucun compte connecté valide." as const };
+  }
+
+  const platforms: Array<{ platform: string; accountId: string }> = [];
+  for (const account of accounts) {
+    const zernioAccountId = account.zernioAccountId ?? account.adAccountId;
+    if (!zernioAccountId) {
+      return {
+        error: `Compte Zernio manquant pour ${account.platform} — reconnectez le compte.`,
+      } as const;
+    }
+    platforms.push({
+      platform: zernioPlatformForAccount(account.platform),
+      accountId: zernioAccountId,
+    });
   }
 
   const profileId = await ensureZernioProfile(companyId, companyName);
-  const zernioPlatform = TO_ZERNIO[input.platform] ?? TO_ZERNIO[account.platform as SocialPlatform];
 
   const postBody: Parameters<typeof zernioCreatePost>[0] = {
     content,
-    platforms: [{ platform: zernioPlatform, accountId: zernioAccountId }],
+    platforms,
     timezone: input.timezone ?? "America/Toronto",
   };
 
@@ -190,29 +214,29 @@ export async function publishViaZernio(
         ? "draft"
         : "active";
 
-  const row = await prisma.socialAdCampaignRecord.create({
-    data: {
-      companyId,
-      accountId: input.accountId,
-      name: input.name.trim() || "Publication",
-      platform: input.platform,
-      objective: input.objective ?? "awareness",
-      status,
-      dailyBudget: input.dailyBudget ?? 0,
-      zernioPostId: zernioPost._id,
-      content,
-      scheduledFor: zernioPost.scheduledFor
-        ? new Date(zernioPost.scheduledFor)
-        : input.scheduledFor
-          ? new Date(input.scheduledFor)
-          : null,
-      publishMode: input.mode,
-      startDate: new Date(),
-    },
-  });
-
-  return {
-    campaign: {
+  const campaigns = [];
+  for (const account of accounts) {
+    const row = await prisma.socialAdCampaignRecord.create({
+      data: {
+        companyId,
+        accountId: account.id,
+        name: input.name.trim() || "Publication",
+        platform: account.platform,
+        objective: input.objective ?? "awareness",
+        status,
+        dailyBudget: input.dailyBudget ?? 0,
+        zernioPostId: zernioPost._id,
+        content,
+        scheduledFor: zernioPost.scheduledFor
+          ? new Date(zernioPost.scheduledFor)
+          : input.scheduledFor
+            ? new Date(input.scheduledFor)
+            : null,
+        publishMode: input.mode,
+        startDate: new Date(),
+      },
+    });
+    campaigns.push({
       id: row.id,
       name: row.name,
       platform: row.platform as SocialPlatform,
@@ -230,13 +254,23 @@ export async function publishViaZernio(
       content: row.content ?? undefined,
       scheduledFor: row.scheduledFor?.toISOString(),
       publishMode: row.publishMode ?? undefined,
-    },
+    });
+  }
+
+  const networkLabels = accounts
+    .map((a) => catalogPlatformById(a.platform)?.name ?? a.platform)
+    .join(", ");
+
+  return {
+    campaigns,
+    campaign: campaigns[0],
     zernioPost,
+    publishedCount: accounts.length,
     message:
       input.mode === "now"
-        ? "Publication envoyée sur les réseaux via Zernio."
+        ? `Publication instantanée envoyée sur ${accounts.length} réseau(x) : ${networkLabels}.`
         : input.mode === "queue"
-          ? `Publication planifiée au prochain créneau optimal (${zernioPost.scheduledFor ?? "file d'attente"}).`
-          : `Publication planifiée pour ${input.scheduledFor}.`,
+          ? `Publication planifiée sur ${accounts.length} réseau(x) au prochain créneau optimal.`
+          : `Publication planifiée sur ${accounts.length} réseau(x) pour ${input.scheduledFor}.`,
   };
 }
