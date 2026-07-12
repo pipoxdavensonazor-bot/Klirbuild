@@ -31,15 +31,20 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(DATA_DIR, "emails.json");
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(STORE_PATH)) {
+      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+    }
+  } catch {
+    /* serverless: read-only filesystem */
   }
 }
 
 function readFileEmails(companyId: string): EmailRecord[] {
-  ensureStore();
   try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return [];
     const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as EmailRecord[];
     return all.filter((e) => e.companyId === companyId);
   } catch {
@@ -48,10 +53,15 @@ function readFileEmails(companyId: string): EmailRecord[] {
 }
 
 function writeFileEmail(record: EmailRecord) {
-  ensureStore();
-  const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as EmailRecord[];
-  all.unshift(record);
-  fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return;
+    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as EmailRecord[];
+    all.unshift(record);
+    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  } catch {
+    /* ignore on serverless */
+  }
 }
 
 function mapRow(row: {
@@ -112,26 +122,31 @@ export async function sendEmail(input: {
   const ctx = await getCompanyEmailContext(input.companyId);
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (apiKey) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: ctx.displayFrom,
-        reply_to: ctx.replyTo,
-        to: [input.to],
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-      }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-    if (!res.ok) {
-      return { error: data.message || "Envoi courriel échoué" as const };
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: ctx.displayFrom,
+          reply_to: ctx.replyTo,
+          to: [input.to],
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+      if (!res.ok) {
+        return { error: data.message || "Envoi courriel échoué" as const };
+      }
+      return { providerId: data.id, delivered: true as const, emailContext: ctx };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Réseau Resend indisponible";
+      return { error: message };
     }
-    return { providerId: data.id, delivered: true as const, emailContext: ctx };
   }
 
   return {

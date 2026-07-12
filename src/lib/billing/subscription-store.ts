@@ -36,17 +36,23 @@ const DEFAULT: CompanySubscription = {
 };
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify(DEFAULT, null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(STORE_PATH)) {
+      fs.writeFileSync(STORE_PATH, JSON.stringify(DEFAULT, null, 2), "utf8");
+    }
+  } catch {
+    /* Vercel/serverless: filesystem read-only — use in-memory defaults */
   }
 }
 
 export function readSubscription(companyId = DEMO_COMPANY_ID): CompanySubscription {
-  ensureStore();
   try {
-    const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as CompanySubscription;
-    if (raw.companyId === companyId) return raw;
+    ensureStore();
+    if (fs.existsSync(STORE_PATH)) {
+      const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as CompanySubscription;
+      if (raw.companyId === companyId) return raw;
+    }
   } catch {
     /* fall through */
   }
@@ -54,12 +60,17 @@ export function readSubscription(companyId = DEMO_COMPANY_ID): CompanySubscripti
 }
 
 export function writeSubscription(data: CompanySubscription) {
-  ensureStore();
-  fs.writeFileSync(
-    STORE_PATH,
-    JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2),
-    "utf8"
-  );
+  try {
+    ensureStore();
+    if (!fs.existsSync(DATA_DIR)) return;
+    fs.writeFileSync(
+      STORE_PATH,
+      JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2),
+      "utf8"
+    );
+  } catch {
+    /* ignore on serverless */
+  }
 }
 
 export function updateSubscription(

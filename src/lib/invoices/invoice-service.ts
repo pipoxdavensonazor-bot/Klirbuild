@@ -23,15 +23,20 @@ function dec(v: { toNumber(): number } | number) {
 }
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(STORE_PATH)) {
+      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+    }
+  } catch {
+    /* serverless: read-only filesystem */
   }
 }
 
 function readFileInvoices(): Invoice[] {
-  ensureStore();
   try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return [];
     return JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Invoice[];
   } catch {
     return [];
@@ -39,12 +44,17 @@ function readFileInvoices(): Invoice[] {
 }
 
 function writeFileInvoice(invoice: Invoice) {
-  ensureStore();
-  const all = readFileInvoices();
-  const idx = all.findIndex((i) => i.id === invoice.id);
-  if (idx >= 0) all[idx] = invoice;
-  else all.push(invoice);
-  fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return;
+    const all = readFileInvoices();
+    const idx = all.findIndex((i) => i.id === invoice.id);
+    if (idx >= 0) all[idx] = invoice;
+    else all.push(invoice);
+    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  } catch {
+    /* ignore on serverless */
+  }
 }
 
 function mapDbInvoice(row: {

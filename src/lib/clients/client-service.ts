@@ -12,15 +12,20 @@ const STORE_PATH = path.join(DATA_DIR, "clients.json");
 type StoredClient = Client;
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(STORE_PATH)) {
+      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+    }
+  } catch {
+    /* serverless: read-only filesystem */
   }
 }
 
 function readFileClients(companyId: string): StoredClient[] {
-  ensureStore();
   try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return [];
     const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as StoredClient[];
     return all.filter((c) => c.companyId === companyId);
   } catch {
@@ -29,10 +34,15 @@ function readFileClients(companyId: string): StoredClient[] {
 }
 
 function writeFileClient(client: StoredClient) {
-  ensureStore();
-  const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as StoredClient[];
-  all.push(client);
-  fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return;
+    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as StoredClient[];
+    all.push(client);
+    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  } catch {
+    /* ignore on serverless */
+  }
 }
 
 function mapDbClient(row: {

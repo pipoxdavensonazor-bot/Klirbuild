@@ -24,15 +24,20 @@ function dec(v: { toNumber(): number } | number) {
 }
 
 function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(STORE_PATH)) {
+      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
+    }
+  } catch {
+    /* serverless: read-only filesystem */
   }
 }
 
 function readFileQuotes(companyId: string): Quote[] {
-  ensureStore();
   try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return [];
     const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Quote[];
     return all.filter((q) => !companyId || true);
   } catch {
@@ -41,12 +46,17 @@ function readFileQuotes(companyId: string): Quote[] {
 }
 
 function writeFileQuote(quote: Quote) {
-  ensureStore();
-  const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Quote[];
-  const idx = all.findIndex((q) => q.id === quote.id);
-  if (idx >= 0) all[idx] = quote;
-  else all.push(quote);
-  fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  try {
+    ensureStore();
+    if (!fs.existsSync(STORE_PATH)) return;
+    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Quote[];
+    const idx = all.findIndex((q) => q.id === quote.id);
+    if (idx >= 0) all[idx] = quote;
+    else all.push(quote);
+    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
+  } catch {
+    /* ignore on serverless */
+  }
 }
 
 function mapDbQuote(row: {

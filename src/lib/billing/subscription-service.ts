@@ -71,8 +71,7 @@ async function readFromPrisma(companyId: string): Promise<CompanySubscription | 
   try {
     const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) return null;
-    const file = readSubscription(companyId);
-    return companyToSubscription(company, file.billingCycle);
+    return companyToSubscription(company, "monthly");
   } catch (e) {
     console.warn("[billing] Prisma read failed:", e instanceof Error ? e.message : e);
     return null;
