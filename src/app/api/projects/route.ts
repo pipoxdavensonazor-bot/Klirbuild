@@ -25,12 +25,18 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name : "";
   const clientId = typeof body.clientId === "string" ? body.clientId : undefined;
   const budget = typeof body.budget === "number" ? body.budget : Number(body.budget) || 0;
+  const status =
+    typeof body.status === "string" &&
+    ["planned", "active", "on_hold", "completed"].includes(body.status)
+      ? (body.status as import("@/types").ProjectStatus)
+      : undefined;
 
   const result = await createProject({
     companyId: cid,
     clientId,
     name,
     budget,
+    status,
   });
 
   if ("error" in result && result.error) {

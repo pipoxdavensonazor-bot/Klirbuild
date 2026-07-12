@@ -114,6 +114,99 @@ export async function getInvoice(companyId: string, id: string) {
   return all.find((i) => i.id === id) ?? null;
 }
 
+export async function getInvoiceDetail(companyId: string, id: string) {
+  if (hasDatabase()) {
+    const row = await prisma.invoice.findFirst({
+      where: { id, companyId },
+      include: {
+        client: { select: { name: true } },
+        items: { orderBy: { id: "asc" } },
+      },
+    });
+    if (!row) return null;
+    return {
+      invoice: mapDbInvoice(row),
+      items: row.items.map((item) => ({
+        description: item.description,
+        quantity: dec(item.quantity),
+        unitPrice: dec(item.unitPrice),
+      })),
+    };
+  }
+
+  const invoice = await getInvoice(companyId, id);
+  if (!invoice) return null;
+  return {
+    invoice,
+    items: [{ description: "Services", quantity: 1, unitPrice: invoice.total }],
+  };
+}
+
+export async function updateInvoice(
+  companyId: string,
+  id: string,
+  input: {
+    clientId?: string;
+    items?: LineItemInput[];
+    marketRegion?: MarketRegionId;
+  }
+) {
+  const existing = await getInvoice(companyId, id);
+  if (!existing) return { error: "Facture introuvable." as const };
+  if (existing.status !== "draft") {
+    return { error: "Seules les factures en brouillon peuvent être modifiées." as const };
+  }
+
+  const lineItems: LineItemInput[] =
+    input.items && input.items.length > 0
+      ? input.items
+      : [{ description: "Services", quantity: 1, unitPrice: existing.total }];
+
+  const breakdown = computeDocumentTax(lineItems, input.marketRegion ?? "CA-QC");
+  if (breakdown.subtotal <= 0) {
+    return { error: "Ajoutez au moins une ligne avec un montant." as const };
+  }
+
+  if (hasDatabase()) {
+    await prisma.$transaction(async (tx) => {
+      await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+      await tx.invoice.update({
+        where: { id },
+        data: {
+          ...(input.clientId ? { clientId: input.clientId } : {}),
+          currency: breakdown.currency,
+          subtotal: breakdown.subtotal,
+          tax: breakdown.taxTotal,
+          total: breakdown.total,
+          items: {
+            create: breakdown.items.map((item) => ({
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+            })),
+          },
+        },
+      });
+    });
+    const updated = await prisma.invoice.findFirst({
+      where: { id, companyId },
+      include: { client: { select: { name: true } } },
+    });
+    if (!updated) return { error: "Facture introuvable." as const };
+    return { invoice: mapDbInvoice(updated), tax: breakdown };
+  }
+
+  const next: Invoice = {
+    ...existing,
+    ...(input.clientId ? { clientId: input.clientId } : {}),
+    total: breakdown.total,
+    currency: breakdown.currency,
+  };
+  writeFileInvoice(next);
+  return { invoice: next, tax: breakdown };
+}
+
 export async function updateInvoiceStatus(
   companyId: string,
   id: string,

@@ -115,6 +115,99 @@ export async function getQuote(companyId: string, id: string) {
   return all.find((q) => q.id === id) ?? null;
 }
 
+export async function getQuoteDetail(companyId: string, id: string) {
+  if (hasDatabase()) {
+    const row = await prisma.quote.findFirst({
+      where: { id, companyId },
+      include: {
+        client: { select: { name: true } },
+        items: { orderBy: { id: "asc" } },
+      },
+    });
+    if (!row) return null;
+    return {
+      quote: mapDbQuote(row),
+      items: row.items.map((item) => ({
+        description: item.description,
+        quantity: dec(item.quantity),
+        unitPrice: dec(item.unitPrice),
+      })),
+    };
+  }
+
+  const quote = await getQuote(companyId, id);
+  if (!quote) return null;
+  return {
+    quote,
+    items: [{ description: "Services", quantity: 1, unitPrice: quote.total }],
+  };
+}
+
+export async function updateQuote(
+  companyId: string,
+  id: string,
+  input: {
+    clientId?: string;
+    items?: LineItemInput[];
+    marketRegion?: MarketRegionId;
+  }
+) {
+  const existing = await getQuote(companyId, id);
+  if (!existing) return { error: "Soumission introuvable." as const };
+  if (existing.status !== "draft") {
+    return { error: "Seules les soumissions en brouillon peuvent être modifiées." as const };
+  }
+
+  const lineItems: LineItemInput[] =
+    input.items && input.items.length > 0
+      ? input.items
+      : [{ description: "Services", quantity: 1, unitPrice: existing.total }];
+
+  const breakdown = computeDocumentTax(lineItems, input.marketRegion ?? "CA-QC");
+  if (breakdown.subtotal <= 0) {
+    return { error: "Ajoutez au moins une ligne avec un montant." as const };
+  }
+
+  if (hasDatabase()) {
+    await prisma.$transaction(async (tx) => {
+      await tx.quoteItem.deleteMany({ where: { quoteId: id } });
+      await tx.quote.update({
+        where: { id },
+        data: {
+          ...(input.clientId ? { clientId: input.clientId } : {}),
+          currency: breakdown.currency,
+          subtotal: breakdown.subtotal,
+          tax: breakdown.taxTotal,
+          total: breakdown.total,
+          items: {
+            create: breakdown.items.map((item) => ({
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+            })),
+          },
+        },
+      });
+    });
+    const updated = await prisma.quote.findFirst({
+      where: { id, companyId },
+      include: { client: { select: { name: true } } },
+    });
+    if (!updated) return { error: "Soumission introuvable." as const };
+    return { quote: mapDbQuote(updated), tax: breakdown };
+  }
+
+  const next: Quote = {
+    ...existing,
+    ...(input.clientId ? { clientId: input.clientId } : {}),
+    total: breakdown.total,
+    currency: breakdown.currency,
+  };
+  writeFileQuote(next);
+  return { quote: next, tax: breakdown };
+}
+
 export async function updateQuoteStatus(
   companyId: string,
   id: string,

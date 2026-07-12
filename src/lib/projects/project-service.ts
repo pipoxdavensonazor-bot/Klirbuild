@@ -119,26 +119,63 @@ export async function updateProjectStatus(
   id: string,
   status: ProjectStatus
 ) {
+  return updateProject(companyId, id, { status });
+}
+
+export async function updateProject(
+  companyId: string,
+  id: string,
+  input: {
+    name?: string;
+    clientId?: string | null;
+    budget?: number;
+    status?: ProjectStatus;
+  }
+) {
+  const status = input.status;
   const progress =
-    status === "completed" ? 100 : status === "active" ? 50 : status === "on_hold" ? 25 : 0;
+    status === "completed"
+      ? 100
+      : status === "active"
+        ? 50
+        : status === "on_hold"
+          ? 25
+          : undefined;
 
   if (hasDatabase()) {
-    const row = await prisma.project.updateMany({
-      where: { id, companyId },
-      data: { status, progress },
-    });
-    if (row.count === 0) return { error: "Projet introuvable." as const };
-    const updated = await prisma.project.findFirst({
-      where: { id, companyId },
+    const existing = await prisma.project.findFirst({ where: { id, companyId } });
+    if (!existing) return { error: "Projet introuvable." as const };
+
+    const row = await prisma.project.update({
+      where: { id },
+      data: {
+        ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+        ...(input.clientId !== undefined ? { clientId: input.clientId || null } : {}),
+        ...(input.budget !== undefined ? { budget: input.budget } : {}),
+        ...(status ? { status, progress: progress ?? existing.progress } : {}),
+      },
       include: { client: { select: { name: true } } },
     });
-    if (!updated) return { error: "Projet introuvable." as const };
-    return { project: mapDbProject(updated) };
+    return { project: mapDbProject(row) };
   }
 
   const all = await listProjects(companyId);
   const project = all.find((p) => p.id === id);
   if (!project) return { error: "Projet introuvable." as const };
-  const next = { ...project, status, progress };
+
+  const { clients } = await import("@/lib/mock-data");
+  const mockClient = input.clientId
+    ? clients.find((c) => c.id === input.clientId)
+    : undefined;
+
+  const next: Project = {
+    ...project,
+    ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+    ...(input.clientId !== undefined
+      ? { clientId: input.clientId ?? undefined, clientName: mockClient?.name ?? "—" }
+      : {}),
+    ...(input.budget !== undefined ? { budget: input.budget } : {}),
+    ...(status ? { status, progress: progress ?? project.progress } : {}),
+  };
   return { project: next };
 }
