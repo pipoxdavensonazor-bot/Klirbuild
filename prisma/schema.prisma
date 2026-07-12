@@ -52,6 +52,7 @@ model Company {
   enabledModules     String[]           @default([])
   brandingPrimary    String             @default("#004F6E")
   brandingAccent     String             @default("#D4AF37")
+  logoUrl            String?
   emailFrom          String?
   inboxEmail         String?
   emailSenderName    String?

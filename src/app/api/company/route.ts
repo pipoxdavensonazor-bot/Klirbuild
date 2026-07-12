@@ -22,6 +22,7 @@ export async function GET() {
       emailFrom: true,
       inboxEmail: true,
       emailSenderName: true,
+      logoUrl: true,
       brandingPrimary: true,
       brandingAccent: true,
       plan: true,
@@ -55,6 +56,7 @@ export async function PATCH(request: Request) {
     "emailFrom",
     "inboxEmail",
     "emailSenderName",
+    "logoUrl",
     "brandingPrimary",
     "brandingAccent",
   ] as const) {
@@ -79,6 +81,7 @@ export async function PATCH(request: Request) {
       emailFrom: true,
       inboxEmail: true,
       emailSenderName: true,
+      logoUrl: true,
       brandingPrimary: true,
       brandingAccent: true,
     },

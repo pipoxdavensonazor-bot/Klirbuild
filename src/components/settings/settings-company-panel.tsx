@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiUrl } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,7 +21,7 @@ export function SettingsCompanyPanel() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/company");
+    const res = await fetch(apiUrl("/api/company"), { credentials: "include" });
     const data = await res.json();
     if (data.company) {
       setCompany({
@@ -43,9 +44,10 @@ export function SettingsCompanyPanel() {
     if (!company) return;
     setSaving(true);
     setMessage("");
-    const res = await fetch("/api/company", {
+    const res = await fetch(apiUrl("/api/company"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(company),
     });
     const data = await res.json();
