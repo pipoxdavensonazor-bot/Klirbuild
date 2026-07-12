@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  ExternalLink,
   Globe2,
   Link2,
   Megaphone,
@@ -13,6 +12,10 @@ import {
   Unplug,
 } from "lucide-react";
 import { SocialAdLaunchWorkspace } from "@/components/social-ads/launch-workspace";
+import {
+  MarketingMetricoolShell,
+  type MarketingTab,
+} from "@/components/social-ads/marketing-metricool-shell";
 import { SocialPublishComposer } from "@/components/social-ads/publish-composer";
 import { ZernioConnectionsPanel } from "@/components/social-ads/zernio-connections-panel";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
@@ -41,13 +44,15 @@ type ProviderMeta = {
   profileId?: string | null;
 };
 
-type TabId = "connections" | "publications" | "campaigns";
+type TabId = MarketingTab;
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "connections", label: "Connexions" },
-  { id: "publications", label: "Publications" },
-  { id: "campaigns", label: "Campagnes" },
-];
+function mapUrlTab(value: string | null): TabId {
+  if (value === "publications") return "planning";
+  if (value === "campaigns") return "campaigns";
+  if (value === "connections") return "connections";
+  if (value === "summary" || value === "planning" || value === "reports") return value;
+  return "connections";
+}
 
 function PlatformIcon({ platform }: { platform: string }) {
   if (platform === "google") return <Globe2 className="h-4 w-4" />;
@@ -76,6 +81,7 @@ export function SocialAdsPageClient() {
   const [zernio, setZernio] = useState<ProviderMeta | null>(null);
   const [provider, setProvider] = useState<"zernio" | "klirline">("klirline");
   const [tab, setTab] = useState<TabId>("connections");
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -112,8 +118,8 @@ export function SocialAdsPageClient() {
 
   useEffect(() => {
     const urlTab = searchParams.get("tab");
-    if (urlTab === "connections" || urlTab === "publications" || urlTab === "campaigns") {
-      setTab(urlTab);
+    if (urlTab) {
+      setTab(mapUrlTab(urlTab));
     } else if (searchParams.get("connected") || searchParams.get("error")) {
       setTab("connections");
     }
@@ -315,7 +321,7 @@ export function SocialAdsPageClient() {
     <div>
       <PageHeader
         title="Marketing et promotion"
-        description="Connectez vos réseaux via Zernio, publiez sur toutes les plateformes et planifiez aux heures d'audience optimales."
+        description="Tableau de bord style Metricool — connexions, planification et annonces via Zernio."
         actions={
           canLaunch ? (
             <div className="flex gap-2">
@@ -334,109 +340,66 @@ export function SocialAdsPageClient() {
         }
       />
 
-      {provider === "zernio" && zernio?.enabled ? (
-        <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/80 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-brand-900 dark:text-brand-100">
-                Zernio API — publication multi-réseaux
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {klirline?.managedBy ?? "Instagram, Facebook, LinkedIn, TikTok, YouTube…"}
-              </p>
-            </div>
-            <a
-              href={zernio.dashboardUrl ?? "https://zernio.com/dashboard/connections"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex"
-            >
-              <Button size="sm" variant="outline">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Tableau Zernio
-              </Button>
-            </a>
-          </div>
-        </div>
-      ) : klirline ? (
-        <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/80 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-brand-900 dark:text-brand-100">
-                Partenaire marketing — Klirline.ca
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {klirline.managedBy} · {klirline.contact}
-              </p>
-            </div>
-            {klirline.hubUrl ? (
-              <a href={klirline.hubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex">
-                <Button size="sm" variant="outline">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Portail Klirline.ca
-                </Button>
-              </a>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
       {message ? (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
           {message}
         </div>
       ) : null}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Comptes connectés" value={String(connectedAccounts.length)} />
-        <StatCard
-          label="Pubs actives"
-          value={String(activeAds.length + launchedWorkspaces.length)}
-        />
-        <StatCard label="Dépenses ads" value={formatCurrency(spend)} />
-        <StatCard
-          label="Leads ads"
-          value={String(leads)}
-          hint={`${impressions.toLocaleString("fr-CA")} impressions`}
-        />
-      </div>
-
-      <div className="mb-6 flex border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "relative px-4 py-2.5 text-sm font-medium transition",
-              tab === t.id
-                ? "text-brand-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-brand-600"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-            {t.id === "connections" && provider === "zernio" ? (
-              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
-                {connections.filter((c) => c.status === "connected").length}
-              </span>
+      <MarketingMetricoolShell
+        tab={tab}
+        onTabChange={setTab}
+        selectedPlatform={selectedPlatform}
+        onPlatformSelect={(id) => {
+          setSelectedPlatform(id);
+          if (id) setTab("connections");
+        }}
+        connectedCount={connections.filter((c) => c.status === "connected").length}
+      >
+        {tab === "summary" ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard label="Comptes connectés" value={String(connectedAccounts.length)} />
+              <StatCard
+                label="Pubs actives"
+                value={String(activeAds.length + launchedWorkspaces.length)}
+              />
+              <StatCard label="Dépenses ads" value={formatCurrency(spend)} />
+              <StatCard
+                label="Leads ads"
+                value={String(leads)}
+                hint={`${impressions.toLocaleString("fr-CA")} impressions`}
+              />
+            </div>
+            {provider === "zernio" ? (
+              <ZernioConnectionsPanel
+                connections={connections.slice(0, 6)}
+                canManage={canLaunch}
+                busy={busy}
+                profileId={zernio?.profileId}
+                onConnect={(platformId) => void oauthPlatform(platformId)}
+                onDisconnect={(id) => void disconnect(id)}
+                onReauth={(platformId) => void oauthPlatform(platformId)}
+                onSync={() => void syncZernioAccounts()}
+              />
             ) : null}
-          </button>
-        ))}
-      </div>
+          </div>
+        ) : null}
 
-      {tab === "connections" ? (
-        provider === "zernio" ? (
-          <ZernioConnectionsPanel
-            connections={connections}
-            canManage={canLaunch}
-            busy={busy}
-            profileId={zernio?.profileId}
-            onConnect={(platformId) => void oauthPlatform(platformId)}
-            onDisconnect={(id) => void disconnect(id)}
-            onReauth={(platformId) => void oauthPlatform(platformId)}
-            onSync={() => void syncZernioAccounts()}
-          />
-        ) : (
+        {tab === "connections" ? (
+          provider === "zernio" ? (
+            <ZernioConnectionsPanel
+              connections={connections}
+              canManage={canLaunch}
+              busy={busy}
+              profileId={zernio?.profileId}
+              platformFilter={selectedPlatform}
+              onConnect={(platformId) => void oauthPlatform(platformId)}
+              onDisconnect={(id) => void disconnect(id)}
+              onReauth={(platformId) => void oauthPlatform(platformId)}
+              onSync={() => void syncZernioAccounts()}
+            />
+          ) : (
           <Card>
             <CardHeader>
               <CardTitle>Comptes entreprise</CardTitle>
@@ -495,9 +458,9 @@ export function SocialAdsPageClient() {
             </CardContent>
           </Card>
         )
-      ) : null}
+        ) : null}
 
-      {tab === "publications" ? (
+        {tab === "planning" ? (
         <div className="space-y-6">
           <SocialPublishComposer
             accounts={accounts}
@@ -516,7 +479,10 @@ export function SocialAdsPageClient() {
               <button
                 type="button"
                 className="font-medium text-brand-600 underline-offset-2 hover:underline"
-                onClick={() => setTab("connections")}
+                onClick={() => {
+                  setTab("connections");
+                  setSelectedPlatform(null);
+                }}
               >
                 Connexions
               </button>{" "}
@@ -524,9 +490,9 @@ export function SocialAdsPageClient() {
             </div>
           ) : null}
         </div>
-      ) : null}
+        ) : null}
 
-      {tab === "campaigns" ? (
+        {tab === "campaigns" || tab === "reports" ? (
         <Card>
           <CardHeader>
             <CardTitle>Campagnes et publicités</CardTitle>
@@ -651,7 +617,8 @@ export function SocialAdsPageClient() {
             </div>
           </CardContent>
         </Card>
-      ) : null}
+        ) : null}
+      </MarketingMetricoolShell>
     </div>
   );
 }

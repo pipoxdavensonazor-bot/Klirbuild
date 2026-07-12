@@ -17,6 +17,10 @@ export type ConnectionTile = {
   category: "social" | "ads" | "messaging";
   tileClass: string;
   monogram: string;
+  buttonBg: string;
+  buttonText: string;
+  iconBg: string;
+  connectLabel: string;
   status: SocialAccount["status"];
   accountId?: string;
   accountName?: string;
@@ -122,6 +126,10 @@ export async function listZernioConnectionTiles(
       category: cat.category,
       tileClass: cat.tileClass,
       monogram: cat.monogram,
+      buttonBg: cat.buttonBg,
+      buttonText: cat.buttonText,
+      iconBg: cat.iconBg,
+      connectLabel: cat.connectLabel,
       status: acc?.status ?? "disconnected",
       accountId: acc?.id,
       accountName: acc?.accountName,
