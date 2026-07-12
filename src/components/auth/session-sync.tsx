@@ -21,6 +21,7 @@ export function SessionSync() {
           employeeId?: string | null;
           name?: string;
           email?: string;
+          enabledModules?: string[];
         }) => {
           if (!data.authenticated) return;
           useSessionStore.getState().syncProfile({
@@ -31,6 +32,7 @@ export function SessionSync() {
             plan: data.plan,
             subscriptionStatus: data.subscriptionStatus,
             marketRegion: data.marketRegion,
+            enabledModules: data.enabledModules,
           });
         }
       )

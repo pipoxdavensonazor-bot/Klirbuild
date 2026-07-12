@@ -6,14 +6,17 @@ Guide pas à pas pour déployer KlirBuild sur Netlify en production.
 
 ## Checklist rapide
 
-- [ ] Postgres provisionné (`DATABASE_URL`)
-- [ ] `npm run db:push && npm run db:seed`
-- [ ] Stripe configuré (`npm run stripe:setup` + `stripe:verify`)
-- [ ] `DEMO_AUTH_BYPASS=false` en production
-- [ ] `NEXT_PUBLIC_APP_URL` = URL Netlify finale
-- [ ] Webhook Stripe production configuré
-- [ ] `npm run production:verify` → tout ✅
-- [ ] `npx netlify deploy --prod`
+- [x] Postgres provisionné (`DATABASE_URL`) — OK en prod (health)
+- [x] Schéma Prisma (`db push` au build Netlify)
+- [x] `DEMO_AUTH_BYPASS=false` en production (middleware ignore le bypass en prod)
+- [x] `NEXT_PUBLIC_APP_URL` — défini dans `netlify.toml` + health
+- [ ] Stripe configuré (`npm run stripe:setup` + variables Netlify)
+- [ ] `STRIPE_WEBHOOK_SECRET` + webhook prod
+- [ ] `npm run production:verify` → core + billing ✅
+- [ ] Intégrations optionnelles : Zernio, Google OAuth, OpenAI, Resend, CRON_SECRET
+
+**État actuel prod** (`/api/health`) : base OK, **Stripe manquant** → status `degraded`.
+Configurez les variables dans **Settings → Integrations** (checklist intégrée).
 
 ---
 

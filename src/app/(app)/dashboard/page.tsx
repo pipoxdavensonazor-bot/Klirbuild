@@ -24,7 +24,6 @@ import {
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { activities, kpi, revenueSeries } from "@/lib/mock-data";
 import { apiUrl } from "@/lib/api-client";
 import type { ActivityItem } from "@/types";
 import { formatMoney } from "@/lib/markets/currency";
@@ -43,14 +42,14 @@ export default function DashboardPage() {
   const market = getMarket(marketRegion);
 
   const [stats, setStats] = useState({
-    revenue: kpi.revenue,
-    invoicesOpen: kpi.invoicesOpen,
-    clients: kpi.clients,
-    projects: kpi.projects,
-    tasksDue: kpi.tasksDue,
-    pipeline: kpi.pipeline,
-    revenueSeries: revenueSeries as { month: string; revenue: number }[],
-    activities: activities as ActivityItem[],
+    revenue: 0,
+    invoicesOpen: 0,
+    clients: 0,
+    projects: 0,
+    tasksDue: 0,
+    pipeline: 0,
+    revenueSeries: [] as { month: string; revenue: number }[],
+    activities: [] as ActivityItem[],
   });
 
   useEffect(() => {

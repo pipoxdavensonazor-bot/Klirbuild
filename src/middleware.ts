@@ -8,7 +8,8 @@ const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/t
  * La connexion est obligatoire par défaut (SIGN IN / SIGN UP requis).
  * Mettre DEMO_AUTH_BYPASS="true" uniquement pour une démo sans login.
  */
-const DEMO_AUTH_BYPASS = process.env.DEMO_AUTH_BYPASS === "true";
+const DEMO_AUTH_BYPASS =
+  process.env.DEMO_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

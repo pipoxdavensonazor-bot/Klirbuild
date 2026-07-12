@@ -15,6 +15,7 @@ import Link from "next/link";
 import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
 import { SettingsCompanyPanel } from "@/components/settings/settings-company-panel";
 import { SettingsRolesPanel } from "@/components/settings/settings-roles-panel";
+import { ProductionSetupChecklist } from "@/components/settings/production-setup-checklist";
 
 const tabs = [
   "Company",
@@ -115,6 +116,8 @@ export default function SettingsPage() {
                 )}
               </div>
             ) : null}
+
+            {tab === "Integrations" ? <ProductionSetupChecklist /> : null}
 
             {tab === "API Keys" ? (
               <div className="space-y-3">

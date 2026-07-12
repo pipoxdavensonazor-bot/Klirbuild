@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { useSocialAdsStore } from "@/lib/social-ads/store";
 import { formatDate } from "@/lib/utils";
-import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 
 const textareaClass =
@@ -30,7 +29,8 @@ export function SocialAdLaunchWorkspace({
   onClose?: () => void;
 }) {
   const employeeId = useSessionStore((s) => s.employeeId);
-  const employee = employees.find((e) => e.id === employeeId) ?? employees[0];
+  const userName = useSessionStore((s) => s.userName);
+  const employee = { id: employeeId ?? "", name: userName || "Utilisateur" };
 
   const activeWorkspaceId = useSocialAdsStore((s) => s.activeWorkspaceId);
   const workspace = useSocialAdsStore((s) =>

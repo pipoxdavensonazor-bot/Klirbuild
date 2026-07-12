@@ -7,7 +7,6 @@ import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { automations as mockAutomations } from "@/lib/mock-data";
 import { apiUrl } from "@/lib/api-client";
 import type { AutomationDto } from "@/lib/automations/automation-service";
 import { recipesForRegion } from "@/lib/markets/automations";
@@ -22,14 +21,7 @@ export default function AutomationsPage() {
   useEffect(() => {
     void fetch(apiUrl("/api/automations"), { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setAutomations(d.automations ?? mockAutomations.map((a) => ({
-        id: a.id,
-        name: a.name,
-        trigger: a.trigger,
-        active: a.active,
-        runs: a.runs,
-        lastRunAt: a.lastRun,
-      }))));
+      .then((d) => setAutomations(d.automations ?? []));
   }, []);
 
   const active = automations.filter((a) => a.active).length;

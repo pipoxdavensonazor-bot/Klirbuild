@@ -28,6 +28,7 @@ export async function GET() {
       plan: true,
       subscriptionStatus: true,
       marketRegion: true,
+      enabledModules: true,
     },
   });
 
@@ -87,6 +88,7 @@ export async function PATCH(request: Request) {
       brandingPrimary: true,
       brandingAccent: true,
       marketRegion: true,
+      enabledModules: true,
     },
   });
 

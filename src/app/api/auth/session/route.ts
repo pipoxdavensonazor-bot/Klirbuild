@@ -23,6 +23,7 @@ export async function GET() {
             plan: true,
             subscriptionStatus: true,
             marketRegion: true,
+            enabledModules: true,
           },
         },
       },
@@ -43,6 +44,9 @@ export async function GET() {
         subscriptionStatus: user.company.subscriptionStatus,
         marketRegion: (user.company.marketRegion || "CA-QC") as MarketRegionId,
         employeeId: employee?.id ?? null,
+        enabledModules: user.company.enabledModules?.length
+          ? user.company.enabledModules
+          : ["construction-os", "crm"],
         zernioEnabled: isZernioEnabled(),
       });
     }

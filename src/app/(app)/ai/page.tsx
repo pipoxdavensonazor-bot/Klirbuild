@@ -6,9 +6,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { aiMessages, suggestedPrompts } from "@/lib/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 import type { ChatMessage } from "@/types";
+
+const STARTER_PROMPTS = [
+  "Résume mes factures en retard",
+  "Quels clients sont actifs ce mois-ci ?",
+  "Prochaines échéances de paie",
+];
 
 export default function AiPage() {
   return (
@@ -19,7 +24,8 @@ export default function AiPage() {
 }
 
 function AiInner() {
-  const [messages, setMessages] = useState<ChatMessage[]>(aiMessages);
+  const userName = useSessionStore((s) => s.userName);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [toolPanel, setToolPanel] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
@@ -137,7 +143,7 @@ function AiInner() {
               <CardTitle>Suggested prompts</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {suggestedPrompts.map((prompt) => (
+              {STARTER_PROMPTS.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => void send(prompt)}

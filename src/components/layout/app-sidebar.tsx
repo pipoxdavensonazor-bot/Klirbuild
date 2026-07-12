@@ -32,7 +32,6 @@ import {
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { cn } from "@/lib/utils";
 import { getEnabledModuleNav } from "@/modules/registry";
-import { demoCompany } from "@/lib/mock-data";
 import { canApp, type AppPermission } from "@/lib/workforce/types";
 import { useSessionStore } from "@/lib/workforce/session";
 import {
@@ -89,8 +88,11 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const role = useSessionStore((s) => s.role);
   const planId = useSessionStore((s) => s.plan);
+  const enabledModules = useSessionStore((s) => s.enabledModules);
   const plan = getPlan(planId);
-  const moduleNav = getEnabledModuleNav(demoCompany.enabledModules);
+  const moduleNav = getEnabledModuleNav(
+    enabledModules.length ? enabledModules : ["construction-os"]
+  );
   const [showLocked, setShowLocked] = useState(false);
   const isCentralAdmin = role === "SUPER_ADMIN" || role === "COMPANY_ADMIN";
 

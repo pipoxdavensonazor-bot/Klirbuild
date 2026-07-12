@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
-import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 import { roleLabelFr } from "@/lib/workforce/roles";
 import { getMarket, marketProfiles, type MarketRegionId } from "@/lib/markets/regions";
@@ -42,9 +41,10 @@ export function ProfilePageClient() {
   const fileRef = useRef<HTMLInputElement>(null);
   const role = useSessionStore((s) => s.role);
   const employeeId = useSessionStore((s) => s.employeeId);
+  const userName = useSessionStore((s) => s.userName);
   const marketRegion = useSessionStore((s) => s.marketRegion);
   const setMarketRegion = useSessionStore((s) => s.setMarketRegion);
-  const employee = employees.find((e) => e.id === employeeId) ?? employees[0];
+  const employee = { name: userName || "Utilisateur", id: employeeId ?? "" };
   const market = getMarket(marketRegion);
 
   const [company, setCompany] = useState<CompanyProfile | null>(null);

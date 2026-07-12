@@ -26,6 +26,7 @@ type SessionState = {
   currency: CurrencyCode;
   locale: LocaleCode;
   autoPilot: boolean;
+  enabledModules: string[];
   setRole: (role: Role) => void;
   setEmployeeId: (id: string | null) => void;
   setPlan: (plan: SubscriptionPlanId) => void;
@@ -38,6 +39,7 @@ type SessionState = {
     subscriptionStatus?: SubscriptionStatus;
     stripeCustomerId?: string | null;
   }) => void;
+  enabledModules: string[];
   syncProfile: (data: {
     role?: Role;
     employeeId?: string | null;
@@ -46,6 +48,7 @@ type SessionState = {
     plan?: SubscriptionPlanId;
     subscriptionStatus?: SubscriptionStatus;
     marketRegion?: MarketRegionId;
+    enabledModules?: string[];
   }) => void;
   setMarketRegion: (id: MarketRegionId) => void;
   setCurrency: (c: CurrencyCode) => void;
@@ -68,6 +71,7 @@ export const useSessionStore = create<SessionState>()(
       currency: "CAD",
       locale: "fr",
       autoPilot: true,
+      enabledModules: ["construction-os", "crm"],
       setRole: (role) => set({ role }),
       setEmployeeId: (employeeId) => set({ employeeId }),
       setPlan: (plan) => set({ plan }),
@@ -91,6 +95,7 @@ export const useSessionStore = create<SessionState>()(
           plan: data.plan ?? s.plan,
           subscriptionStatus: data.subscriptionStatus ?? s.subscriptionStatus,
           marketRegion: data.marketRegion ?? s.marketRegion,
+          enabledModules: data.enabledModules?.length ? data.enabledModules : s.enabledModules,
         })),
       setMarketRegion: (marketRegion) => {
         const m = getMarket(marketRegion);

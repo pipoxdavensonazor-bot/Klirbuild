@@ -34,7 +34,6 @@ import {
 import { useSocialAdsStore } from "@/lib/social-ads/store";
 import type { ConnectionTile } from "@/lib/social-ads/zernio-connections-service";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 
 type ProviderMeta = {
@@ -67,9 +66,10 @@ export function SocialAdsPageClient() {
   const searchParams = useSearchParams();
   const role = useSessionStore((s) => s.role);
   const employeeId = useSessionStore((s) => s.employeeId);
-  const employee = employees.find((e) => e.id === employeeId) ?? employees[0];
-  const canLaunch = canManageSocialAds(role, employee.jobTitle);
-  const accessLabel = socialAdsAccessLabel(role, employee.jobTitle);
+  const userName = useSessionStore((s) => s.userName);
+  const employee = { id: employeeId ?? "", name: userName || "Utilisateur" };
+  const canLaunch = canManageSocialAds(role);
+  const accessLabel = socialAdsAccessLabel(role);
 
   const workspaces = useSocialAdsStore((s) => s.workspaces);
   const activeWorkspaceId = useSocialAdsStore((s) => s.activeWorkspaceId);
