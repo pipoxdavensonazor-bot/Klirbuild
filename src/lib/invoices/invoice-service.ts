@@ -86,6 +86,7 @@ function mapDbInvoice(row: {
 }
 
 function mergeInvoices(api: Invoice[]): Invoice[] {
+  if (hasDatabase()) return api;
   const file = readFileInvoices();
   const seen = new Set<string>();
   const out: Invoice[] = [];

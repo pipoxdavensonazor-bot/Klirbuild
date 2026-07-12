@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
+import { apiUrl } from "@/lib/api-client";
 import {
   aggregateHoursByEmployee,
   employees,
@@ -36,6 +37,37 @@ function PayrollInner() {
   const [payslips, setPayslips] = useState<Payslip[]>(initialPayslips);
   const [selectedId, setSelectedId] = useState(payslips[0]?.id);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    void fetch(apiUrl("/api/payroll"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.payslips?.length) {
+          setPayslips(
+            d.payslips.map(
+              (p: {
+                id: string;
+                employeeId: string;
+                periodStart: string;
+                periodEnd: string;
+                grossPay: number;
+                netPay: number;
+                status: string;
+              }) => ({
+                id: p.id,
+                employeeId: p.employeeId,
+                periodStart: p.periodStart,
+                periodEnd: p.periodEnd,
+                grossPay: p.grossPay,
+                netPay: p.netPay,
+                status: p.status as Payslip["status"],
+                lines: [],
+              })
+            )
+          );
+        }
+      });
+  }, []);
 
   const visible = useMemo(() => {
     if (canManage) return payslips;

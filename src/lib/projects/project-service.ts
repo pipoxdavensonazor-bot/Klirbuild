@@ -31,6 +31,7 @@ function mapDbProject(row: {
 }
 
 function mergeProjects(api: Project[]): Project[] {
+  if (hasDatabase()) return api;
   const seen = new Set<string>();
   const out: Project[] = [];
   for (const p of [...api, ...mockProjects]) {

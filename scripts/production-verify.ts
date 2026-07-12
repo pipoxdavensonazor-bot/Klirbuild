@@ -80,6 +80,21 @@ const checks: Check[] = [
     ok: process.env.DEMO_AUTH_BYPASS !== "true",
     hint: "Ne jamais mettre à true en production",
   },
+  {
+    name: "OPENAI_API_KEY (Klir AI)",
+    ok: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    hint: "Recommandé pour IA en direct",
+  },
+  {
+    name: "RESEND_API_KEY (courriels)",
+    ok: Boolean(process.env.RESEND_API_KEY?.trim()),
+    hint: "Invitations, reset password, factures",
+  },
+  {
+    name: "EMAIL_FROM",
+    ok: Boolean(process.env.EMAIL_FROM?.trim()),
+    hint: "Adresse expéditeur vérifiée Resend",
+  },
 ];
 
 console.log("\n=== KlirBuild — Vérification production ===\n");

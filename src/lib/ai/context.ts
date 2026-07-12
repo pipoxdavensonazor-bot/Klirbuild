@@ -1,6 +1,6 @@
 import { getConstructionWorkspace } from "@/lib/construction/construction-service";
+import { getDashboardStats } from "@/lib/dashboard/dashboard-service";
 import { listInvoices } from "@/lib/invoices/invoice-service";
-import { kpi } from "@/lib/mock-data";
 import type { MarketProfile } from "@/lib/markets/regions";
 import { listTasks } from "@/lib/tasks/task-service";
 
@@ -10,7 +10,8 @@ function fmtMoney(amount: number, currency: string) {
 }
 
 export async function buildBusinessContext(companyId: string, market: MarketProfile) {
-  const [tasks, invoices] = await Promise.all([
+  const [stats, tasks, invoices] = await Promise.all([
+    getDashboardStats(companyId),
     listTasks(companyId),
     listInvoices(companyId),
   ]);
@@ -19,9 +20,9 @@ export async function buildBusinessContext(companyId: string, market: MarketProf
   const overdue = invoices.filter((i) => i.status === "overdue");
 
   return [
-    `Revenus MTD : ${fmtMoney(kpi.revenue, market.currency)}`,
-    `Pipeline : ${fmtMoney(kpi.pipeline, market.currency)}`,
-    `Tâches ouvertes : ${openTasks.length}`,
+    `Revenus MTD : ${fmtMoney(stats.revenue, market.currency)}`,
+    `Pipeline : ${fmtMoney(stats.pipeline, market.currency)}`,
+    `Tâches ouvertes : ${stats.tasksDue}`,
     openTasks.length
       ? `Exemples : ${openTasks
           .slice(0, 5)
@@ -35,6 +36,7 @@ export async function buildBusinessContext(companyId: string, market: MarketProf
           .map((i) => `${i.number} — ${i.clientName} (${fmtMoney(i.total, market.currency)})`)
           .join("; ")
       : null,
+    `Clients : ${stats.clients} · Projets actifs : ${stats.projects}`,
   ]
     .filter(Boolean)
     .join("\n");

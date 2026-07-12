@@ -86,6 +86,7 @@ function mapDbQuote(row: {
 }
 
 function mergeQuotes(companyId: string, api: Quote[]): Quote[] {
+  if (hasDatabase()) return api;
   const file = readFileQuotes(companyId);
   const mock = mockQuotes;
   const seen = new Set<string>();

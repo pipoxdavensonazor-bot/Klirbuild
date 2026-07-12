@@ -27,6 +27,7 @@ export async function GET() {
       brandingAccent: true,
       plan: true,
       subscriptionStatus: true,
+      marketRegion: true,
     },
   });
 
@@ -59,6 +60,7 @@ export async function PATCH(request: Request) {
     "logoUrl",
     "brandingPrimary",
     "brandingAccent",
+    "marketRegion",
   ] as const) {
     if (typeof body[key] === "string") {
       data[key] = body[key].trim();
@@ -84,6 +86,7 @@ export async function PATCH(request: Request) {
       logoUrl: true,
       brandingPrimary: true,
       brandingAccent: true,
+      marketRegion: true,
     },
   });
 

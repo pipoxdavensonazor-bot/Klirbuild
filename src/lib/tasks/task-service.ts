@@ -36,8 +36,9 @@ export async function listTasks(companyId: string): Promise<TaskDto[]> {
           dueDate: r.dueDate?.toISOString().slice(0, 10),
         }));
       }
+      return [];
     } catch {
-      /* fall through */
+      return [];
     }
   }
   if (!memory.has(companyId)) {

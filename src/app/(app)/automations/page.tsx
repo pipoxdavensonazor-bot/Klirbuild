@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { automations } from "@/lib/mock-data";
+import { automations as mockAutomations } from "@/lib/mock-data";
+import { apiUrl } from "@/lib/api-client";
+import type { AutomationDto } from "@/lib/automations/automation-service";
 import { recipesForRegion } from "@/lib/markets/automations";
 import { useSessionStore } from "@/lib/workforce/session";
 import { formatDate } from "@/lib/utils";
@@ -14,6 +17,21 @@ import { formatDate } from "@/lib/utils";
 export default function AutomationsPage() {
   const marketRegion = useSessionStore((s) => s.marketRegion);
   const recipes = recipesForRegion(marketRegion);
+  const [automations, setAutomations] = useState<AutomationDto[]>([]);
+
+  useEffect(() => {
+    void fetch(apiUrl("/api/automations"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setAutomations(d.automations ?? mockAutomations.map((a) => ({
+        id: a.id,
+        name: a.name,
+        trigger: a.trigger,
+        active: a.active,
+        runs: a.runs,
+        lastRunAt: a.lastRun,
+      }))));
+  }, []);
+
   const active = automations.filter((a) => a.active).length;
 
   return (
@@ -63,7 +81,7 @@ export default function AutomationsPage() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {auto.runs} runs
-                      {auto.lastRun ? ` · last ${formatDate(auto.lastRun)}` : ""}
+                      {auto.lastRunAt ? ` · last ${formatDate(auto.lastRunAt)}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

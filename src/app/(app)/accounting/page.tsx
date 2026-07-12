@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { apiUrl } from "@/lib/api-client";
 import {
-  journalEntries,
-  ledgerAccounts,
+  journalEntries as mockJournal,
+  ledgerAccounts as mockLedger,
   taxRates,
 } from "@/lib/workforce/mock-data";
 import { formatMoney } from "@/lib/markets/currency";
@@ -32,6 +33,18 @@ function AccountingInner() {
   const currency = useSessionStore((s) => s.currency);
   const market = getMarket(marketRegion);
   const [subtotal, setSubtotal] = useState("1000");
+  const [ledgerAccounts, setLedgerAccounts] = useState(mockLedger);
+  const [journalEntries, setJournalEntries] = useState(mockJournal);
+
+  useEffect(() => {
+    void fetch(apiUrl("/api/accounting"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.accounts?.length) setLedgerAccounts(d.accounts);
+        if (d.entries?.length) setJournalEntries(d.entries);
+      });
+  }, []);
+
   const taxPreview = useMemo(() => {
     const n = Number(subtotal) || 0;
     return calcMarketTaxes(n, marketRegion);

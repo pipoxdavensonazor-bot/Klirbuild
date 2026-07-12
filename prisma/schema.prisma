@@ -44,6 +44,7 @@ model Company {
   email              String?
   phone              String?
   website            String?
+  marketRegion       String             @default("CA-QC")
   plan               Plan               @default(starter)
   subscriptionStatus SubscriptionStatus @default(trialing)
   stripeCustomerId   String?
@@ -130,6 +131,17 @@ model Invitation {
   createdAt DateTime @default(now())
 
   @@index([companyId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
 }
 
 model Client {

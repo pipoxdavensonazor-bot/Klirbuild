@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Area,
@@ -24,6 +25,8 @@ import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { activities, kpi, revenueSeries } from "@/lib/mock-data";
+import { apiUrl } from "@/lib/api-client";
+import type { ActivityItem } from "@/types";
 import { formatMoney } from "@/lib/markets/currency";
 import { t } from "@/lib/markets/i18n";
 import { getMarket } from "@/lib/markets/regions";
@@ -38,6 +41,26 @@ export default function DashboardPage() {
   const locale = useSessionStore((s) => s.locale);
   const autoPilot = useSessionStore((s) => s.autoPilot);
   const market = getMarket(marketRegion);
+
+  const [stats, setStats] = useState({
+    revenue: kpi.revenue,
+    invoicesOpen: kpi.invoicesOpen,
+    clients: kpi.clients,
+    projects: kpi.projects,
+    tasksDue: kpi.tasksDue,
+    pipeline: kpi.pipeline,
+    revenueSeries: revenueSeries as { month: string; revenue: number }[],
+    activities: activities as ActivityItem[],
+  });
+
+  useEffect(() => {
+    void fetch(apiUrl("/api/dashboard"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data.revenue === "number") setStats(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div>
@@ -98,31 +121,31 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Revenue (MTD)"
-          value={formatMoney(kpi.revenue, currency)}
+          value={formatMoney(stats.revenue, currency)}
           hint={`${market.id} · market-aware`}
           icon={<Wallet className="h-4 w-4" />}
         />
         <StatCard
           label="Open invoices"
-          value={String(kpi.invoicesOpen)}
+          value={String(stats.invoicesOpen)}
           hint="1 overdue"
           icon={<FileText className="h-4 w-4" />}
         />
         <StatCard
           label="Clients"
-          value={String(kpi.clients)}
+          value={String(stats.clients)}
           hint="1 new lead"
           icon={<Users className="h-4 w-4" />}
         />
         <StatCard
           label="Active projects"
-          value={String(kpi.projects)}
+          value={String(stats.projects)}
           hint="On track"
           icon={<FolderKanban className="h-4 w-4" />}
         />
         <StatCard
           label="Open tasks"
-          value={String(kpi.tasksDue)}
+          value={String(stats.tasksDue)}
           hint="2 due this week"
           icon={<CheckSquare className="h-4 w-4" />}
         />
@@ -135,7 +158,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueSeries}>
+              <AreaChart data={stats.revenueSeries}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#1A365D" stopOpacity={0.35} />
@@ -167,7 +190,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              Pipeline {formatMoney(kpi.pipeline, currency)} on {market.label}. Tax
+              Pipeline {formatMoney(stats.pipeline, currency)} on {market.label}. Tax
               stack {market.taxLines.map((x) => x.name).join(" + ")}. Auto-Pilot can
               convert change orders → {market.invoiceLabel}.
             </p>
@@ -190,7 +213,7 @@ export default function DashboardPage() {
             <CardTitle>Recent activity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {activities.map((item) => (
+            {stats.activities.map((item) => (
               <div
                 key={item.id}
                 className="flex gap-3 border-b border-border pb-3 last:border-0 last:pb-0"
