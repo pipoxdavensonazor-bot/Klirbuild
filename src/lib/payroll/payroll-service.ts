@@ -1,5 +1,6 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
+import { generatePayslip, splitRegularOvertime } from "@/lib/workforce/payroll";
 import { payslips as mockPayslips, employees } from "@/lib/workforce/mock-data";
 
 function dec(v: { toNumber(): number } | number) {
@@ -12,10 +13,49 @@ export type PayslipDto = {
   employeeName: string;
   periodStart: string;
   periodEnd: string;
+  regularHours: number;
+  overtimeHours: number;
   grossPay: number;
   netPay: number;
   status: string;
+  lines: {
+    code: string;
+    label: string;
+    amount: number;
+    type: "earning" | "deduction" | "employer";
+  }[];
 };
+
+function mapPayslip(row: {
+  id: string;
+  employeeId: string;
+  employee: { name: string };
+  periodStart: Date;
+  periodEnd: Date;
+  regularHours: { toNumber(): number } | number;
+  overtimeHours: { toNumber(): number } | number;
+  grossPay: { toNumber(): number } | number;
+  netPay: { toNumber(): number } | number;
+  linesJson: unknown;
+  status: string;
+}): PayslipDto {
+  const lines = Array.isArray(row.linesJson)
+    ? (row.linesJson as PayslipDto["lines"])
+    : [];
+  return {
+    id: row.id,
+    employeeId: row.employeeId,
+    employeeName: row.employee.name,
+    periodStart: row.periodStart.toISOString().slice(0, 10),
+    periodEnd: row.periodEnd.toISOString().slice(0, 10),
+    regularHours: dec(row.regularHours),
+    overtimeHours: dec(row.overtimeHours),
+    grossPay: dec(row.grossPay),
+    netPay: dec(row.netPay),
+    status: row.status,
+    lines,
+  };
+}
 
 export async function listPayslips(companyId: string): Promise<PayslipDto[]> {
   if (hasDatabase()) {
@@ -25,16 +65,7 @@ export async function listPayslips(companyId: string): Promise<PayslipDto[]> {
       orderBy: { periodStart: "desc" },
       take: 100,
     });
-    return rows.map((r) => ({
-      id: r.id,
-      employeeId: r.employeeId,
-      employeeName: r.employee.name,
-      periodStart: r.periodStart.toISOString().slice(0, 10),
-      periodEnd: r.periodEnd.toISOString().slice(0, 10),
-      grossPay: dec(r.grossPay),
-      netPay: dec(r.netPay),
-      status: r.status,
-    }));
+    return rows.map(mapPayslip);
   }
   return mockPayslips.map((p) => {
     const emp = employees.find((e) => e.id === p.employeeId);
@@ -44,9 +75,12 @@ export async function listPayslips(companyId: string): Promise<PayslipDto[]> {
       employeeName: emp?.name ?? "—",
       periodStart: p.periodStart,
       periodEnd: p.periodEnd,
+      regularHours: p.regularHours,
+      overtimeHours: p.overtimeHours,
       grossPay: p.grossPay,
       netPay: p.netPay,
       status: p.status,
+      lines: p.lines,
     };
   });
 }
@@ -72,4 +106,125 @@ export async function listPayrollEmployees(companyId: string) {
     hourlyRate: e.hourlyRate,
     jobTitle: e.jobTitle,
   }));
+}
+
+function aggregateHours(
+  entries: {
+    employeeId: string;
+    employee: { name: string; hourlyRate: { toNumber(): number }; overtimeRate: { toNumber(): number }; role: string };
+    hoursWorked: { toNumber(): number } | null;
+  }[]
+) {
+  const map = new Map<
+    string,
+    {
+      employeeId: string;
+      employeeName: string;
+      hourlyRate: number;
+      overtimeRate: number;
+      role: string;
+      hours: number;
+    }
+  >();
+
+  for (const e of entries) {
+    const hours = e.hoursWorked ? dec(e.hoursWorked) : 0;
+    if (hours <= 0) continue;
+    const prev = map.get(e.employeeId);
+    if (prev) {
+      prev.hours += hours;
+    } else {
+      map.set(e.employeeId, {
+        employeeId: e.employeeId,
+        employeeName: e.employee.name,
+        hourlyRate: dec(e.employee.hourlyRate),
+        overtimeRate: dec(e.employee.overtimeRate) || dec(e.employee.hourlyRate) * 1.5,
+        role: e.employee.role,
+        hours,
+      });
+    }
+  }
+
+  return Array.from(map.values()).map((row) => ({
+    ...row,
+    ...splitRegularOvertime(row.hours),
+  }));
+}
+
+export async function generatePayslipsFromTimeEntries(
+  companyId: string,
+  periodStart: string,
+  periodEnd: string
+) {
+  if (!hasDatabase()) {
+    return { error: "DATABASE_URL requis pour générer la paie." as const };
+  }
+
+  const start = new Date(periodStart);
+  const end = new Date(`${periodEnd}T23:59:59.999Z`);
+
+  const entries = await prisma.timeEntry.findMany({
+    where: {
+      companyId,
+      clockOutAt: { not: null },
+      hoursWorked: { not: null },
+      clockInAt: { gte: start, lte: end },
+      status: { in: ["approved", "clocked_out", "pending_review"] },
+    },
+    include: {
+      employee: {
+        select: { name: true, hourlyRate: true, overtimeRate: true, role: true },
+      },
+    },
+  });
+
+  const aggregated = aggregateHours(entries).filter((r) => r.role !== "COMPANY_ADMIN");
+  if (!aggregated.length) {
+    return { error: "Aucune heure approuvée pour cette période." as const };
+  }
+
+  const created: PayslipDto[] = [];
+  for (const row of aggregated) {
+    const calc = generatePayslip({
+      employeeId: row.employeeId,
+      employeeName: row.employeeName,
+      hourlyRate: row.hourlyRate,
+      overtimeRate: row.overtimeRate,
+      regularHours: row.regularHours,
+      overtimeHours: row.overtimeHours,
+      periodStart,
+      periodEnd,
+    });
+
+    const saved = await prisma.payslip.create({
+      data: {
+        companyId,
+        employeeId: row.employeeId,
+        periodStart: start,
+        periodEnd: end,
+        regularHours: row.regularHours,
+        overtimeHours: row.overtimeHours,
+        grossPay: calc.grossPay,
+        netPay: calc.netPay,
+        linesJson: calc.lines,
+        status: "draft",
+      },
+      include: { employee: { select: { name: true } } },
+    });
+    created.push(mapPayslip(saved));
+  }
+
+  return { payslips: created, count: created.length };
+}
+
+export async function approveDraftPayslips(companyId: string) {
+  if (!hasDatabase()) {
+    return { error: "DATABASE_URL requis." as const };
+  }
+  const result = await prisma.payslip.updateMany({
+    where: { companyId, status: "draft" },
+    data: { status: "approved" },
+  });
+  const payslips = await listPayslips(companyId);
+  return { updated: result.count, payslips };
 }

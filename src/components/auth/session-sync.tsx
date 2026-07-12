@@ -11,25 +11,29 @@ export function SessionSync() {
   useEffect(() => {
     void fetch(apiUrl("/api/auth/session"), { credentials: "include" })
       .then((r) => r.json())
-      .then((data: {
-        authenticated?: boolean;
-        role?: Role;
-        plan?: SubscriptionPlanId;
-        marketRegion?: MarketRegionId;
-        subscriptionStatus?: "trialing" | "active" | "past_due" | "canceled";
-      }) => {
-        if (!data.authenticated) return;
-        if (data.role) useSessionStore.getState().setRole(data.role);
-        if (data.plan) {
-          useSessionStore.getState().syncBilling({
+      .then(
+        (data: {
+          authenticated?: boolean;
+          role?: Role;
+          plan?: SubscriptionPlanId;
+          marketRegion?: MarketRegionId;
+          subscriptionStatus?: "trialing" | "active" | "past_due" | "canceled";
+          employeeId?: string | null;
+          name?: string;
+          email?: string;
+        }) => {
+          if (!data.authenticated) return;
+          useSessionStore.getState().syncProfile({
+            role: data.role,
+            employeeId: data.employeeId ?? null,
+            name: data.name,
+            email: data.email,
             plan: data.plan,
             subscriptionStatus: data.subscriptionStatus,
+            marketRegion: data.marketRegion,
           });
         }
-        if (data.marketRegion) {
-          useSessionStore.getState().setMarketRegion(data.marketRegion);
-        }
-      })
+      )
       .catch(() => {});
   }, []);
 

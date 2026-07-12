@@ -7,37 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { clients as mockClients } from "@/lib/mock-data";
+import { apiUrl } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Client } from "@/types";
-
-const LOCAL_KEY = "klirbuild-extra-clients";
-
-function readLocalClients(): Client[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "[]") as Client[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalClient(client: Client) {
-  const existing = readLocalClients();
-  localStorage.setItem(LOCAL_KEY, JSON.stringify([client, ...existing]));
-}
-
-function mergeClients(apiClients: Client[]): Client[] {
-  const local = readLocalClients();
-  const seen = new Set<string>();
-  const merged: Client[] = [];
-  for (const c of [...local, ...apiClients, ...mockClients]) {
-    if (seen.has(c.id)) continue;
-    seen.add(c.id);
-    merged.push(c);
-  }
-  return merged;
-}
 
 export function ClientsPageClient() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -53,15 +25,18 @@ export function ClientsPageClient() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/clients");
+      const res = await fetch(apiUrl("/api/clients"), { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
-        setClients(mergeClients([]));
+        setClients([]);
+        setError(data.error ?? "Impossible de charger les clients.");
         return;
       }
-      setClients(mergeClients(data.clients ?? []));
+      setClients(data.clients ?? []);
+      setError("");
     } catch {
-      setClients(mergeClients([]));
+      setClients([]);
+      setError("Erreur réseau.");
     }
   }, []);
 
@@ -79,9 +54,10 @@ export function ClientsPageClient() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/clients", {
+      const res = await fetch(apiUrl("/api/clients"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name, email, phone, industry, city }),
       });
       const data = await res.json();
@@ -89,7 +65,6 @@ export function ClientsPageClient() {
         setError(data.error || "Création échouée");
         return;
       }
-      writeLocalClient(data.client);
       setName("");
       setEmail("");
       setPhone("");
@@ -109,7 +84,7 @@ export function ClientsPageClient() {
     <div>
       <PageHeader
         title="Clients"
-        description="Répertoire clients — ajoutez et gérez vos clients d'affaires."
+        description="Répertoire clients — données depuis la base de données."
         actions={
           <Button onClick={() => setShowForm((v) => !v)}>
             {showForm ? "Fermer" : "New client"}
@@ -187,29 +162,37 @@ export function ClientsPageClient() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
-                <tr
-                  key={client.id}
-                  className="border-t border-border hover:bg-slate-50/70 dark:hover:bg-slate-900/30"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/clients/${client.id}`}
-                      className="font-medium text-brand-600 hover:underline"
-                    >
-                      {client.name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">{client.email}</p>
+              {clients.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                    Aucun client. Ajoutez votre premier client ci-dessus.
                   </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={client.status} />
-                  </td>
-                  <td className="px-4 py-3">{client.industry}</td>
-                  <td className="px-4 py-3">{client.owner}</td>
-                  <td className="px-4 py-3">{formatCurrency(client.lifetimeValue)}</td>
-                  <td className="px-4 py-3">{formatDate(client.createdAt)}</td>
                 </tr>
-              ))}
+              ) : (
+                clients.map((client) => (
+                  <tr
+                    key={client.id}
+                    className="border-t border-border hover:bg-slate-50/70 dark:hover:bg-slate-900/30"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/clients/${client.id}`}
+                        className="font-medium text-brand-600 hover:underline"
+                      >
+                        {client.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{client.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={client.status} />
+                    </td>
+                    <td className="px-4 py-3">{client.industry}</td>
+                    <td className="px-4 py-3">{client.owner}</td>
+                    <td className="px-4 py-3">{formatCurrency(client.lifetimeValue)}</td>
+                    <td className="px-4 py-3">{formatDate(client.createdAt)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

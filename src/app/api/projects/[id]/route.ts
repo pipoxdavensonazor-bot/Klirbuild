@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
-import { updateProject } from "@/lib/projects/project-service";
+import { getProject, updateProject } from "@/lib/projects/project-service";
+import { listTasks } from "@/lib/tasks/task-service";
 import type { ProjectStatus } from "@/types";
 
 export const runtime = "nodejs";
@@ -10,9 +11,26 @@ type Ctx = { params: Promise<{ id: string }> };
 
 const STATUSES: ProjectStatus[] = ["planned", "active", "on_hold", "completed"];
 
+async function companyId() {
+  const session = await getRequestSession();
+  if (!session) return DEMO_COMPANY_ID;
+  return (await enrichSession(session)).companyId;
+}
+
+export async function GET(_request: Request, ctx: Ctx) {
+  const cid = await companyId();
+  const { id } = await ctx.params;
+  const project = await getProject(cid, id);
+  if (!project) {
+    return NextResponse.json({ error: "Projet introuvable." }, { status: 404 });
+  }
+  const tasks = await listTasks(cid, id);
+  return NextResponse.json({ project, tasks });
+}
+
 export async function PATCH(request: Request, ctx: Ctx) {
   const session = await getRequestSession();
-  const companyId = session
+  const cid = session
     ? (await enrichSession(session)).companyId
     : DEMO_COMPANY_ID;
   const { id } = await ctx.params;
@@ -36,7 +54,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Aucune modification fournie." }, { status: 400 });
   }
 
-  const result = await updateProject(companyId, id, {
+  const result = await updateProject(cid, id, {
     name,
     clientId,
     budget: budget !== undefined && !Number.isNaN(budget) ? budget : undefined,

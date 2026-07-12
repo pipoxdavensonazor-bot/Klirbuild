@@ -10,13 +10,14 @@ import type {
   MarketRegionId,
 } from "@/lib/markets/regions";
 import { getMarket } from "@/lib/markets/regions";
-import { employees } from "@/lib/workforce/mock-data";
 
 type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "incomplete";
 
 type SessionState = {
   role: Role;
-  employeeId: string;
+  employeeId: string | null;
+  userName: string;
+  userEmail: string;
   plan: SubscriptionPlanId;
   billingCycle: "monthly" | "yearly";
   subscriptionStatus: SubscriptionStatus;
@@ -26,7 +27,7 @@ type SessionState = {
   locale: LocaleCode;
   autoPilot: boolean;
   setRole: (role: Role) => void;
-  setEmployeeId: (id: string) => void;
+  setEmployeeId: (id: string | null) => void;
   setPlan: (plan: SubscriptionPlanId) => void;
   setBillingCycle: (cycle: "monthly" | "yearly") => void;
   setSubscriptionStatus: (status: SubscriptionStatus) => void;
@@ -36,6 +37,15 @@ type SessionState = {
     billingCycle?: "monthly" | "yearly";
     subscriptionStatus?: SubscriptionStatus;
     stripeCustomerId?: string | null;
+  }) => void;
+  syncProfile: (data: {
+    role?: Role;
+    employeeId?: string | null;
+    name?: string;
+    email?: string;
+    plan?: SubscriptionPlanId;
+    subscriptionStatus?: SubscriptionStatus;
+    marketRegion?: MarketRegionId;
   }) => void;
   setMarketRegion: (id: MarketRegionId) => void;
   setCurrency: (c: CurrencyCode) => void;
@@ -47,7 +57,9 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       role: "COMPANY_ADMIN",
-      employeeId: employees[0]?.id ?? "emp_1",
+      employeeId: null,
+      userName: "",
+      userEmail: "",
       plan: "growth",
       billingCycle: "monthly",
       subscriptionStatus: "trialing",
@@ -56,20 +68,8 @@ export const useSessionStore = create<SessionState>()(
       currency: "CAD",
       locale: "fr",
       autoPilot: true,
-      setRole: (role) => {
-        const match = employees.find((e) => e.role === role);
-        set({
-          role,
-          employeeId: match?.id ?? employees[0]?.id ?? "emp_1",
-        });
-      },
-      setEmployeeId: (employeeId) => {
-        const emp = employees.find((e) => e.id === employeeId);
-        set({
-          employeeId,
-          role: emp?.role ?? "EMPLOYEE",
-        });
-      },
+      setRole: (role) => set({ role }),
+      setEmployeeId: (employeeId) => set({ employeeId }),
       setPlan: (plan) => set({ plan }),
       setBillingCycle: (billingCycle) => set({ billingCycle }),
       setSubscriptionStatus: (subscriptionStatus) => set({ subscriptionStatus }),
@@ -81,6 +81,16 @@ export const useSessionStore = create<SessionState>()(
           subscriptionStatus: data.subscriptionStatus ?? s.subscriptionStatus,
           stripeCustomerId:
             data.stripeCustomerId !== undefined ? data.stripeCustomerId : s.stripeCustomerId,
+        })),
+      syncProfile: (data) =>
+        set((s) => ({
+          role: data.role ?? s.role,
+          employeeId: data.employeeId !== undefined ? data.employeeId : s.employeeId,
+          userName: data.name ?? s.userName,
+          userEmail: data.email ?? s.userEmail,
+          plan: data.plan ?? s.plan,
+          subscriptionStatus: data.subscriptionStatus ?? s.subscriptionStatus,
+          marketRegion: data.marketRegion ?? s.marketRegion,
         })),
       setMarketRegion: (marketRegion) => {
         const m = getMarket(marketRegion);

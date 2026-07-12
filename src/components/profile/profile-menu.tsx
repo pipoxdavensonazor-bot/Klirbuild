@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/api-client";
-import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 import { roleLabelFr } from "@/lib/workforce/roles";
 import { getMarket, marketProfiles, type MarketRegionId } from "@/lib/markets/regions";
@@ -43,10 +42,11 @@ export function ProfileMenu() {
   const ref = useRef<HTMLDivElement>(null);
 
   const role = useSessionStore((s) => s.role);
-  const employeeId = useSessionStore((s) => s.employeeId);
+  const userName = useSessionStore((s) => s.userName);
+  const userEmail = useSessionStore((s) => s.userEmail);
   const marketRegion = useSessionStore((s) => s.marketRegion);
   const setMarketRegion = useSessionStore((s) => s.setMarketRegion);
-  const employee = employees.find((e) => e.id === employeeId) ?? employees[0];
+  const displayName = userName || userEmail.split("@")[0] || "Utilisateur";
   const market = getMarket(marketRegion);
 
   const loadCompany = useCallback(async () => {
@@ -122,10 +122,15 @@ export function ProfileMenu() {
         aria-haspopup="true"
       >
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
-          {employee?.avatarInitials ?? "AR"}
+          {(displayName
+            .split(" ")
+            .map((p) => p[0])
+            .join("")
+            .slice(0, 2) || "KB"
+          ).toUpperCase()}
         </div>
         <div className="hidden leading-tight sm:block text-left">
-          <p className="text-xs font-medium">{employee?.name ?? "Utilisateur"}</p>
+          <p className="text-xs font-medium">{displayName}</p>
           <p className="text-[10px] text-muted-foreground">{roleLabelFr(role)}</p>
         </div>
         <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition", open && "rotate-180")} />
@@ -154,7 +159,7 @@ export function ProfileMenu() {
             )}
             <div className="min-w-0">
               <p className="truncate font-semibold">{company.name}</p>
-              <p className="text-xs text-muted-foreground">{employee?.name}</p>
+              <p className="text-xs text-muted-foreground">{displayName}</p>
               <p className="text-[10px] text-brand-600">Modifier le profil →</p>
             </div>
           </Link>

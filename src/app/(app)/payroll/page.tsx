@@ -8,17 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl } from "@/lib/api-client";
-import {
-  aggregateHoursByEmployee,
-  employees,
-  payslips as initialPayslips,
-  timeEntries,
-} from "@/lib/workforce/mock-data";
-import { generatePayslip, formatMoney } from "@/lib/workforce/payroll";
+import { formatMoney } from "@/lib/workforce/payroll";
 import { useSessionStore } from "@/lib/workforce/session";
 import { canApp } from "@/lib/workforce/types";
 import type { Payslip } from "@/lib/workforce/types";
 import { formatDate } from "@/lib/utils";
+
+type PayslipRow = Payslip & { employeeName: string };
 
 export default function PayrollPage() {
   return (
@@ -34,43 +30,46 @@ function PayrollInner() {
   const role = useSessionStore((s) => s.role);
   const employeeId = useSessionStore((s) => s.employeeId);
   const canManage = canApp(role, "payroll:manage");
-  const [payslips, setPayslips] = useState<Payslip[]>(initialPayslips);
-  const [selectedId, setSelectedId] = useState(payslips[0]?.id);
+  const [payslips, setPayslips] = useState<PayslipRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string>();
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    const res = await fetch(apiUrl("/api/payroll"), { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Impossible de charger la paie.");
+      return;
+    }
+    const rows: PayslipRow[] = (data.payslips ?? []).map(
+      (p: PayslipRow & { lines?: Payslip["lines"] }) => ({
+        id: p.id,
+        employeeId: p.employeeId,
+        employeeName: p.employeeName,
+        periodStart: p.periodStart,
+        periodEnd: p.periodEnd,
+        regularHours: p.regularHours ?? 0,
+        overtimeHours: p.overtimeHours ?? 0,
+        grossPay: p.grossPay,
+        netPay: p.netPay,
+        lines: p.lines ?? [],
+        status: p.status as Payslip["status"],
+        generatedAt: p.generatedAt ?? new Date().toISOString(),
+      })
+    );
+    setPayslips(rows);
+    if (rows[0] && !selectedId) setSelectedId(rows[0].id);
+  }
 
   useEffect(() => {
-    void fetch(apiUrl("/api/payroll"), { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.payslips?.length) {
-          setPayslips(
-            d.payslips.map(
-              (p: {
-                id: string;
-                employeeId: string;
-                periodStart: string;
-                periodEnd: string;
-                grossPay: number;
-                netPay: number;
-                status: string;
-              }) => ({
-                id: p.id,
-                employeeId: p.employeeId,
-                periodStart: p.periodStart,
-                periodEnd: p.periodEnd,
-                grossPay: p.grossPay,
-                netPay: p.netPay,
-                status: p.status as Payslip["status"],
-                lines: [],
-              })
-            )
-          );
-        }
-      });
+    void load();
   }, []);
 
   const visible = useMemo(() => {
     if (canManage) return payslips;
+    if (!employeeId) return [];
     return payslips.filter((p) => p.employeeId === employeeId);
   }, [payslips, canManage, employeeId]);
 
@@ -85,101 +84,76 @@ function PayrollInner() {
     };
   }, [visible]);
 
-  function autoGenerateFromHours() {
+  async function autoGenerateFromHours() {
     if (!canManage) return;
-    const periodStart = "2026-07-07";
-    const periodEnd = "2026-07-13";
-    const aggregated = aggregateHoursByEmployee(
-      timeEntries.filter((e) => e.status === "approved" || e.hoursWorked)
-    );
-
-    const generated: Payslip[] = [];
-    for (const row of aggregated) {
-      const emp = employees.find((e) => e.id === row.employeeId);
-      if (!emp || emp.role === "COMPANY_ADMIN") continue;
-      const calc = generatePayslip({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        hourlyRate: emp.hourlyRate,
-        overtimeRate: emp.overtimeRate,
-        regularHours: row.regularHours,
-        overtimeHours: row.overtimeHours,
-        periodStart,
-        periodEnd,
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const periodEnd = new Date().toISOString().slice(0, 10);
+      const periodStart = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      const res = await fetch(apiUrl("/api/payroll"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate", periodStart, periodEnd }),
       });
-      generated.push({
-        id: `pay_auto_${emp.id}_${Date.now()}`,
-        employeeId: emp.id,
-        employeeName: emp.name,
-        periodStart,
-        periodEnd,
-        regularHours: row.regularHours,
-        overtimeHours: row.overtimeHours,
-        grossPay: calc.grossPay,
-        netPay: calc.netPay,
-        lines: calc.lines,
-        status: "draft",
-        generatedAt: new Date().toISOString(),
-      });
-    }
-
-    // Also ensure current week drafts for field staff from demo hours
-    if (generated.length === 0) {
-      for (const emp of employees.filter((e) => e.role === "EMPLOYEE")) {
-        const calc = generatePayslip({
-          employeeId: emp.id,
-          employeeName: emp.name,
-          hourlyRate: emp.hourlyRate,
-          overtimeRate: emp.overtimeRate,
-          regularHours: 32,
-          overtimeHours: 2,
-          periodStart,
-          periodEnd,
-        });
-        generated.push({
-          id: `pay_auto_${emp.id}_${Date.now()}`,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          periodStart,
-          periodEnd,
-          regularHours: 32,
-          overtimeHours: 2,
-          grossPay: calc.grossPay,
-          netPay: calc.netPay,
-          lines: calc.lines,
-          status: "draft",
-          generatedAt: new Date().toISOString(),
-        });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Génération échouée.");
+        return;
       }
+      await load();
+      if (data.payslips?.[0]?.id) setSelectedId(data.payslips[0].id);
+      setMessage(
+        `${data.count ?? 0} bulletin(s) généré(s) depuis les heures pointées en base.`
+      );
+    } catch {
+      setError("Erreur réseau.");
+    } finally {
+      setLoading(false);
     }
-
-    setPayslips((prev) => [...generated, ...prev]);
-    setSelectedId(generated[0]?.id);
-    setMessage(
-      `${generated.length} bulletins générés automatiquement à partir des heures pointées (CPP, QPP, EI, impôts).`
-    );
   }
 
-  function approveAllDrafts() {
+  async function approveAllDrafts() {
     if (!canManage) return;
-    setPayslips((prev) =>
-      prev.map((p) => (p.status === "draft" ? { ...p, status: "approved" } : p))
-    );
-    setMessage("Bulletins brouillon approuvés — prêts pour virement / export comptable.");
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/payroll"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve_drafts" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Approbation échouée.");
+        return;
+      }
+      await load();
+      setMessage(`${data.updated ?? 0} bulletin(s) approuvé(s).`);
+    } catch {
+      setError("Erreur réseau.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div>
       <PageHeader
         title="Paie automatique"
-        description="Heures pointées → salaires, retenues et bulletins. Moins de travail pour la comptabilité."
+        description="Heures pointées → salaires, retenues et bulletins (base de données)."
         actions={
           canManage ? (
             <>
-              <Button variant="outline" onClick={approveAllDrafts}>
+              <Button variant="outline" onClick={approveAllDrafts} disabled={loading}>
                 Approuver brouillons
               </Button>
-              <Button onClick={autoGenerateFromHours}>Générer depuis pointages</Button>
+              <Button onClick={autoGenerateFromHours} disabled={loading}>
+                Générer depuis pointages
+              </Button>
             </>
           ) : undefined
         }
@@ -188,6 +162,12 @@ function PayrollInner() {
       {message ? (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
           {message}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {error}
         </div>
       ) : null}
 
@@ -203,29 +183,35 @@ function PayrollInner() {
             <CardTitle>Bulletins</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {visible.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedId(p.id)}
-                className={`w-full rounded-lg border p-3 text-left text-sm transition ${
-                  selected?.id === p.id
-                    ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/20"
-                    : "border-border hover:bg-slate-50 dark:hover:bg-slate-900"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{p.employeeName}</span>
-                  <StatusBadge status={p.status} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDate(p.periodStart)} → {formatDate(p.periodEnd)}
-                </p>
-                <p className="mt-1 text-sm">
-                  {formatMoney(p.netPay)}{" "}
-                  <span className="text-xs text-muted-foreground">net</span>
-                </p>
-              </button>
-            ))}
+            {visible.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun bulletin. Pointez des heures puis générez la paie.
+              </p>
+            ) : (
+              visible.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedId(p.id)}
+                  className={`w-full rounded-lg border p-3 text-left text-sm transition ${
+                    selected?.id === p.id
+                      ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/20"
+                      : "border-border hover:bg-slate-50 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{p.employeeName}</span>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDate(p.periodStart)} → {formatDate(p.periodEnd)}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    {formatMoney(p.netPay)}{" "}
+                    <span className="text-xs text-muted-foreground">net</span>
+                  </p>
+                </button>
+              ))
+            )}
           </CardContent>
         </Card>
 

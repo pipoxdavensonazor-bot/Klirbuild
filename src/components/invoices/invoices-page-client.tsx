@@ -8,7 +8,6 @@ import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
-import { clients as mockClients } from "@/lib/mock-data";
 import type { LineItemInput } from "@/lib/tax/document-tax";
 import { useSessionStore } from "@/lib/workforce/session";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -36,8 +35,8 @@ export function InvoicesPageClient() {
     load();
     fetch(apiUrl("/api/clients"), { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setClients(d.clients?.length ? d.clients : mockClients))
-      .catch(() => setClients(mockClients));
+      .then((d) => setClients(d.clients ?? []))
+      .catch(() => setClients([]));
   }, [load]);
 
   const overdue = invoices.filter((i) => i.status === "overdue").length;

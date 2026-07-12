@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
-import { clients as mockClients } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
 import type { EmailRecord } from "@/lib/email/email-service";
 import type { Client } from "@/types";
@@ -44,8 +43,8 @@ export function InboxPageClient() {
     load();
     fetch(apiUrl("/api/clients"), { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setClients(d.clients?.length ? d.clients : mockClients))
-      .catch(() => setClients(mockClients));
+      .then((d) => setClients(d.clients ?? []))
+      .catch(() => setClients([]));
   }, [load]);
 
   useEffect(() => {

@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
-import { clients as mockClients } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
 import { LineItemsEditor, emptyLineItem } from "@/components/billing/line-items-editor";
 import { useSessionStore } from "@/lib/workforce/session";
@@ -80,15 +79,14 @@ export function ClientDetailClient({ id }: { id: string }) {
   }, [id]);
 
   useEffect(() => {
-    const mock = mockClients.find((c) => c.id === id) ?? null;
-    setClient(mock);
+    setClient(null);
     fetch(apiUrl("/api/clients"), { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         const found = (data.clients as Client[] | undefined)?.find((c) => c.id === id);
-        if (found) setClient(found);
+        setClient(found ?? null);
       })
-      .catch(() => {});
+      .catch(() => setClient(null));
     load();
   }, [id, load]);
 

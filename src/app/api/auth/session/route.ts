@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession, hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
+import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
 import type { MarketRegionId } from "@/lib/markets/regions";
 
 export async function GET() {
@@ -26,6 +27,10 @@ export async function GET() {
         },
       },
     });
+    const employee = await prisma.employeeProfile.findFirst({
+      where: { companyId: enriched.companyId, email: enriched.email },
+      select: { id: true },
+    });
     if (user?.company) {
       return NextResponse.json({
         authenticated: true,
@@ -37,6 +42,8 @@ export async function GET() {
         plan: user.company.plan,
         subscriptionStatus: user.company.subscriptionStatus,
         marketRegion: (user.company.marketRegion || "CA-QC") as MarketRegionId,
+        employeeId: employee?.id ?? null,
+        zernioEnabled: isZernioEnabled(),
       });
     }
   }
@@ -48,5 +55,7 @@ export async function GET() {
     companyId: enriched.companyId,
     plan: "growth",
     marketRegion: "CA-QC" as MarketRegionId,
+    employeeId: null,
+    zernioEnabled: isZernioEnabled(),
   });
 }

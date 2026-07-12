@@ -15,11 +15,14 @@ export type TaskDto = {
 
 const memory = new Map<string, TaskDto[]>();
 
-export async function listTasks(companyId: string): Promise<TaskDto[]> {
+export async function listTasks(companyId: string, projectId?: string): Promise<TaskDto[]> {
   if (hasDatabase()) {
     try {
       const rows = await prisma.task.findMany({
-        where: { project: { companyId } },
+        where: {
+          project: { companyId },
+          ...(projectId ? { projectId } : {}),
+        },
         include: { project: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 200,

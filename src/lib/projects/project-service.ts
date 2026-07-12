@@ -42,6 +42,18 @@ function mergeProjects(api: Project[]): Project[] {
   return out;
 }
 
+export async function getProject(companyId: string, id: string): Promise<Project | null> {
+  if (hasDatabase()) {
+    const row = await prisma.project.findFirst({
+      where: { id, companyId },
+      include: { client: { select: { name: true } } },
+    });
+    return row ? mapDbProject(row) : null;
+  }
+  const all = await listProjects(companyId);
+  return all.find((p) => p.id === id) ?? null;
+}
+
 export async function listProjects(companyId: string, clientId?: string): Promise<Project[]> {
   if (hasDatabase()) {
     const rows = await prisma.project.findMany({
@@ -49,9 +61,7 @@ export async function listProjects(companyId: string, clientId?: string): Promis
       include: { client: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
     });
-    const mapped = rows.map(mapDbProject);
-    if (clientId) return mapped;
-    return mergeProjects(mapped);
+    return rows.map(mapDbProject);
   }
 
   const mock = (() => {
