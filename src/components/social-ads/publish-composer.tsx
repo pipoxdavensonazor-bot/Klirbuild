@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Check, Clock, Send, Sparkles, Zap } from "lucide-react";
+import { CalendarClock, Check, Clock, ImagePlus, Send, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
@@ -37,6 +37,9 @@ export function SocialPublishComposer({
   const [nextSlot, setNextSlot] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const connected = useMemo(
     () => accounts.filter((a) => a.status === "connected"),
@@ -89,6 +92,35 @@ export function SocialPublishComposer({
     setMode("schedule");
   }
 
+  async function addImageUrl() {
+    const url = imageUrl.trim();
+    if (!url || mediaUrls.includes(url)) return;
+    setMediaUrls((prev) => [...prev, url]);
+    setImageUrl("");
+  }
+
+  async function uploadFile(file: File) {
+    if (!canManage || uploading) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(apiUrl("/api/uploads"), {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const data = await res.json();
+      if (data.error) {
+        onPublished?.(data.error);
+        return;
+      }
+      if (data.url) setMediaUrls((prev) => [...prev, data.url as string]);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function publish() {
     if (!canManage || busy || !selectedIds.length) return;
     const hasContent = headline.trim() || primaryText.trim();
@@ -112,6 +144,7 @@ export function SocialPublishComposer({
           mode,
           scheduledFor: mode === "schedule" ? scheduledFor : undefined,
           timezone: "America/Toronto",
+          mediaUrls: mediaUrls.length ? mediaUrls : undefined,
         }),
       });
       const data = await res.json();
@@ -122,6 +155,7 @@ export function SocialPublishComposer({
       onPublished?.(data.message ?? "Publication envoyée.");
       setHeadline("");
       setPrimaryText("");
+      setMediaUrls([]);
     } finally {
       setBusy(false);
     }
@@ -234,6 +268,66 @@ export function SocialPublishComposer({
             disabled={!canManage}
             className="border-[#d1d9e0]"
           />
+
+          <div className="space-y-2 rounded-lg border border-dashed border-[#d1d9e0] p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              Médias (photos)
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                placeholder="https://… ou uploadez un fichier"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                disabled={!canManage}
+                className="border-[#d1d9e0]"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canManage || !imageUrl.trim()}
+                onClick={() => void addImageUrl()}
+              >
+                Ajouter URL
+              </Button>
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#d1d9e0] px-3 py-2 text-xs font-medium hover:bg-muted">
+                <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                {uploading ? "Upload…" : "Upload"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  disabled={!canManage || uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadFile(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {mediaUrls.length ? (
+              <div className="flex flex-wrap gap-2">
+                {mediaUrls.map((url) => (
+                  <div key={url} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt=""
+                      className="h-16 w-16 rounded-md border object-cover"
+                    />
+                    <button
+                      type="button"
+                      className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1 text-[10px] text-white"
+                      onClick={() => setMediaUrls((prev) => prev.filter((u) => u !== url))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <div className="flex flex-wrap gap-2">
             <Button

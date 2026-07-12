@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
@@ -18,6 +18,11 @@ export function LoginForm() {
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) setError(decodeURIComponent(err));
+  }, [searchParams]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,8 +84,15 @@ export function LoginForm() {
                 {loading ? "Connexion…" : "Continuer"}
               </Button>
             </form>
-            <Button variant="outline" className="mt-3 w-full" disabled>
-              Google OAuth (à venir)
+            <Button
+              variant="outline"
+              className="mt-3 w-full"
+              type="button"
+              onClick={() => {
+                window.location.href = `/api/auth/google?next=${encodeURIComponent(next)}`;
+              }}
+            >
+              Continuer avec Google
             </Button>
             <div className="mt-3 flex justify-between text-xs text-muted-foreground">
               <Link href="/forgot-password" className="hover:underline">

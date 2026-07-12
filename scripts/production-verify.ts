@@ -95,6 +95,13 @@ const checks: Check[] = [
     ok: Boolean(process.env.ZERNIO_API_KEY?.trim()),
     hint: "Publication auto Instagram, Facebook, LinkedIn… via Zernio",
   },
+  {
+    name: "GOOGLE_CLIENT_ID + SECRET (OAuth)",
+    ok: Boolean(
+      process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
+    ),
+    hint: "Google Cloud Console → OAuth 2.0",
+  },
 ];
 
 console.log("\n=== KlirBuild — Vérification production ===\n");

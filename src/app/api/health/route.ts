@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
 import { isStripeConfigured } from "@/lib/stripe";
+import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -31,6 +33,16 @@ export async function GET() {
           process.env.DEPLOY_PRIME_URL?.trim()
       ),
       detail: "NEXT_PUBLIC_APP_URL recommandé en production",
+    },
+    zernio: {
+      ok: isZernioEnabled(),
+      detail: isZernioEnabled() ? undefined : "ZERNIO_API_KEY manquant",
+    },
+    googleOAuth: {
+      ok: isGoogleOAuthConfigured(),
+      detail: isGoogleOAuthConfigured()
+        ? undefined
+        : "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET manquants",
     },
   };
 

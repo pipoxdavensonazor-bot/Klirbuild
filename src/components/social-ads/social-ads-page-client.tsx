@@ -12,10 +12,12 @@ import {
   Unplug,
 } from "lucide-react";
 import { SocialAdLaunchWorkspace } from "@/components/social-ads/launch-workspace";
+import { MarketingCalendar } from "@/components/social-ads/marketing-calendar";
 import {
   MarketingMetricoolShell,
   type MarketingTab,
 } from "@/components/social-ads/marketing-metricool-shell";
+import { MarketingSetupChecklist } from "@/components/social-ads/marketing-setup-checklist";
 import { SocialPublishComposer } from "@/components/social-ads/publish-composer";
 import { ZernioConnectionsPanel } from "@/components/social-ads/zernio-connections-panel";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
@@ -340,7 +342,18 @@ export function SocialAdsPageClient() {
         }
       />
 
-      {message ? (
+      {message || provider !== "zernio" ? (
+        <MarketingSetupChecklist
+          error={message || undefined}
+          provider={provider}
+          onRetry={() => {
+            setMessage("");
+            void load();
+          }}
+        />
+      ) : null}
+
+      {message && provider === "zernio" ? (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
           {message}
         </div>
@@ -462,6 +475,7 @@ export function SocialAdsPageClient() {
 
         {tab === "planning" ? (
         <div className="space-y-6">
+          <MarketingCalendar campaigns={campaigns} />
           <SocialPublishComposer
             accounts={accounts}
             selectedAccountId={selectedAccount}
