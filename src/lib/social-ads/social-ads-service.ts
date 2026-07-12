@@ -7,7 +7,7 @@ import {
 import type { SocialAccount, SocialAdCampaign, SocialPlatform } from "@/lib/reports/types";
 import { KLIRLINE_OFFICIAL_PROFILES } from "@/lib/social-ads/klirline-marketing";
 import { isDemoMode } from "@/lib/runtime";
-import { isZernioEnabled, syncZernioAccounts } from "@/lib/social-ads/zernio-service";
+import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
 
 const PLATFORMS: SocialPlatform[] = [
   "meta",
@@ -117,13 +117,6 @@ export async function listSocialAccounts(
 ): Promise<SocialAccount[]> {
   if (hasDatabase()) {
     await ensurePlatformSlots(companyId, companyName);
-    if (isZernioEnabled()) {
-      try {
-        await syncZernioAccounts(companyId, companyName);
-      } catch {
-        /* sync best-effort */
-      }
-    }
     const rows = await prisma.socialAccountConnection.findMany({
       where: { companyId },
       orderBy: { platform: "asc" },

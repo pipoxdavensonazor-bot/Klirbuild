@@ -38,6 +38,7 @@ async function zernioFetch<T>(path: string, options: ZernioRequestOptions = {}):
       Accept: "application/json",
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: AbortSignal.timeout(12_000),
   });
 
   const text = await res.text();

@@ -70,19 +70,25 @@ export function SocialAdsPageClient() {
   const [selectedAccount, setSelectedAccount] = useState("");
 
   async function load() {
-    const res = await fetch(apiUrl("/api/social-ads"), { credentials: "include" });
-    const data = await res.json();
-    const list: SocialAccount[] = data.accounts ?? [];
-    setAccounts(list);
-    setCampaigns(data.campaigns ?? []);
-    setKlirline(data.klirline ?? null);
-    setZernio(data.zernio ?? null);
-    setProvider(data.provider === "zernio" ? "zernio" : "klirline");
-    if (!selectedAccount) {
-      const first = list.find((a) => a.status === "connected") ?? list[0];
-      if (first) setSelectedAccount(first.id);
+    try {
+      const res = await fetch(apiUrl("/api/social-ads"), { credentials: "include" });
+      const data = await res.json();
+      const list: SocialAccount[] = data.accounts ?? [];
+      setAccounts(list);
+      setCampaigns(data.campaigns ?? []);
+      setKlirline(data.klirline ?? null);
+      setZernio(data.zernio ?? null);
+      setProvider(data.provider === "zernio" ? "zernio" : "klirline");
+      if (data.error) setMessage(data.error);
+      if (!selectedAccount) {
+        const first = list.find((a) => a.status === "connected") ?? list[0];
+        if (first) setSelectedAccount(first.id);
+      }
+    } catch {
+      setMessage("Erreur réseau — impossible de charger les comptes.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {

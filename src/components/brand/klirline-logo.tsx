@@ -17,8 +17,8 @@ const shapeClass = {
   circle: "rounded-full",
 } as const;
 
-const DEFAULT_ZOOM = 1;
-const MARK_ZOOM = 0.92;
+const DEFAULT_ZOOM = 0.88;
+const MARK_ZOOM = 0.82;
 
 export function KlirBuildLogo({
   className,

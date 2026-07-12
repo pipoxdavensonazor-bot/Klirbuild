@@ -46,51 +46,70 @@ async function companyContext() {
 }
 
 export async function GET(request: Request) {
-  const { companyId, companyName } = await companyContext();
-  const url = new URL(request.url);
-  const platform = url.searchParams.get("platform") as SocialPlatform | null;
+  try {
+    const { companyId, companyName } = await companyContext();
+    const url = new URL(request.url);
+    const platform = url.searchParams.get("platform") as SocialPlatform | null;
 
-  const [accounts, campaigns] = await Promise.all([
-    listSocialAccounts(companyId, companyName),
-    listSocialCampaigns(companyId),
-  ]);
+    const [accounts, campaigns] = await Promise.all([
+      listSocialAccounts(companyId, companyName),
+      listSocialCampaigns(companyId),
+    ]);
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
 
-  let audience = null;
-  let nextSlot = null;
-  if (platform) {
-    audience = await getAudienceRecommendations(platform);
-    if (isZernioEnabled()) {
-      try {
-        nextSlot = await getZernioNextSlot(companyId, companyName);
-      } catch {
-        nextSlot = null;
+    let audience = null;
+    let nextSlot = null;
+    if (platform) {
+      audience = await getAudienceRecommendations(platform);
+      if (isZernioEnabled()) {
+        try {
+          nextSlot = await getZernioNextSlot(companyId, companyName);
+        } catch {
+          nextSlot = null;
+        }
       }
     }
-  }
 
-  return NextResponse.json({
-    accounts,
-    campaigns,
-    provider: isZernioEnabled() ? "zernio" : "klirline",
-    zernio: {
-      enabled: isZernioEnabled(),
-      dashboardUrl: "https://zernio.com",
-      docsUrl: "https://docs.zernio.com",
-    },
-    klirline: {
-      hubUrl: klirlineMarketingPortalUrl(companyId),
-      contact: "Contact@klirline.ca",
-      managedBy: isZernioEnabled()
-        ? "Zernio API — publication multi-réseaux"
-        : "Klirline.ca — partenaire marketing officiel",
-    },
-    audience,
-    nextSlot,
-    callbackUrl: `${appUrl}/api/social-ads/callback`,
-  });
+    return NextResponse.json({
+      accounts,
+      campaigns,
+      provider: isZernioEnabled() ? "zernio" : "klirline",
+      zernio: {
+        enabled: isZernioEnabled(),
+        dashboardUrl: "https://zernio.com",
+        docsUrl: "https://docs.zernio.com",
+      },
+      klirline: {
+        hubUrl: klirlineMarketingPortalUrl(companyId),
+        contact: "Contact@klirline.ca",
+        managedBy: isZernioEnabled()
+          ? "Zernio API — publication multi-réseaux"
+          : "Klirline.ca — partenaire marketing officiel",
+      },
+      audience,
+      nextSlot,
+      callbackUrl: `${appUrl}/api/social-ads/callback`,
+    });
+  } catch (err) {
+    console.error("[social-ads GET]", err);
+    return NextResponse.json(
+      {
+        accounts: [],
+        campaigns: [],
+        error:
+          "Impossible de charger les comptes. Vérifiez la base de données (npx prisma db push).",
+        provider: isZernioEnabled() ? "zernio" : "klirline",
+        klirline: {
+          contact: "Contact@klirline.ca",
+          managedBy: "Klirline.ca",
+        },
+        zernio: { enabled: isZernioEnabled() },
+      },
+      { status: 200 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
