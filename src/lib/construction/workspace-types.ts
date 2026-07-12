@@ -8,16 +8,6 @@ import type {
   MarketingCampaign,
   ProgressInvoice,
 } from "@/modules/construction-os/types";
-import {
-  changeOrders,
-  ccqDeclarations,
-  ccqWorkers,
-  constructionEstimates,
-  constructionJobs,
-  constructionLeads,
-  marketingCampaigns,
-  progressInvoices,
-} from "@/modules/construction-os/mock-data";
 
 export type ConstructionEntityKey =
   | "jobs"
@@ -51,14 +41,14 @@ const DEFAULT_AI_SUGGESTIONS = [
 
 export function defaultWorkspace(): ConstructionWorkspaceData {
   return {
-    jobs: structuredClone(constructionJobs),
-    estimates: structuredClone(constructionEstimates),
-    changeOrders: structuredClone(changeOrders),
-    leads: structuredClone(constructionLeads),
-    ccqWorkers: structuredClone(ccqWorkers),
-    ccqDeclarations: structuredClone(ccqDeclarations),
-    progressInvoices: structuredClone(progressInvoices),
-    marketingCampaigns: structuredClone(marketingCampaigns),
+    jobs: [],
+    estimates: [],
+    changeOrders: [],
+    leads: [],
+    ccqWorkers: [],
+    ccqDeclarations: [],
+    progressInvoices: [],
+    marketingCampaigns: [],
     aiSuggestions: [...DEFAULT_AI_SUGGESTIONS],
   };
 }

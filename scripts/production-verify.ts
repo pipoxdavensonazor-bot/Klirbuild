@@ -93,7 +93,13 @@ const checks: Check[] = [
   {
     name: "CRON_SECRET",
     ok: Boolean(process.env.CRON_SECRET?.trim()),
-    hint: "Automations planifiées Netlify",
+    hint: "Automations + factures récurrentes planifiées Netlify",
+    tier: "optional",
+  },
+  {
+    name: "PWA assets",
+    ok: existsSync(resolve(root, "public", "sw.js")) && existsSync(resolve(root, "src", "app", "manifest.ts")),
+    hint: "Manifest Next.js + public/sw.js",
     tier: "optional",
   },
   {
@@ -106,6 +112,12 @@ const checks: Check[] = [
     name: "RESEND_API_KEY (courriels)",
     ok: Boolean(process.env.RESEND_API_KEY?.trim()),
     hint: "Invitations, reset password, factures",
+    tier: "optional",
+  },
+  {
+    name: "RESEND_WEBHOOK_SECRET (inbox inbound)",
+    ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
+    hint: "Webhook email.received → /api/resend/webhook",
     tier: "optional",
   },
   {

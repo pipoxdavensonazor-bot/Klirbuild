@@ -66,6 +66,7 @@ model Company {
   deals              Deal[]
   quotes             Quote[]
   invoices           Invoice[]
+  recurringInvoices  RecurringInvoice[]
   payments           Payment[]
   projects           Project[]
   documents          Document[]
@@ -76,6 +77,8 @@ model Company {
   apiKeys            ApiKey[]
   emailMessages      EmailMessage[]
   constructionWorkspace ConstructionWorkspace?
+  constructionJobs   ConstructionJob[]
+  constructionLeads  ConstructionLead[]
   socialAccounts     SocialAccountConnection[]
   socialCampaigns    SocialAdCampaignRecord[]
   zernioProfileId    String?
@@ -217,6 +220,7 @@ model Client {
   updatedAt     DateTime @updatedAt
   quotes        Quote[]
   invoices      Invoice[]
+  recurringInvoices RecurringInvoice[]
   projects      Project[]
   emailMessages EmailMessage[]
 
@@ -330,6 +334,7 @@ model Invoice {
   paidAt                 DateTime?
   stripeCheckoutSessionId String?
   recurringInvoiceId     String?
+  recurringInvoice       RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id])
   items                  InvoiceItem[]
   payments               Payment[]
   createdAt              DateTime      @default(now())
@@ -337,6 +342,27 @@ model Invoice {
 
   @@unique([companyId, number])
   @@index([companyId, status, createdAt])
+}
+
+model RecurringInvoice {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?   @relation(fields: [clientId], references: [id])
+  name           String
+  status         String    @default("active")
+  interval       String    @default("monthly")
+  currency       String    @default("CAD")
+  marketRegion   String    @default("CA-QC")
+  itemsJson      Json
+  nextRunAt      DateTime
+  lastRunAt      DateTime?
+  invoices       Invoice[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, status, nextRunAt])
 }
 
 model InvoiceItem {
@@ -489,6 +515,7 @@ model ApiKey {
   companyId  String
   company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name       String
+  keyPrefix  String
   keyHash    String
   lastUsedAt DateTime?
   revokedAt  DateTime?
@@ -520,6 +547,50 @@ model ConstructionWorkspace {
   data      Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ConstructionJob {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  number         String
+  name           String
+  clientName     String
+  address        String
+  city           String
+  province       String   @default("QC")
+  status         String
+  contractValue  Decimal  @default(0) @db.Decimal(14, 2)
+  budgetCost     Decimal  @default(0) @db.Decimal(14, 2)
+  actualCost     Decimal  @default(0) @db.Decimal(14, 2)
+  progressPct    Int      @default(0)
+  holdbackPct    Int      @default(10)
+  startDate      String
+  endDate        String?
+  superintendent String
+  trades         String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+}
+
+model ConstructionLead {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  source        String
+  projectType   String
+  valueEstimate Decimal  @default(0) @db.Decimal(14, 2)
+  stage         String
+  owner         String
+  city          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId, stage])
 }
 
 model EmployeeProfile {

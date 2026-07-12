@@ -1,7 +1,5 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { prisma } from "@/lib/db";
-import { demoCompany } from "@/lib/mock-data";
 
 export type CompanyEmailContext = {
   companyId: string;
@@ -61,17 +59,6 @@ async function loadCompanyRecord(companyId: string) {
       },
     });
     if (row) return row;
-  }
-
-  if (companyId === DEMO_COMPANY_ID || companyId === demoCompany.id) {
-    return {
-      id: demoCompany.id,
-      name: demoCompany.name,
-      email: demoCompany.email,
-      emailFrom: demoCompany.email,
-      inboxEmail: demoCompany.email,
-      emailSenderName: demoCompany.name,
-    };
   }
 
   return {

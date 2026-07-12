@@ -1,6 +1,5 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
-import { jobSites as mockSites } from "@/lib/workforce/mock-data";
 import { hoursFromClock } from "@/lib/workforce/payroll";
 import type { Role } from "@/types";
 
@@ -92,23 +91,11 @@ function accumulatedPauseMs(row: {
 }
 
 export async function listJobSites(companyId: string) {
-  if (hasDatabase()) {
-    const rows = await prisma.jobSite.findMany({
-      where: { companyId },
-      orderBy: { name: "asc" },
-    });
-    if (rows.length > 0) return rows;
-    const seeded = mockSites.slice(0, 2).map((s) => ({
-      id: s.id,
-      name: s.name,
-      address: s.address,
-      lat: s.lat,
-      lng: s.lng,
-      radiusM: s.radiusM,
-    }));
-    return seeded;
-  }
-  return mockSites;
+  if (!hasDatabase()) return [];
+  return prisma.jobSite.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+  });
 }
 
 export async function listTimeEntries(companyId: string, employeeId?: string) {
@@ -166,24 +153,9 @@ export async function clockIn(input: {
   const open = await getOpenEntry(input.companyId, employee.id);
   if (open) return { error: "Pointage déjà en cours." as const };
 
-  let site = await prisma.jobSite.findFirst({
+  const site = await prisma.jobSite.findFirst({
     where: { id: input.jobSiteId, companyId: input.companyId },
   });
-  if (!site) {
-    const mock = mockSites.find((s) => s.id === input.jobSiteId);
-    if (mock) {
-      site = await prisma.jobSite.create({
-        data: {
-          companyId: input.companyId,
-          name: mock.name,
-          address: mock.address,
-          lat: mock.lat,
-          lng: mock.lng,
-          radiusM: mock.radiusM,
-        },
-      });
-    }
-  }
   if (!site) return { error: "Chantier introuvable." as const };
 
   const row = await prisma.timeEntry.create({

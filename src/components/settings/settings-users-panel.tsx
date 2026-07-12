@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
-import { demoUser } from "@/lib/mock-data";
 import type { Role } from "@/types";
 import { INVITABLE_ROLES, roleLabelFr } from "@/lib/workforce/roles";
 
@@ -116,18 +115,7 @@ export function SettingsUsersPanel() {
     setMessage("Lien d'invitation copié dans le presse-papiers.");
   }
 
-  const displayUsers =
-    users.length > 0
-      ? users
-      : [
-          {
-            id: demoUser.id,
-            name: demoUser.name,
-            email: demoUser.email,
-            role: demoUser.role,
-            createdAt: new Date().toISOString(),
-          },
-        ];
+  const displayUsers = users;
 
   return (
     <div className="space-y-4">
@@ -161,6 +149,9 @@ export function SettingsUsersPanel() {
       ) : null}
 
       <div className="space-y-2">
+        {displayUsers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun utilisateur pour le moment.</p>
+        ) : null}
         {displayUsers.map((user) => (
           <div
             key={user.id}

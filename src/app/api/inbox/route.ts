@@ -23,10 +23,15 @@ export async function GET(request: Request) {
   const emails = await listEmails(cid, clientId);
   const inboxAddress = await companyInboxAddress(cid);
   const emailContext = await getCompanyEmailContext(cid);
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.URL?.trim() ||
+    "https://www.klirline.app";
   return NextResponse.json({
     emails,
     inboxAddress,
     hasResend: Boolean(process.env.RESEND_API_KEY?.trim()),
+    inboundWebhookUrl: `${appUrl.replace(/\/$/, "")}/api/resend/webhook`,
     companyName: emailContext.companyName,
     senderName: emailContext.senderName,
     replyTo: emailContext.replyTo,

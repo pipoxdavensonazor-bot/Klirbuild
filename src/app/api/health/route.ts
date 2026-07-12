@@ -103,6 +103,13 @@ export async function GET(request: Request) {
         : "RESEND_API_KEY manquant — courriels désactivés",
       tier: "optional",
     },
+    resendInbound: {
+      ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
+      detail: process.env.RESEND_WEBHOOK_SECRET?.trim()
+        ? undefined
+        : "RESEND_WEBHOOK_SECRET manquant — réception entrante non sécurisée",
+      tier: "optional",
+    },
   };
 
   if (hasDatabase()) {

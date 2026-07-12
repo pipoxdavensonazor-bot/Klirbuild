@@ -48,7 +48,7 @@ export async function upsertAutomation(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
     const row = await prisma.automation.update({
@@ -74,7 +74,7 @@ export async function upsertAutomation(
 }
 
 export async function runAutomation(companyId: string, id: string) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   return runSingleAutomation(companyId, id);
 }
 

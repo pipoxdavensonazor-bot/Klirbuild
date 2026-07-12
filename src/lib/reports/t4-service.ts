@@ -1,6 +1,5 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
-import { buildT4Slips } from "@/lib/reports/mock-data";
 import type { T4Slip } from "@/lib/reports/types";
 import { generatePayslip, round2 } from "@/lib/workforce/payroll";
 
@@ -24,9 +23,7 @@ export async function buildT4SlipsForCompany(
   companyId: string,
   taxYear: number
 ): Promise<T4Slip[]> {
-  if (!hasDatabase()) {
-    return buildT4Slips(taxYear);
-  }
+  if (!hasDatabase()) return [];
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },

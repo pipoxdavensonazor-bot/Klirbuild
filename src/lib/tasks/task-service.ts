@@ -64,7 +64,7 @@ export async function upsertTask(
 ) {
   const title = input.title.trim();
   if (!title) return { error: "Titre requis." as const };
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   let projectId = input.projectId;
   if (!projectId) {
@@ -112,7 +112,7 @@ export async function upsertTask(
 }
 
 export async function deleteTask(companyId: string, id: string) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   const existing = await prisma.task.findFirst({
     where: { id, project: { companyId } },
   });

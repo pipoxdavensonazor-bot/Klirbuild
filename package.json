@@ -7,12 +7,16 @@
     "build": "prisma generate && prisma db push && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
     "stripe:verify": "tsx scripts/stripe-verify.ts",
     "production:verify": "tsx scripts/production-verify.ts",
+    "smoke:test": "tsx scripts/smoke-test.ts",
     "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
   },
   "dependencies": {
@@ -47,6 +51,7 @@
     "prisma": "5.22.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^3.2.7"
   }
 }

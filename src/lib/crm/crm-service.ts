@@ -85,7 +85,7 @@ export async function upsertLead(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
     const row = await prisma.lead.update({
@@ -129,7 +129,7 @@ export async function upsertDeal(
 ) {
   const title = input.title.trim();
   if (!title) return { error: "Titre requis." as const };
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
     const row = await prisma.deal.update({
@@ -160,7 +160,7 @@ export async function upsertDeal(
 }
 
 export async function deleteLead(companyId: string, id: string) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   const row = await prisma.lead.findFirst({ where: { id, companyId } });
   if (!row) return { error: "Lead introuvable." as const };
   await prisma.lead.delete({ where: { id } });
@@ -168,7 +168,7 @@ export async function deleteLead(companyId: string, id: string) {
 }
 
 export async function deleteDeal(companyId: string, id: string) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   const row = await prisma.deal.findFirst({ where: { id, companyId } });
   if (!row) return { error: "Deal introuvable." as const };
   await prisma.deal.delete({ where: { id } });

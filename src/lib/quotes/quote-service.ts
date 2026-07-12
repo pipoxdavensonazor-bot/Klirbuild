@@ -1,64 +1,15 @@
-import fs from "fs";
-import path from "path";
 import type { Quote, QuoteStatus } from "@/types";
-import { quotes as mockQuotes } from "@/lib/mock-data";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 import { getCompanyEmailContext } from "@/lib/email/company-email";
-import {
-  logEmail,
-  sendEmail,
-} from "@/lib/email/email-service";
-import {
-  quoteEmailHtml,
-  quoteEmailText,
-} from "@/lib/email/templates";
-import { demoCompany } from "@/lib/mock-data";
+import { logEmail, sendEmail } from "@/lib/email/email-service";
+import { quoteEmailHtml, quoteEmailText } from "@/lib/email/templates";
 import { computeDocumentTax, type LineItemInput } from "@/lib/tax/document-tax";
 import type { MarketRegionId } from "@/lib/markets/regions";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const STORE_PATH = path.join(DATA_DIR, "quotes.json");
-
 function dec(v: { toNumber(): number } | number) {
   return typeof v === "number" ? v : v.toNumber();
-}
-
-function ensureStore() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(STORE_PATH)) {
-      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
-    }
-  } catch {
-    /* serverless: read-only filesystem */
-  }
-}
-
-function readFileQuotes(companyId: string): Quote[] {
-  try {
-    ensureStore();
-    if (!fs.existsSync(STORE_PATH)) return [];
-    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Quote[];
-    return all.filter((q) => !companyId || true);
-  } catch {
-    return [];
-  }
-}
-
-function writeFileQuote(quote: Quote) {
-  try {
-    ensureStore();
-    if (!fs.existsSync(STORE_PATH)) return;
-    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as Quote[];
-    const idx = all.findIndex((q) => q.id === quote.id);
-    if (idx >= 0) all[idx] = quote;
-    else all.push(quote);
-    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
-  } catch {
-    /* ignore on serverless */
-  }
 }
 
 function mapDbQuote(row: {
@@ -85,63 +36,43 @@ function mapDbQuote(row: {
   };
 }
 
-function mergeQuotes(companyId: string, api: Quote[]): Quote[] {
-  if (hasDatabase()) return api;
-  const file = readFileQuotes(companyId);
-  const mock = mockQuotes;
-  const seen = new Set<string>();
-  const out: Quote[] = [];
-  for (const q of [...file, ...api, ...mock]) {
-    if (seen.has(q.id)) continue;
-    seen.add(q.id);
-    out.push(q);
-  }
-  return out;
-}
-
 export async function listQuotes(companyId: string): Promise<Quote[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.quote.findMany({
-      where: { companyId },
-      include: { client: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-    return mergeQuotes(companyId, rows.map(mapDbQuote));
-  }
-  return mergeQuotes(companyId, []);
+  if (!hasDatabase()) return [];
+  const rows = await prisma.quote.findMany({
+    where: { companyId },
+    include: { client: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(mapDbQuote);
 }
 
 export async function getQuote(companyId: string, id: string) {
-  const all = await listQuotes(companyId);
-  return all.find((q) => q.id === id) ?? null;
+  if (!hasDatabase()) return null;
+  const row = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: { client: { select: { name: true } } },
+  });
+  return row ? mapDbQuote(row) : null;
 }
 
 export async function getQuoteDetail(companyId: string, id: string) {
-  if (hasDatabase()) {
-    const row = await prisma.quote.findFirst({
-      where: { id, companyId },
-      include: {
-        client: { select: { name: true } },
-        items: { orderBy: { id: "asc" } },
-      },
-    });
-    if (!row) return null;
-    return {
-      quote: mapDbQuote(row),
-      items: row.items.map((item) => ({
-        description: item.description,
-        unit: item.unit ?? undefined,
-        quantity: dec(item.quantity),
-        unitPrice: dec(item.unitPrice),
-      })),
-    };
-  }
-
-  const quote = await getQuote(companyId, id);
-  if (!quote) return null;
+  if (!hasDatabase()) return null;
+  const row = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: {
+      client: { select: { name: true } },
+      items: { orderBy: { id: "asc" } },
+    },
+  });
+  if (!row) return null;
   return {
-    quote,
-    items: [{ description: "Services", quantity: 1, unitPrice: quote.total }],
+    quote: mapDbQuote(row),
+    items: row.items.map((item) => ({
+      description: item.description,
+      unit: item.unit ?? undefined,
+      quantity: dec(item.quantity),
+      unitPrice: dec(item.unitPrice),
+    })),
   };
 }
 
@@ -154,6 +85,8 @@ export async function updateQuote(
     marketRegion?: MarketRegionId;
   }
 ) {
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
+
   const existing = await getQuote(companyId, id);
   if (!existing) return { error: "Soumission introuvable." as const };
   if (existing.status !== "draft") {
@@ -170,45 +103,34 @@ export async function updateQuote(
     return { error: "Ajoutez au moins une ligne avec un montant." as const };
   }
 
-  if (hasDatabase()) {
-    await prisma.$transaction(async (tx) => {
-      await tx.quoteItem.deleteMany({ where: { quoteId: id } });
-      await tx.quote.update({
-        where: { id },
-        data: {
-          ...(input.clientId ? { clientId: input.clientId } : {}),
-          currency: breakdown.currency,
-          subtotal: breakdown.subtotal,
-          tax: breakdown.taxTotal,
-          total: breakdown.total,
-          items: {
-            create: breakdown.items.map((item) => ({
-              description: item.description,
-              unit: item.unit ?? null,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.total,
-            })),
-          },
+  await prisma.$transaction(async (tx) => {
+    await tx.quoteItem.deleteMany({ where: { quoteId: id } });
+    await tx.quote.update({
+      where: { id },
+      data: {
+        ...(input.clientId ? { clientId: input.clientId } : {}),
+        currency: breakdown.currency,
+        subtotal: breakdown.subtotal,
+        tax: breakdown.taxTotal,
+        total: breakdown.total,
+        items: {
+          create: breakdown.items.map((item) => ({
+            description: item.description,
+            unit: item.unit ?? null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
         },
-      });
+      },
     });
-    const updated = await prisma.quote.findFirst({
-      where: { id, companyId },
-      include: { client: { select: { name: true } } },
-    });
-    if (!updated) return { error: "Soumission introuvable." as const };
-    return { quote: mapDbQuote(updated), tax: breakdown };
-  }
-
-  const next: Quote = {
-    ...existing,
-    ...(input.clientId ? { clientId: input.clientId } : {}),
-    total: breakdown.total,
-    currency: breakdown.currency,
-  };
-  writeFileQuote(next);
-  return { quote: next, tax: breakdown };
+  });
+  const updated = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: { client: { select: { name: true } } },
+  });
+  if (!updated) return { error: "Soumission introuvable." as const };
+  return { quote: mapDbQuote(updated), tax: breakdown };
 }
 
 export async function updateQuoteStatus(
@@ -216,27 +138,19 @@ export async function updateQuoteStatus(
   id: string,
   status: QuoteStatus
 ) {
-  if (hasDatabase()) {
-    const row = await prisma.quote.updateMany({
-      where: { id, companyId },
-      data: { status },
-    });
-    if (row.count === 0) return { error: "Soumission introuvable." as const };
-    const updated = await prisma.quote.findFirst({
-      where: { id, companyId },
-      include: { client: { select: { name: true, email: true } } },
-    });
-    if (!updated) return { error: "Soumission introuvable." as const };
-    return { quote: mapDbQuote(updated), clientEmail: updated.client?.email };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const quote = await getQuote(companyId, id);
-  if (!quote) return { error: "Soumission introuvable." as const };
-  const next = { ...quote, status };
-  writeFileQuote(next);
-  const { clients } = await import("@/lib/mock-data");
-  const mockClient = clients.find((c) => c.id === quote.clientId);
-  return { quote: next, clientEmail: mockClient?.email };
+  const row = await prisma.quote.updateMany({
+    where: { id, companyId },
+    data: { status },
+  });
+  if (row.count === 0) return { error: "Soumission introuvable." as const };
+  const updated = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: { client: { select: { name: true, email: true } } },
+  });
+  if (!updated) return { error: "Soumission introuvable." as const };
+  return { quote: mapDbQuote(updated), clientEmail: updated.client?.email };
 }
 
 function appUrl() {
@@ -248,23 +162,18 @@ function appUrl() {
 }
 
 export async function sendQuoteToClient(companyId: string, id: string) {
-  const quote = await getQuote(companyId, id);
-  if (!quote) return { error: "Soumission introuvable." as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const { clients } = await import("@/lib/mock-data");
-  let clientEmail = clients.find((c) => c.id === quote.clientId)?.email;
-  let clientName = quote.clientName;
-  let companyName = demoCompany.name;
+  const row = await prisma.quote.findFirst({
+    where: { id, companyId },
+    include: { client: true, company: true },
+  });
+  if (!row) return { error: "Soumission introuvable." as const };
 
-  if (hasDatabase()) {
-    const row = await prisma.quote.findFirst({
-      where: { id, companyId },
-      include: { client: true, company: true },
-    });
-    clientEmail = row?.client?.email ?? clientEmail;
-    clientName = row?.client?.name ?? clientName;
-    companyName = row?.company?.name ?? companyName;
-  }
+  const quote = mapDbQuote(row);
+  const clientEmail = row.client?.email?.trim();
+  const clientName = row.client?.name ?? quote.clientName;
+  const companyName = row.company?.name ?? "Votre entreprise";
 
   if (!clientEmail) {
     return { error: "Le client n'a pas de courriel. Ajoutez-le dans Clients." as const };
@@ -333,6 +242,7 @@ export async function createQuote(input: {
   marketRegion?: MarketRegionId;
 }) {
   if (!input.clientId?.trim()) return { error: "Client requis." as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const lineItems: LineItemInput[] =
     input.items && input.items.length > 0
@@ -355,51 +265,33 @@ export async function createQuote(input: {
   validUntil.setDate(validUntil.getDate() + 14);
   const currency = input.currency?.trim() || breakdown.currency;
 
-  if (hasDatabase()) {
-    const count = await prisma.quote.count({ where: { companyId: input.companyId } });
-    const number = `Q-${year}-${String(count + 1).padStart(3, "0")}`;
-    const row = await prisma.quote.create({
-      data: {
-        companyId: input.companyId,
-        clientId: input.clientId,
-        number,
-        status: "draft",
-        currency,
-        subtotal: breakdown.subtotal,
-        tax: breakdown.taxTotal,
-        discount: 0,
-        total: breakdown.total,
-        validUntil,
-        items: {
-          create: breakdown.items.map((item) => ({
-            description: item.description,
-            unit: item.unit ?? null,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
-        },
+  const count = await prisma.quote.count({ where: { companyId: input.companyId } });
+  const number = `Q-${year}-${String(count + 1).padStart(3, "0")}`;
+  const row = await prisma.quote.create({
+    data: {
+      companyId: input.companyId,
+      clientId: input.clientId,
+      number,
+      status: "draft",
+      currency,
+      subtotal: breakdown.subtotal,
+      tax: breakdown.taxTotal,
+      discount: 0,
+      total: breakdown.total,
+      validUntil,
+      items: {
+        create: breakdown.items.map((item) => ({
+          description: item.description,
+          unit: item.unit ?? null,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        })),
       },
-      include: { client: { select: { name: true } } },
-    });
-    return { quote: mapDbQuote(row), tax: breakdown };
-  }
-
-  const { clients } = await import("@/lib/mock-data");
-  const mockClient = clients.find((c) => c.id === input.clientId);
-  const quote: Quote = {
-    id: `q_${Date.now()}`,
-    number: `Q-${year}-${String(readFileQuotes(input.companyId).length + 1).padStart(3, "0")}`,
-    clientId: input.clientId,
-    clientName: mockClient?.name ?? "—",
-    status: "draft",
-    total: breakdown.total,
-    currency,
-    issueDate: new Date().toISOString().slice(0, 10),
-    validUntil: validUntil.toISOString().slice(0, 10),
-  };
-  writeFileQuote(quote);
-  return { quote, tax: breakdown };
+    },
+    include: { client: { select: { name: true } } },
+  });
+  return { quote: mapDbQuote(row), tax: breakdown };
 }
 
 export async function convertQuoteToInvoice(companyId: string, id: string) {

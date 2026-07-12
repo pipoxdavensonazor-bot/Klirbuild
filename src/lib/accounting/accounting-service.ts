@@ -52,7 +52,7 @@ export async function createJournalEntry(
     reference?: string;
   }
 ) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   const row = await prisma.journalEntry.create({
     data: {
       companyId,

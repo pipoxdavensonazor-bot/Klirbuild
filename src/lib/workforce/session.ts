@@ -39,7 +39,6 @@ type SessionState = {
     subscriptionStatus?: SubscriptionStatus;
     stripeCustomerId?: string | null;
   }) => void;
-  enabledModules: string[];
   syncProfile: (data: {
     role?: Role;
     employeeId?: string | null;

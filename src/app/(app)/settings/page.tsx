@@ -16,6 +16,8 @@ import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
 import { SettingsCompanyPanel } from "@/components/settings/settings-company-panel";
 import { SettingsRolesPanel } from "@/components/settings/settings-roles-panel";
 import { ProductionSetupChecklist } from "@/components/settings/production-setup-checklist";
+import { SettingsSecurityPanel } from "@/components/settings/settings-security-panel";
+import { SettingsApiKeysPanel } from "@/components/settings/settings-api-keys-panel";
 
 const tabs = [
   "Company",
@@ -159,12 +161,7 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            {tab === "Security" ? (
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <p>Password change, session list, and 2FA placeholder.</p>
-                <Button variant="outline">Rotate sessions</Button>
-              </div>
-            ) : null}
+            {tab === "Security" ? <SettingsSecurityPanel /> : null}
 
             {tab === "Notifications" ? (
               <div className="space-y-2 text-sm">
@@ -182,43 +179,37 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            {tab === "Integrations" ? <ProductionSetupChecklist /> : null}
-
-            {tab === "API Keys" ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Generate hashed keys for future public API / SDK.
-                </p>
-                <Button>Create API key</Button>
-              </div>
-            ) : null}
-
             {tab === "Integrations" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-border p-4 sm:col-span-2">
-                  <p className="font-medium">Courriel par entreprise</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Chaque compte entreprise envoie les soumissions, factures et invitations
-                    au nom de son organisation. Configurez l&apos;identité dans l&apos;onglet
-                    Company. La plateforme utilise Resend (RESEND_API_KEY sur Vercel).
-                  </p>
-                  <p className="mt-2 text-xs">
-                    <a href="/inbox" className="text-brand-600 hover:underline">
-                      Ouvrir la boîte courriel →
-                    </a>
-                  </p>
-                </div>
-                {["Stripe", "Google OAuth", "OpenAI"].map((name) => (
-                  <div key={name} className="rounded-lg border border-border p-4">
-                    <p className="font-medium">{name}</p>
+              <div className="space-y-4">
+                <ProductionSetupChecklist />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border p-4 sm:col-span-2">
+                    <p className="font-medium">Courriel par entreprise</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Configure via environment variables
+                      Chaque compte entreprise envoie les soumissions, factures et invitations
+                      au nom de son organisation. Configurez l&apos;identité dans l&apos;onglet
+                      Company. La plateforme utilise Resend (RESEND_API_KEY sur Netlify).
                     </p>
-                    <StatusBadge status="pending" />
+                    <p className="mt-2 text-xs">
+                      <a href="/inbox" className="text-brand-600 hover:underline">
+                        Ouvrir la boîte courriel →
+                      </a>
+                    </p>
                   </div>
-                ))}
+                  {["Stripe", "Google OAuth", "OpenAI"].map((name) => (
+                    <div key={name} className="rounded-lg border border-border p-4">
+                      <p className="font-medium">{name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Configure via environment variables
+                      </p>
+                      <StatusBadge status="pending" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
+
+            {tab === "API Keys" ? <SettingsApiKeysPanel /> : null}
 
             {tab === "Languages" ? (
               <div className="space-y-2 text-sm">

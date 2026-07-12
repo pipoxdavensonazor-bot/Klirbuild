@@ -58,7 +58,7 @@ export async function uploadDocument(
   companyId: string,
   input: { file: File; folderName?: string; tags?: string[] }
 ) {
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   if (!uploadsEnabled()) {
     return {
       error:
@@ -107,7 +107,7 @@ export async function upsertDocument(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const folderName = input.folderName?.trim() || "Général";
   const existingFolder = await prisma.folder.findFirst({

@@ -1,13 +1,9 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { prisma } from "@/lib/db";
-import {
-  socialAccounts as mockAccounts,
-  socialAdCampaigns as mockCampaigns,
-} from "@/lib/reports/mock-data";
 import type { SocialAccount, SocialAdCampaign, SocialPlatform } from "@/lib/reports/types";
 import { KLIRLINE_OFFICIAL_PROFILES } from "@/lib/social-ads/klirline-marketing";
-import { isDemoMode } from "@/lib/runtime";
 import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
 
 const PLATFORMS: SocialPlatform[] = [
@@ -159,26 +155,22 @@ export async function listSocialAccounts(
   companyId: string,
   companyName: string
 ): Promise<SocialAccount[]> {
-  if (hasDatabase()) {
-    await ensurePlatformSlots(companyId, companyName);
-    const rows = await prisma.socialAccountConnection.findMany({
-      where: { companyId },
-      orderBy: { platform: "asc" },
-    });
-    return rows.map(mapAccount);
-  }
-  return mockAccounts;
+  if (!hasDatabase()) return [];
+  await ensurePlatformSlots(companyId, companyName);
+  const rows = await prisma.socialAccountConnection.findMany({
+    where: { companyId },
+    orderBy: { platform: "asc" },
+  });
+  return rows.map(mapAccount);
 }
 
 export async function listSocialCampaigns(companyId: string): Promise<SocialAdCampaign[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.socialAdCampaignRecord.findMany({
+  if (!hasDatabase()) return [];
+  const rows = await prisma.socialAdCampaignRecord.findMany({
       where: { companyId },
-      orderBy: { createdAt: "desc" },
-    });
-    return rows.map(mapCampaign);
-  }
-  return mockCampaigns;
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(mapCampaign);
 }
 
 export async function connectSocialAccountViaKlirline(
@@ -186,9 +178,7 @@ export async function connectSocialAccountViaKlirline(
   platform: SocialPlatform,
   input?: { accountName?: string; handle?: string; adAccountId?: string; klirlineRef?: string }
 ) {
-  if (!hasDatabase()) {
-    return { account: mockAccounts.find((a) => a.platform === platform) ?? mockAccounts[0] };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const row = await prisma.socialAccountConnection.upsert({
     where: { companyId_platform: { companyId, platform } },
@@ -219,27 +209,26 @@ export async function connectSocialAccountViaKlirline(
 }
 
 export async function disconnectSocialAccount(companyId: string, accountId: string) {
-  if (!isDemoMode()) {
-    const row = await prisma.socialAccountConnection.findFirst({
-      where: { id: accountId, companyId },
-    });
-    if (!row) return { error: "Compte introuvable." as const };
-    await prisma.socialAccountConnection.update({
-      where: { id: accountId },
-      data: { status: "disconnected", adAccountId: null, zernioAccountId: null, connectedAt: null },
-    });
-    return { ok: true as const };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
+
+  const row = await prisma.socialAccountConnection.findFirst({
+    where: { id: accountId, companyId },
+  });
+  if (!row) return { error: "Compte introuvable." as const };
+  await prisma.socialAccountConnection.update({
+    where: { id: accountId },
+    data: { status: "disconnected", adAccountId: null, zernioAccountId: null, connectedAt: null },
+  });
   return { ok: true as const };
 }
 
 export async function reauthSocialAccount(companyId: string, accountId: string) {
-  if (!isDemoMode()) {
-    await prisma.socialAccountConnection.updateMany({
-      where: { id: accountId, companyId },
-      data: { status: "connected", connectedAt: new Date() },
-    });
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
+
+  await prisma.socialAccountConnection.updateMany({
+    where: { id: accountId, companyId },
+    data: { status: "connected", connectedAt: new Date() },
+  });
   return { ok: true as const };
 }
 
@@ -255,24 +244,7 @@ export async function createSocialCampaign(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-
-  if (!hasDatabase()) {
-    const campaign: SocialAdCampaign = {
-      id: `ad_${Date.now()}`,
-      name,
-      platform: input.platform,
-      accountId: input.accountId,
-      objective: input.objective ?? "leads",
-      status: "active",
-      dailyBudget: input.dailyBudget ?? 50,
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      leads: 0,
-      startDate: new Date().toISOString().slice(0, 10),
-    };
-    return { campaign };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const row = await prisma.socialAdCampaignRecord.create({
     data: {

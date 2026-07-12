@@ -133,7 +133,7 @@ export async function generatePayslipsFromTimeEntries(
   periodEnd: string
 ) {
   if (!hasDatabase()) {
-    return { error: DATABASE_REQUIRED_MESSAGE as const };
+    return { error: DATABASE_REQUIRED_MESSAGE };
   }
 
   const start = new Date(periodStart);

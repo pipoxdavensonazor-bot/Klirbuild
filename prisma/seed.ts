@@ -2,6 +2,17 @@ import { PrismaClient } from "@prisma/client";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { generatePayslip } from "../src/lib/workforce/payroll";
+import {
+  changeOrders,
+  ccqDeclarations,
+  ccqWorkers,
+  constructionEstimates,
+  constructionJobs,
+  constructionLeads,
+  marketingCampaigns,
+  progressInvoices,
+} from "../src/modules/construction-os/mock-data";
+import { defaultWorkspace } from "../src/lib/construction/workspace-types";
 
 const scryptAsync = promisify(scrypt);
 const DEMO_COMPANY_ID = "demo_klirbuild";
@@ -231,6 +242,106 @@ async function main() {
         status: "approved",
       },
     });
+  }
+
+  const wsExisting = await prisma.constructionWorkspace.findUnique({
+    where: { companyId: company.id },
+  });
+  const jobCount = await prisma.constructionJob.count({ where: { companyId: company.id } });
+  if (jobCount === 0) {
+    await prisma.constructionJob.createMany({
+      data: constructionJobs.map((job) => ({
+        id: job.id,
+        companyId: company.id,
+        number: job.number,
+        name: job.name,
+        clientName: job.clientName,
+        address: job.address,
+        city: job.city,
+        province: job.province,
+        status: job.status,
+        contractValue: job.contractValue,
+        budgetCost: job.budgetCost,
+        actualCost: job.actualCost,
+        progressPct: job.progressPct,
+        holdbackPct: job.holdbackPct,
+        startDate: job.startDate,
+        endDate: job.endDate ?? null,
+        superintendent: job.superintendent,
+        trades: [...job.trades],
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const leadCount = await prisma.constructionLead.count({ where: { companyId: company.id } });
+  if (leadCount === 0) {
+    await prisma.constructionLead.createMany({
+      data: constructionLeads.map((lead) => ({
+        id: lead.id,
+        companyId: company.id,
+        name: lead.name,
+        source: lead.source,
+        projectType: lead.projectType,
+        valueEstimate: lead.valueEstimate,
+        stage: lead.stage,
+        owner: lead.owner,
+        city: lead.city,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  if (!wsExisting) {
+    const seeded = defaultWorkspace();
+    seeded.estimates = structuredClone(constructionEstimates);
+    seeded.changeOrders = structuredClone(changeOrders);
+    seeded.ccqWorkers = structuredClone(ccqWorkers);
+    seeded.ccqDeclarations = structuredClone(ccqDeclarations);
+    seeded.progressInvoices = structuredClone(progressInvoices);
+    seeded.marketingCampaigns = structuredClone(marketingCampaigns);
+    await prisma.constructionWorkspace.create({
+      data: { companyId: company.id, data: seeded as object },
+    });
+  }
+
+  const emailCount = await prisma.emailMessage.count({ where: { companyId: company.id } });
+  if (emailCount === 0) {
+    const clients = await prisma.client.findMany({
+      where: { companyId: company.id },
+      take: 2,
+      orderBy: { createdAt: "asc" },
+    });
+    const nordic = clients.find((c) => c.email === "ops@nordic.demo") ?? clients[0];
+    const harbour = clients.find((c) => c.email === "admin@harbour.demo") ?? clients[1];
+    const inbox = company.email ?? "billing@klirline.demo";
+
+    if (nordic) {
+      await prisma.emailMessage.create({
+        data: {
+          companyId: company.id,
+          direction: "inbound",
+          fromEmail: nordic.email ?? "ops@nordic.demo",
+          toEmail: inbox,
+          subject: "Re: Soumission Q-2026-014 — questions",
+          bodyText: "Bonjour, pouvez-vous confirmer les délais pour le lot peinture?",
+          clientId: nordic.id,
+        },
+      });
+    }
+    if (harbour) {
+      await prisma.emailMessage.create({
+        data: {
+          companyId: company.id,
+          direction: "outbound",
+          fromEmail: inbox,
+          toEmail: harbour.email ?? "admin@harbour.demo",
+          subject: `Facture INV-2026-094 — ${company.name}`,
+          bodyText: "Veuillez trouver ci-joint votre facture.",
+          clientId: harbour.id,
+        },
+      });
+    }
   }
 
   console.log("Seed OK:", company.name, "— alex@klirline.demo / password");

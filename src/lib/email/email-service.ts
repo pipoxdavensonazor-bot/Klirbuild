@@ -1,11 +1,9 @@
-import fs from "fs";
-import path from "path";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 
 import {
   getCompanyEmailContext,
-  type CompanyEmailContext,
 } from "@/lib/email/company-email";
 
 export type EmailDirection = "inbound" | "outbound";
@@ -26,43 +24,6 @@ export type EmailRecord = {
   readAt?: string;
   createdAt: string;
 };
-
-const DATA_DIR = path.join(process.cwd(), ".data");
-const STORE_PATH = path.join(DATA_DIR, "emails.json");
-
-function ensureStore() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(STORE_PATH)) {
-      fs.writeFileSync(STORE_PATH, JSON.stringify([], null, 2), "utf8");
-    }
-  } catch {
-    /* serverless: read-only filesystem */
-  }
-}
-
-function readFileEmails(companyId: string): EmailRecord[] {
-  try {
-    ensureStore();
-    if (!fs.existsSync(STORE_PATH)) return [];
-    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as EmailRecord[];
-    return all.filter((e) => e.companyId === companyId);
-  } catch {
-    return [];
-  }
-}
-
-function writeFileEmail(record: EmailRecord) {
-  try {
-    ensureStore();
-    if (!fs.existsSync(STORE_PATH)) return;
-    const all = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as EmailRecord[];
-    all.unshift(record);
-    fs.writeFileSync(STORE_PATH, JSON.stringify(all, null, 2), "utf8");
-  } catch {
-    /* ignore on serverless */
-  }
-}
 
 function mapRow(row: {
   id: string;
@@ -158,100 +119,45 @@ export async function sendEmail(input: {
 }
 
 export async function logEmail(record: Omit<EmailRecord, "id" | "createdAt"> & { id?: string }) {
-  const full: EmailRecord = {
-    id: record.id ?? `em_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    ...record,
-  };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  if (hasDatabase()) {
-    const row = await prisma.emailMessage.create({
-      data: {
-        id: full.id.startsWith("em_") ? undefined : full.id,
-        companyId: full.companyId,
-        direction: full.direction,
-        fromEmail: full.fromEmail,
-        toEmail: full.toEmail,
-        subject: full.subject,
-        bodyText: full.bodyText,
-        bodyHtml: full.bodyHtml,
-        clientId: full.clientId,
-        quoteId: full.quoteId,
-        invoiceId: full.invoiceId,
-        providerId: full.providerId,
-        readAt: full.readAt ? new Date(full.readAt) : null,
-      },
-    });
-    return mapRow(row);
-  }
-
-  try {
-    writeFileEmail(full);
-  } catch {
-    /* ignore on serverless */
-  }
-  return full;
+  const row = await prisma.emailMessage.create({
+    data: {
+      id: record.id && !record.id.startsWith("em_") ? record.id : undefined,
+      companyId: record.companyId,
+      direction: record.direction,
+      fromEmail: record.fromEmail,
+      toEmail: record.toEmail,
+      subject: record.subject,
+      bodyText: record.bodyText,
+      bodyHtml: record.bodyHtml,
+      clientId: record.clientId,
+      quoteId: record.quoteId,
+      invoiceId: record.invoiceId,
+      providerId: record.providerId,
+      readAt: record.readAt ? new Date(record.readAt) : null,
+    },
+  });
+  return mapRow(row);
 }
 
 export async function listEmails(companyId: string, clientId?: string) {
-  const demoSeed = await getDemoInboxSeed(companyId);
-
-  if (hasDatabase()) {
-    const rows = await prisma.emailMessage.findMany({
-      where: { companyId, ...(clientId ? { clientId } : {}) },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
-    const mapped = rows.map(mapRow);
-    if (mapped.length === 0 && !clientId) return demoSeed;
-    return mapped;
-  }
-
-  const fileRows = readFileEmails(companyId).filter((e) =>
-    clientId ? e.clientId === clientId : true
-  );
-  const merged = [...fileRows, ...demoSeed.filter((d) => !fileRows.some((f) => f.id === d.id))];
-  return clientId ? merged.filter((e) => e.clientId === clientId) : merged;
+  if (!hasDatabase()) return [];
+  const rows = await prisma.emailMessage.findMany({
+    where: { companyId, ...(clientId ? { clientId } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  return rows.map(mapRow);
 }
 
 export async function markEmailRead(companyId: string, emailId: string) {
-  if (hasDatabase()) {
-    const row = await prisma.emailMessage.updateMany({
-      where: { id: emailId, companyId },
-      data: { readAt: new Date() },
-    });
-    return row.count > 0;
-  }
-  return true;
-}
-
-async function getDemoInboxSeed(companyId: string): Promise<EmailRecord[]> {
-  const ctx = await getCompanyEmailContext(companyId);
-  return [
-    {
-      id: "em_demo_1",
-      companyId,
-      direction: "inbound",
-      fromEmail: "billing@nordicfacilities.com",
-      toEmail: ctx.inboxEmail,
-      subject: "Re: Soumission Q-2026-014 — questions",
-      bodyText: "Bonjour, pouvez-vous confirmer les délais pour le lot peinture?",
-      clientId: "cli_1",
-      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    },
-    {
-      id: "em_demo_2",
-      companyId,
-      direction: "outbound",
-      fromEmail: ctx.logicalFrom,
-      toEmail: "admin@harbourdental.ca",
-      subject: `Facture INV-2026-094 — ${ctx.companyName}`,
-      bodyText: "Veuillez trouver ci-joint votre facture.",
-      clientId: "cli_2",
-      invoiceId: "inv_2",
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ];
+  if (!hasDatabase()) return false;
+  const row = await prisma.emailMessage.updateMany({
+    where: { id: emailId, companyId },
+    data: { readAt: new Date() },
+  });
+  return row.count > 0;
 }
 
 export async function sendClientMessage(input: {
@@ -264,28 +170,17 @@ export async function sendClientMessage(input: {
   const body = input.body.trim();
   if (!subject) return { error: "Objet requis." as const };
   if (!body) return { error: "Message requis." as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  let clientEmail = "";
-  let clientName = "Client";
-  let companyName = "Votre entreprise";
+  const client = await prisma.client.findFirst({
+    where: { id: input.clientId, companyId: input.companyId },
+    include: { company: { select: { name: true } } },
+  });
+  if (!client) return { error: "Client introuvable." as const };
 
-  if (hasDatabase()) {
-    const client = await prisma.client.findFirst({
-      where: { id: input.clientId, companyId: input.companyId },
-      include: { company: { select: { name: true } } },
-    });
-    if (!client) return { error: "Client introuvable." as const };
-    clientEmail = client.email?.trim() ?? "";
-    clientName = client.name;
-    companyName = client.company.name;
-  } else {
-    const { clients, demoCompany } = await import("@/lib/mock-data");
-    const client = clients.find((c) => c.id === input.clientId);
-    if (!client) return { error: "Client introuvable." as const };
-    clientEmail = client.email?.trim() ?? "";
-    clientName = client.name;
-    companyName = demoCompany.name;
-  }
+  const clientEmail = client.email?.trim() ?? "";
+  const clientName = client.name;
+  const companyName = client.company.name;
 
   if (!clientEmail) {
     return { error: "Le client n'a pas de courriel. Ajoutez-le dans le profil." as const };
@@ -303,21 +198,19 @@ export async function sendClientMessage(input: {
   if ("error" in sent && sent.error) return { error: sent.error };
 
   const emailCtx = await getCompanyEmailContext(input.companyId);
-  try {
-    await logEmail({
-      companyId: input.companyId,
-      direction: "outbound",
-      fromEmail: emailCtx.logicalFrom,
-      toEmail: clientEmail,
-      subject,
-      bodyText: body,
-      bodyHtml: html,
-      clientId: input.clientId,
-      providerId: "providerId" in sent ? sent.providerId : undefined,
-    });
-  } catch {
-    /* ignore log failure */
-  }
+  const logged = await logEmail({
+    companyId: input.companyId,
+    direction: "outbound",
+    fromEmail: emailCtx.logicalFrom,
+    toEmail: clientEmail,
+    subject,
+    bodyText: body,
+    bodyHtml: html,
+    clientId: input.clientId,
+    providerId: "providerId" in sent ? sent.providerId : undefined,
+  });
+
+  if ("error" in logged) return { error: logged.error };
 
   return {
     ok: true,
@@ -337,8 +230,9 @@ export async function recordInboundEmail(input: {
   bodyText?: string;
   bodyHtml?: string;
   clientId?: string;
+  providerId?: string;
 }) {
-  return logEmail({
+  const result = await logEmail({
     companyId: input.companyId,
     direction: "inbound",
     fromEmail: input.from,
@@ -347,5 +241,8 @@ export async function recordInboundEmail(input: {
     bodyText: input.bodyText,
     bodyHtml: input.bodyHtml,
     clientId: input.clientId,
+    providerId: input.providerId,
   });
+  if ("error" in result) return result;
+  return result;
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/workforce/session";
+import { apiUrl } from "@/lib/api-client";
 import type { ChatMessage } from "@/types";
 
 const STARTER_PROMPTS = [
@@ -31,6 +32,16 @@ function AiInner() {
   const [provider, setProvider] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    void fetch(apiUrl("/api/ai/chat"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        const loaded = (d.messages as ChatMessage[] | undefined) ?? [];
+        if (loaded.length) setMessages(loaded);
+      })
+      .catch(() => undefined);
+  }, []);
+
   async function send(prompt?: string) {
     const content = (prompt ?? input).trim();
     if (!content || busy) return;
@@ -51,7 +62,7 @@ function AiInner() {
     setBusy(true);
 
     try {
-      const res = await fetch("/api/ai/chat", {
+      const res = await fetch(apiUrl("/api/ai/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

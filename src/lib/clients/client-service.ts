@@ -70,7 +70,7 @@ export async function createClient(input: {
     status: (input.status ?? "lead") as ClientStatus,
   };
 
-  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const row = await prisma.client.create({
       data: {

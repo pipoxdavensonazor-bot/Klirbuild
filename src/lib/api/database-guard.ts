@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const DATABASE_REQUIRED_MESSAGE =
-  "DATABASE_URL requis. Configurez Postgres sur Netlify.";
+  "DATABASE_URL requis. Configurez Postgres sur Netlify." as const;
 
 export function hasDatabaseUrl() {
   return Boolean(process.env.DATABASE_URL?.trim());

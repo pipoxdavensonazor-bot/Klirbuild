@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
+import { appendAiChatMessages, getAiChatThread } from "@/lib/ai/ai-chat-service";
 import { buildBusinessContext, buildConstructionContext } from "@/lib/ai/context";
 import { mockKeywordReply } from "@/lib/ai/mock-replies";
 import { openAiChat, type ChatTurn } from "@/lib/ai/openai-client";
@@ -25,11 +26,17 @@ function parseHistory(raw: unknown): ChatTurn[] {
     .slice(-MAX_HISTORY);
 }
 
-async function resolveCompanyId() {
+async function resolveSession() {
   const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
+  if (!session) return { companyId: DEMO_COMPANY_ID, email: "guest@klirline.demo" };
   const enriched = await enrichSession(session);
-  return enriched.companyId;
+  return { companyId: enriched.companyId, email: enriched.email };
+}
+
+export async function GET() {
+  const { companyId, email } = await resolveSession();
+  const thread = await getAiChatThread(companyId, email);
+  return NextResponse.json(thread);
 }
 
 export async function POST(request: Request) {
@@ -44,8 +51,15 @@ export async function POST(request: Request) {
   }
 
   const market = getMarket(regionId);
-  const companyId = await resolveCompanyId();
+  const { companyId, email } = await resolveSession();
   const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
+
+  let reply: string;
+  let tool: string;
+  let provider: string;
+  let model: string | undefined;
+  let hint: string | undefined;
+  let errorNote: string | undefined;
 
   if (hasOpenAi) {
     try {
@@ -62,31 +76,44 @@ export async function POST(request: Request) {
       const messages: ChatTurn[] = [...history, { role: "user", content: message }];
       const result = await openAiChat({ system, messages });
 
-      return NextResponse.json({
-        reply: result.content,
-        tool: mode === "construction" ? "constructionCopilot" : "klirAiCopilot",
-        market: market.id,
-        provider: "openai",
-        model: result.model,
-      });
+      reply = result.content;
+      tool = mode === "construction" ? "constructionCopilot" : "klirAiCopilot";
+      provider = "openai";
+      model = result.model;
     } catch (err) {
       console.error("[ai/chat] OpenAI error:", err);
       const fallback = mockKeywordReply(message, regionId);
-      return NextResponse.json({
-        ...fallback,
-        provider: "mock",
-        error:
-          err instanceof Error
-            ? "OpenAI indisponible — réponse locale de secours."
-            : "OpenAI indisponible.",
-      });
+      reply = fallback.reply;
+      tool = fallback.tool;
+      provider = "mock";
+      errorNote =
+        err instanceof Error
+          ? "OpenAI indisponible — réponse locale de secours."
+          : "OpenAI indisponible.";
     }
+  } else {
+    const mock = mockKeywordReply(message, regionId);
+    reply = mock.reply;
+    tool = mock.tool;
+    provider = "mock";
+    hint = "Ajoutez OPENAI_API_KEY sur Vercel pour activer Klir AI en direct.";
   }
 
-  const mock = mockKeywordReply(message, regionId);
+  await appendAiChatMessages({
+    companyId,
+    email,
+    userContent: message,
+    assistantContent: reply,
+    toolName: tool,
+  });
+
   return NextResponse.json({
-    ...mock,
-    provider: "mock",
-    hint: "Ajoutez OPENAI_API_KEY sur Vercel pour activer Klir AI en direct.",
+    reply,
+    tool,
+    market: market.id,
+    provider,
+    model,
+    hint,
+    error: errorNote,
   });
 }
