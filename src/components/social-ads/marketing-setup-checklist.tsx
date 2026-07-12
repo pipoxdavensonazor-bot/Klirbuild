@@ -50,7 +50,7 @@ export function MarketingSetupChecklist({ error, provider, onRetry }: Props) {
       id: "schema",
       label: "Tables marketing (Prisma)",
       ok: checks?.schema?.ok,
-      detail: checks?.schema?.detail ?? "Exécutez npm run db:push",
+      detail: checks?.schema?.detail ?? "Tables marketing — npm run db:push",
       fix: "npx prisma db push",
     },
     {

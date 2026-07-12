@@ -7,6 +7,23 @@ import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+async function checkMarketingSchema(): Promise<{ ok: boolean; detail?: string }> {
+  try {
+    await prisma.socialAccountConnection.count();
+    await prisma.socialAdCampaignRecord.count();
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("does not exist")) {
+      return {
+        ok: false,
+        detail: "Tables marketing absentes — npm run db:push sur la base Netlify",
+      };
+    }
+    return { ok: false, detail: "Schéma marketing non synchronisé" };
+  }
+}
+
 export async function GET() {
   const checks: Record<string, { ok: boolean; detail?: string }> = {
     app: { ok: true },
@@ -52,8 +69,9 @@ export async function GET() {
       checks.database = { ok: true };
       try {
         await prisma.company.count();
-        checks.schema = { ok: true };
         const companyCount = await prisma.company.count();
+        const marketing = await checkMarketingSchema();
+        checks.schema = marketing;
         checks.seed = {
           ok: companyCount > 0,
           detail:
@@ -66,7 +84,7 @@ export async function GET() {
           ok: false,
           detail:
             e instanceof Error && e.message.includes("does not exist")
-              ? "Tables manquantes — exécutez npm run db:push"
+              ? "Tables de base manquantes — exécutez npm run db:push"
               : "Schéma Prisma non synchronisé",
         };
       }

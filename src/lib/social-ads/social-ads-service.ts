@@ -98,7 +98,10 @@ export function socialAdsLoadErrorMessage(err: unknown): string {
     return "Entreprise introuvable en base. Exécutez npm run db:seed sur la base Neon, puis redéployez.";
   }
   if (msg.includes("does not exist")) {
-    return "Tables marketing manquantes. Exécutez npm run db:push.";
+    if (msg.toLowerCase().includes("socialaccount") || msg.toLowerCase().includes("socialad")) {
+      return "Tables marketing absentes. Redéployez Netlify (db push auto) ou exécutez npm run db:push.";
+    }
+    return "Tables manquantes. Exécutez npm run db:push sur la base Neon/Netlify.";
   }
   return "Impossible de charger les comptes. Vérifiez DATABASE_URL et npm run db:seed.";
 }
