@@ -76,6 +76,8 @@ model Company {
   apiKeys            ApiKey[]
   emailMessages      EmailMessage[]
   constructionWorkspace ConstructionWorkspace?
+  socialAccounts     SocialAccountConnection[]
+  socialCampaigns    SocialAdCampaignRecord[]
 }
 
 model User {
@@ -142,6 +144,51 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([email])
+}
+
+model SocialAccountConnection {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  platform    String
+  accountName String
+  handle      String
+  status      String   @default("disconnected")
+  adAccountId String?
+  currency    String   @default("CAD")
+  followers   Int?
+  managedBy   String   @default("klirline")
+  klirlineRef String?
+  connectedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  campaigns   SocialAdCampaignRecord[]
+
+  @@unique([companyId, platform])
+  @@index([companyId, status])
+}
+
+model SocialAdCampaignRecord {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     SocialAccountConnection @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name        String
+  platform    String
+  objective   String   @default("leads")
+  status      String   @default("draft")
+  dailyBudget Decimal  @default(0) @db.Decimal(12, 2)
+  spend       Decimal  @default(0) @db.Decimal(12, 2)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  leads       Int      @default(0)
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, status])
 }
 
 model Client {
