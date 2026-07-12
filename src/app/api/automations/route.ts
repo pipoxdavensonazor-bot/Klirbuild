@@ -4,6 +4,7 @@ import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import {
   listAutomations,
   runAutomation,
+  runCompanyAutomations,
   upsertAutomation,
 } from "@/lib/automations/automation-service";
 
@@ -27,6 +28,13 @@ export async function POST(request: Request) {
 
   if (action === "run") {
     const id = typeof body.id === "string" ? body.id : "";
+    if (!id) {
+      const batch = await runCompanyAutomations(companyId);
+      if ("error" in batch && batch.error) {
+        return NextResponse.json({ error: batch.error }, { status: 503 });
+      }
+      return NextResponse.json(batch);
+    }
     const result = await runAutomation(companyId, id);
     if ("error" in result && result.error) {
       return NextResponse.json({ error: result.error }, { status: 404 });

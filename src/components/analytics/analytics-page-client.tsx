@@ -18,33 +18,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiUrl } from "@/lib/api-client";
 import type { AnalyticsStats } from "@/lib/analytics/analytics-service";
-import { clients, deals, invoices, kpi, revenueSeries, tasks } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
 
-const fallback: AnalyticsStats = {
-  revenueMtd: kpi.revenue,
-  mrr: kpi.mrr,
-  pipeline: kpi.pipeline,
-  winRate:
-    Math.round(
-      (deals.filter((d) => d.stage === "won").length / Math.max(deals.length, 1)) * 100
-    ) || 0,
-  revenueSeries,
-  moduleVolume: [
-    { name: "Clients", value: clients.length },
-    { name: "Factures", value: invoices.length },
-    { name: "Tâches", value: tasks.length },
-    { name: "Deals", value: deals.length },
-  ],
-  summary: "Chargement des données entreprise…",
+const emptyStats: AnalyticsStats = {
+  revenueMtd: 0,
+  mrr: 0,
+  pipeline: 0,
+  winRate: 0,
+  revenueSeries: [],
+  moduleVolume: [],
+  summary: "Aucune donnée — connectez la base et ajoutez clients/factures.",
   overdueInvoices: 0,
-  tasksOpen: kpi.tasksDue,
-  activeProjects: kpi.projects,
+  tasksOpen: 0,
+  activeProjects: 0,
   leadsOpen: 0,
 };
 
 export function AnalyticsPageClient() {
-  const [stats, setStats] = useState<AnalyticsStats>(fallback);
+  const [stats, setStats] = useState<AnalyticsStats>(emptyStats);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

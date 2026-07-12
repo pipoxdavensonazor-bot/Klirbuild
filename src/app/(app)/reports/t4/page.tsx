@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, FileText, Printer } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
@@ -8,7 +8,7 @@ import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
-import { buildT4Slips, t4TaxYears } from "@/lib/reports/mock-data";
+import { apiUrl } from "@/lib/api-client";
 import type { T4Slip } from "@/lib/reports/types";
 import { formatMoney } from "@/lib/workforce/payroll";
 import { canApp } from "@/lib/workforce/types";
@@ -31,13 +31,43 @@ function T4ReportsInner() {
   const canManage =
     canApp(role, "payroll:manage") || canApp(role, "accounting:manage");
 
-  const [taxYear, setTaxYear] = useState(2025);
-  const [slips, setSlips] = useState<T4Slip[]>(() => buildT4Slips(2025));
+  const [taxYear, setTaxYear] = useState(new Date().getFullYear());
+  const [taxYears, setTaxYears] = useState<number[]>([
+    new Date().getFullYear(),
+    new Date().getFullYear() - 1,
+    new Date().getFullYear() - 2,
+  ]);
+  const [slips, setSlips] = useState<T4Slip[]>([]);
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  async function load(year: number) {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/reports/t4?taxYear=${year}`), {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error ?? "Erreur chargement T4.");
+        return;
+      }
+      setSlips(data.slips ?? []);
+      if (data.taxYears?.length) setTaxYears(data.taxYears);
+      if (data.slips?.[0]?.id) setSelectedId(data.slips[0].id);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load(taxYear);
+  }, [taxYear]);
 
   const visible = useMemo(() => {
     if (canManage) return slips;
+    if (!employeeId) return [];
     return slips.filter((s) => s.employeeId === employeeId);
   }, [slips, canManage, employeeId]);
 
@@ -57,24 +87,16 @@ function T4ReportsInner() {
 
   function regenerate() {
     if (!canManage) return;
-    const next = buildT4Slips(taxYear).map((s) => ({
-      ...s,
-      status: "generated" as const,
-      generatedAt: new Date().toISOString(),
-    }));
-    setSlips(next);
-    setSelectedId(next[0]?.id);
-    setMessage(
-      `${next.length} feuillets T4 générés pour l'année d'imposition ${taxYear} (un par employé).`
-    );
+    void load(taxYear).then(() => {
+      setMessage(
+        `${visible.length} feuillet(s) T4 chargé(s) pour ${taxYear} depuis la paie en base.`
+      );
+    });
   }
 
   function changeYear(year: number) {
     setTaxYear(year);
-    const next = buildT4Slips(year);
-    setSlips(next);
-    setSelectedId(next[0]?.id);
-    setMessage(`Période fiscale ${year} chargée.`);
+    setMessage(`Période fiscale ${year}.`);
   }
 
   function printSlip() {
@@ -131,7 +153,7 @@ function T4ReportsInner() {
     <div>
       <PageHeader
         title="Rapports T4"
-        description="Générez un feuillet T4 par employé pour la période d'impôt (CRA). Données dérivées de la paie."
+        description="Feuillets T4 par employé — données dérivées des bulletins de paie en base."
         actions={
           <>
             <select
@@ -139,7 +161,7 @@ function T4ReportsInner() {
               value={taxYear}
               onChange={(e) => changeYear(Number(e.target.value))}
             >
-              {t4TaxYears.map((y) => (
+              {taxYears.map((y) => (
                 <option key={y} value={y}>
                   Année {y}
                 </option>
@@ -150,9 +172,9 @@ function T4ReportsInner() {
               Export CSV
             </Button>
             {canManage ? (
-              <Button onClick={regenerate}>
+              <Button onClick={regenerate} disabled={loading}>
                 <FileText className="h-4 w-4" />
-                Générer les T4
+                Actualiser depuis la paie
               </Button>
             ) : null}
           </>
@@ -177,28 +199,36 @@ function T4ReportsInner() {
             <CardTitle>Employés — {taxYear}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {visible.map((slip) => (
-              <button
-                key={slip.id}
-                onClick={() => setSelectedId(slip.id)}
-                className={`w-full rounded-lg border p-3 text-left text-sm transition ${
-                  selected?.id === slip.id
-                    ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/20"
-                    : "border-border hover:bg-slate-50 dark:hover:bg-slate-900"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{slip.employeeName}</span>
-                  <StatusBadge status={slip.status} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  NAS {slip.sinMasked} ·{" "}
-                  {formatMoney(
-                    slip.boxes.find((b) => b.code === "14")?.amount ?? 0
-                  )}
-                </p>
-              </button>
-            ))}
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Chargement…</p>
+            ) : visible.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun employé ou bulletin approuvé pour cette année.
+              </p>
+            ) : (
+              visible.map((slip) => (
+                <button
+                  key={slip.id}
+                  onClick={() => setSelectedId(slip.id)}
+                  className={`w-full rounded-lg border p-3 text-left text-sm transition ${
+                    selected?.id === slip.id
+                      ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/20"
+                      : "border-border hover:bg-slate-50 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{slip.employeeName}</span>
+                    <StatusBadge status={slip.status} />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    NAS {slip.sinMasked} ·{" "}
+                    {formatMoney(
+                      slip.boxes.find((b) => b.code === "14")?.amount ?? 0
+                    )}
+                  </p>
+                </button>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -267,9 +297,8 @@ function T4ReportsInner() {
                 </table>
 
                 <p className="text-xs text-muted-foreground">
-                  Aperçu T4 à des fins opérationnelles. Validez avec un
-                  professionnel / logiciel de paie certifié avant transmission à
-                  l&apos;ARC. Le Québec peut aussi exiger le relevé 1.
+                  Aperçu T4 à des fins opérationnelles. Validez avec un professionnel
+                  avant transmission à l&apos;ARC.
                 </p>
               </div>
             ) : (

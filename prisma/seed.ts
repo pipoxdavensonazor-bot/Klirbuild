@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { generatePayslip } from "../src/lib/workforce/payroll";
 
 const scryptAsync = promisify(scrypt);
 const DEMO_COMPANY_ID = "demo_klirbuild";
@@ -108,6 +109,80 @@ async function main() {
           radiusM: 120,
         },
       ],
+    });
+  }
+
+  const autoCount = await prisma.automation.count({ where: { companyId: company.id } });
+  if (autoCount === 0) {
+    await prisma.automation.createMany({
+      data: [
+        {
+          companyId: company.id,
+          name: "Rappel factures en retard",
+          trigger: "invoice_overdue",
+          active: true,
+        },
+        {
+          companyId: company.id,
+          name: "Nouveau lead — notification",
+          trigger: "lead_created",
+          active: true,
+        },
+        {
+          companyId: company.id,
+          name: "Devis expirant (3 jours)",
+          trigger: "quote_expiring",
+          active: true,
+        },
+      ],
+    });
+  }
+
+  const fieldEmp = await prisma.employeeProfile.upsert({
+    where: { id: "emp_demo_sam" },
+    create: {
+      id: "emp_demo_sam",
+      companyId: company.id,
+      name: "Sam Chen",
+      email: "sam@klirline.demo",
+      role: "EMPLOYEE",
+      jobTitle: "Ouvrier chantier",
+      hourlyRate: 38,
+      overtimeRate: 57,
+      sinMasked: "***-***-288",
+      status: "active",
+    },
+    update: {},
+  });
+
+  const taxYear = new Date().getFullYear();
+  const payslipCount = await prisma.payslip.count({
+    where: { companyId: company.id, employeeId: fieldEmp.id },
+  });
+  if (payslipCount === 0) {
+    const calc = generatePayslip({
+      employeeId: fieldEmp.id,
+      employeeName: fieldEmp.name,
+      hourlyRate: 38,
+      overtimeRate: 57,
+      regularHours: 40 * 12,
+      overtimeHours: 8,
+      periodStart: `${taxYear}-01-01`,
+      periodEnd: `${taxYear}-03-31`,
+    });
+    await prisma.payslip.create({
+      data: {
+        companyId: company.id,
+        employeeId: fieldEmp.id,
+        periodStart: new Date(`${taxYear}-01-01`),
+        periodEnd: new Date(`${taxYear}-03-31`),
+        regularHours: 480,
+        overtimeHours: 8,
+        grossPay: calc.grossPay,
+        netPay: calc.netPay,
+        linesJson: calc.lines,
+        status: "approved",
+      },
     });
   }
 

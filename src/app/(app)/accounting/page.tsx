@@ -8,11 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
-import {
-  journalEntries as mockJournal,
-  ledgerAccounts as mockLedger,
-  taxRates,
-} from "@/lib/workforce/mock-data";
 import { formatMoney } from "@/lib/markets/currency";
 import { calcMarketTaxes, getMarket } from "@/lib/markets/regions";
 import { useSessionStore } from "@/lib/workforce/session";
@@ -33,8 +28,22 @@ function AccountingInner() {
   const currency = useSessionStore((s) => s.currency);
   const market = getMarket(marketRegion);
   const [subtotal, setSubtotal] = useState("1000");
-  const [ledgerAccounts, setLedgerAccounts] = useState(mockLedger);
-  const [journalEntries, setJournalEntries] = useState(mockJournal);
+  const [ledgerAccounts, setLedgerAccounts] = useState<
+    { id: string; code: string; name: string; balance: number; type: string }[]
+  >([]);
+  const [journalEntries, setJournalEntries] = useState<
+    {
+      id: string;
+      date: string;
+      memo: string;
+      reference: string;
+      debitAccount: string;
+      creditAccount: string;
+      amount: number;
+      taxCode?: string;
+      taxAmount?: number;
+    }[]
+  >([]);
 
   useEffect(() => {
     void fetch(apiUrl("/api/accounting"), { credentials: "include" })
@@ -136,15 +145,6 @@ function AccountingInner() {
                     <td className="py-2 font-medium">{t.name}</td>
                     <td className="py-2">{market.id}</td>
                     <td className="py-2">sales (actif)</td>
-                    <td className="py-2 text-right">{(t.rate * 100).toFixed(3)}%</td>
-                  </tr>
-                ))}
-                {taxRates.map((t) => (
-                  <tr key={t.id} className="border-t border-border">
-                    <td className="py-2 font-mono text-xs">{t.code}</td>
-                    <td className="py-2">{t.name}</td>
-                    <td className="py-2">{t.region}</td>
-                    <td className="py-2">{t.appliesTo}</td>
                     <td className="py-2 text-right">{(t.rate * 100).toFixed(3)}%</td>
                   </tr>
                 ))}

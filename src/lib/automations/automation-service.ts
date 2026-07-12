@@ -1,6 +1,10 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import { automations as mockAutomations } from "@/lib/mock-data";
+import {
+  runAllActiveAutomations,
+  runSingleAutomation,
+} from "@/lib/automations/automation-runner";
 
 export type AutomationDto = {
   id: string;
@@ -80,11 +84,9 @@ export async function upsertAutomation(
 
 export async function runAutomation(companyId: string, id: string) {
   if (!hasDatabase()) return { ok: true, demo: true };
-  const row = await prisma.automation.findFirst({ where: { id, companyId, active: true } });
-  if (!row) return { error: "Automatisation introuvable." as const };
-  await prisma.automation.update({
-    where: { id },
-    data: { runs: { increment: 1 }, lastRunAt: new Date() },
-  });
-  return { ok: true as const, name: row.name };
+  return runSingleAutomation(companyId, id);
+}
+
+export async function runCompanyAutomations(companyId: string) {
+  return runAllActiveAutomations(companyId);
 }
