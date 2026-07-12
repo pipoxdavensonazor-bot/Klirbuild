@@ -8,17 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
 import { useConstructionWorkspace } from "@/components/construction/use-construction-workspace";
-import { formatCurrency } from "@/lib/utils";
+import { useSessionStore } from "@/lib/workforce/session";
+
+type ChatTurn = { role: "user" | "assistant"; content: string };
 
 export function ConstructionAiPageClient() {
   const { data, loading, reload } = useConstructionWorkspace();
-  const [messages, setMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
-  >([
+  const [messages, setMessages] = useState<ChatTurn[]>([
     {
       role: "assistant",
       content:
-        "Je suis l'IA Construction OS. Je résume vos chantiers réels, signale les risques et aide aux OC, sécurité et leads.",
+        "Je suis l'IA Chantier Klir AI, connectée à OpenAI et à vos données Construction OS (chantiers, OC, leads, CCQ).",
     },
   ]);
   const [input, setInput] = useState("");
@@ -26,63 +26,55 @@ export function ConstructionAiPageClient() {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState<string | null>(null);
 
   useEffect(() => {
     if (data?.aiSuggestions?.length) setSuggestions(data.aiSuggestions);
   }, [data?.aiSuggestions]);
 
-  const replyTo = useCallback(
-    (prompt: string) => {
-      const lower = prompt.toLowerCase();
-      const jobs = data?.jobs ?? [];
-      const orders = data?.changeOrders ?? [];
-      const leads = data?.leads ?? [];
-      let reply = "Synthèse Construction OS basée sur vos données enregistrées.";
+  const sendPrompt = useCallback(
+    async (prompt: string) => {
+      const content = prompt.trim();
+      if (!content || busy) return;
 
-      if (lower.includes("résumé") || lower.includes("quotidien")) {
-        const active = jobs.filter((j) => j.status === "in_progress");
-        reply = active.length
-          ? `Résumé : ${active.length} chantier(s) actif(s). ${active
-              .map(
-                (j) =>
-                  `${j.name} ${j.progressPct}% (${formatCurrency(j.actualCost)} / ${formatCurrency(j.budgetCost)})`
-              )
-              .join(" · ")}.`
-          : "Aucun chantier en cours pour le moment.";
-      } else if (lower.includes("budget") || lower.includes("risque") || lower.includes("dépassement")) {
-        const risky = jobs.filter(
-          (j) => j.budgetCost > 0 && j.actualCost / j.budgetCost > 0.7 && j.progressPct < 90
-        );
-        reply = risky.length
-          ? `Risque marge : ${risky
-              .map(
-                (j) =>
-                  `${j.number} — ${Math.round((j.actualCost / j.budgetCost) * 100)}% budget à ${j.progressPct}%`
-              )
-              .join("; ")}.`
-          : "Aucun chantier critique sur le burn rate actuel.";
-      } else if (lower.includes("ordre") || lower.includes("changement") || lower.includes("oc")) {
-        const pending = orders.filter((c) => ["draft", "submitted"].includes(c.status));
-        reply = pending.length
-          ? `OC ouverts : ${pending.map((c) => `${c.number} ${c.title} (${formatCurrency(c.amount)})`).join("; ")}.`
-          : "Aucun OC en attente — vous pouvez en créer dans Ordres de changement.";
-      } else if (lower.includes("toolbox") || lower.includes("sécurité")) {
-        reply =
-          "Toolbox talk — hauteur : harnais, ancrage, barricades, météo, secouriste, permis signé. Enregistrez sur le chat sécurisé du chantier.";
-      } else if (lower.includes("lead") || lower.includes("commerciale")) {
-        const hot = leads.filter((l) => ["estimate", "negotiation"].includes(l.stage));
-        reply = hot.length
-          ? `Leads chauds : ${hot.map((l) => `${l.name} (${formatCurrency(l.valueEstimate)})`).join("; ")}.`
-          : "Pipeline vide — ajoutez des leads dans CRM Construction.";
+      const userTurn: ChatTurn = { role: "user", content };
+      const history = messages.filter((m) => m.role === "user" || m.role === "assistant");
+      setMessages((prev) => [...prev, userTurn]);
+      setBusy(true);
+
+      try {
+        const res = await fetch(apiUrl("/api/ai/chat"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            message: content,
+            mode: "construction",
+            marketRegion: useSessionStore.getState().marketRegion,
+            history: history.slice(-10),
+          }),
+        });
+        const data = await res.json();
+        const reply =
+          typeof data.reply === "string"
+            ? data.reply
+            : "Je n'ai pas pu générer de réponse.";
+        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+        setProvider(data.provider ?? null);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              "Erreur réseau. Vérifiez la connexion ou configurez OPENAI_API_KEY sur le serveur.",
+          },
+        ]);
+      } finally {
+        setBusy(false);
       }
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: prompt },
-        { role: "assistant", content: reply },
-      ]);
     },
-    [data]
+    [busy, messages]
   );
 
   async function saveSuggestions(next: string[]) {
@@ -101,23 +93,24 @@ export function ConstructionAiPageClient() {
     }
   }
 
-  function sendPrompt(prompt: string) {
-    replyTo(prompt);
-  }
-
   if (loading) return <p className="p-8 text-muted-foreground">Chargement…</p>;
 
   return (
     <div>
       <PageHeader
         title="IA Chantier"
-        description="Copilote construction branché sur vos chantiers, OC et leads — suggestions modifiables."
+        description="Copilote construction Klir AI (OpenAI) — chantiers, OC, sécurité, leads."
       />
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Assistant</CardTitle>
+            {provider && (
+              <span className="text-xs text-muted-foreground">
+                {provider === "openai" ? "OpenAI actif" : "Mode démo local"}
+              </span>
+            )}
           </CardHeader>
           <CardContent className="flex h-[480px] flex-col">
             <div className="flex-1 space-y-3 overflow-y-auto rounded-lg border border-border bg-slate-50/50 p-4 dark:bg-slate-900/30">
@@ -127,12 +120,15 @@ export function ConstructionAiPageClient() {
                   className={
                     m.role === "user"
                       ? "ml-auto max-w-[85%] rounded-2xl bg-brand-500 px-4 py-2 text-sm text-white"
-                      : "mr-auto max-w-[85%] rounded-2xl border border-border bg-background px-4 py-2 text-sm"
+                      : "mr-auto max-w-[85%] rounded-2xl border border-border bg-background px-4 py-2 text-sm whitespace-pre-wrap"
                   }
                 >
                   {m.content}
                 </div>
               ))}
+              {busy && (
+                <p className="text-sm text-muted-foreground">Klir AI réfléchit…</p>
+              )}
             </div>
             <div className="mt-3 flex gap-2">
               <Input
@@ -142,7 +138,7 @@ export function ConstructionAiPageClient() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && input.trim()) {
-                    sendPrompt(input.trim());
+                    void sendPrompt(input.trim());
                     setInput("");
                   }
                 }}
@@ -151,7 +147,7 @@ export function ConstructionAiPageClient() {
                 disabled={busy || !input.trim()}
                 onClick={() => {
                   if (!input.trim()) return;
-                  sendPrompt(input.trim());
+                  void sendPrompt(input.trim());
                   setInput("");
                 }}
               >
@@ -205,8 +201,9 @@ export function ConstructionAiPageClient() {
                   <>
                     <button
                       type="button"
-                      onClick={() => sendPrompt(s)}
-                      className="flex-1 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-brand-50/60 dark:hover:bg-brand-900/20"
+                      onClick={() => void sendPrompt(s)}
+                      disabled={busy}
+                      className="flex-1 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-brand-50/60 disabled:opacity-50 dark:hover:bg-brand-900/20"
                     >
                       {s}
                     </button>
