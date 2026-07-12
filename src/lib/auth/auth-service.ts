@@ -7,13 +7,14 @@ import {
   sessionCookieOptions,
   type DemoSession,
 } from "@/lib/auth/demo-session";
+import { hasDatabaseUrl } from "@/lib/api/database-guard";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { prisma } from "@/lib/db";
 import { deriveCompanyEmailFields } from "@/lib/email/company-email";
 
 export function hasDatabase() {
-  return Boolean(process.env.DATABASE_URL?.trim());
+  return hasDatabaseUrl();
 }
 
 export async function authenticateUser(email: string, password: string) {

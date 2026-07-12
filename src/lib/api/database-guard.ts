@@ -4,7 +4,9 @@ export const DATABASE_REQUIRED_MESSAGE =
   "DATABASE_URL requis. Configurez Postgres sur Netlify." as const;
 
 export function hasDatabaseUrl() {
-  return Boolean(process.env.DATABASE_URL?.trim());
+  return Boolean(
+    process.env.DATABASE_URL?.trim() || process.env.NETLIFY_DB_URL?.trim(),
+  );
 }
 
 /** Routes API accessibles sans Postgres (auth, stripe, santé, cron). */

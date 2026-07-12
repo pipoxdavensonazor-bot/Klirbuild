@@ -10,8 +10,10 @@ import {
 } from "@/lib/billing/subscription-store";
 import { prisma } from "@/lib/db";
 
+import { hasDatabaseUrl } from "@/lib/api/database-guard";
+
 export function hasDatabase() {
-  return Boolean(process.env.DATABASE_URL?.trim());
+  return hasDatabaseUrl();
 }
 
 function toPrismaStatus(status: SubscriptionStatus): PrismaSubscriptionStatus {

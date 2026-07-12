@@ -6,20 +6,21 @@ function run(command) {
 
 run("npx prisma generate");
 
-const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
+const databaseUrl =
+  process.env.DATABASE_URL?.trim() || process.env.NETLIFY_DB_URL?.trim() || "";
 const hasPostgresUrl =
   databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://");
+const isReadonly = databaseUrl.includes("readonly");
 
-if (hasPostgresUrl) {
-  console.log("[build] DATABASE_URL detected — applying Prisma schema (db push)...");
+if (hasPostgresUrl && !isReadonly) {
+  console.log("[build] Postgres URL detected — applying Prisma schema (db push)...");
   run("npx prisma db push");
+} else if (process.env.NETLIFY_DB_URL || databaseUrl.includes("netlify.com")) {
+  console.log(
+    "[build] Netlify Database detected — schema via netlify/database/migrations on deploy.",
+  );
 } else {
-  console.warn(
-    "[build] DATABASE_URL missing or invalid — skipping prisma db push.",
-  );
-  console.warn(
-    "[build] Add a postgresql:// connection string on Netlify (not the Supabase API URL).",
-  );
+  console.warn("[build] No Postgres URL — skipping prisma db push.");
 }
 
 run("npx next build");
