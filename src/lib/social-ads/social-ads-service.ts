@@ -7,6 +7,7 @@ import {
 import type { SocialAccount, SocialAdCampaign, SocialPlatform } from "@/lib/reports/types";
 import { KLIRLINE_OFFICIAL_PROFILES } from "@/lib/social-ads/klirline-marketing";
 import { isDemoMode } from "@/lib/runtime";
+import { isZernioEnabled, syncZernioAccounts } from "@/lib/social-ads/zernio-service";
 
 const PLATFORMS: SocialPlatform[] = [
   "meta",
@@ -60,6 +61,10 @@ function mapCampaign(row: {
   leads: number;
   startDate: Date;
   endDate: Date | null;
+  zernioPostId?: string | null;
+  content?: string | null;
+  scheduledFor?: Date | null;
+  publishMode?: string | null;
 }): SocialAdCampaign {
   return {
     id: row.id,
@@ -75,6 +80,10 @@ function mapCampaign(row: {
     leads: row.leads,
     startDate: row.startDate.toISOString().slice(0, 10),
     endDate: row.endDate?.toISOString().slice(0, 10),
+    zernioPostId: row.zernioPostId ?? undefined,
+    content: row.content ?? undefined,
+    scheduledFor: row.scheduledFor?.toISOString(),
+    publishMode: (row.publishMode as SocialAdCampaign["publishMode"]) ?? undefined,
   };
 }
 
@@ -96,7 +105,7 @@ async function ensurePlatformSlots(companyId: string, companyName: string) {
         handle: ref?.handle ?? `@${companyName.toLowerCase().replace(/\s+/g, "")}`,
         status: "disconnected",
         currency: "CAD",
-        managedBy: "klirline",
+        managedBy: isZernioEnabled() ? "zernio" : "klirline",
       };
     }),
   });
@@ -108,6 +117,13 @@ export async function listSocialAccounts(
 ): Promise<SocialAccount[]> {
   if (hasDatabase()) {
     await ensurePlatformSlots(companyId, companyName);
+    if (isZernioEnabled()) {
+      try {
+        await syncZernioAccounts(companyId, companyName);
+      } catch {
+        /* sync best-effort */
+      }
+    }
     const rows = await prisma.socialAccountConnection.findMany({
       where: { companyId },
       orderBy: { platform: "asc" },
@@ -173,7 +189,7 @@ export async function disconnectSocialAccount(companyId: string, accountId: stri
     if (!row) return { error: "Compte introuvable." as const };
     await prisma.socialAccountConnection.update({
       where: { id: accountId },
-      data: { status: "disconnected", adAccountId: null, connectedAt: null },
+      data: { status: "disconnected", adAccountId: null, zernioAccountId: null, connectedAt: null },
     });
     return { ok: true as const };
   }

@@ -91,9 +91,9 @@ const checks: Check[] = [
     hint: "Invitations, reset password, factures",
   },
   {
-    name: "EMAIL_FROM",
-    ok: Boolean(process.env.EMAIL_FROM?.trim()),
-    hint: "Adresse expéditeur vérifiée Resend",
+    name: "ZERNIO_API_KEY (marketing réseaux)",
+    ok: Boolean(process.env.ZERNIO_API_KEY?.trim()),
+    hint: "Publication auto Instagram, Facebook, LinkedIn… via Zernio",
   },
 ];
 

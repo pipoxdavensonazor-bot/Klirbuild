@@ -33,6 +33,10 @@ export type SocialAdCampaign = {
   leads: number;
   startDate: string;
   endDate?: string;
+  zernioPostId?: string;
+  content?: string;
+  scheduledFor?: string;
+  publishMode?: "now" | "schedule" | "queue";
 };
 
 export type T4Box = {

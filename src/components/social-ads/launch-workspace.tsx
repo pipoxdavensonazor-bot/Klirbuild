@@ -18,7 +18,15 @@ export function SocialAdLaunchWorkspace({
   onLaunched,
   onClose,
 }: {
-  onLaunched?: (name: string) => void;
+  onLaunched?: (
+    name: string,
+    workspace?: {
+      headline: string;
+      primaryText: string;
+      callToAction: string;
+      dailyBudget: number;
+    }
+  ) => void;
   onClose?: () => void;
 }) {
   const employeeId = useSessionStore((s) => s.employeeId);
@@ -74,8 +82,18 @@ export function SocialAdLaunchWorkspace({
   }
 
   function handleLaunch() {
+    if (!workspace) return;
     launchWorkspace(workspaceId);
-    onLaunched?.(workspaceName);
+    const budgetRow = workspace.tableRows.find((r) =>
+      r.label.toLowerCase().includes("budget")
+    );
+    const dailyBudget = Number(budgetRow?.value) || workspace.dailyBudget || 50;
+    onLaunched?.(workspaceName, {
+      headline: workspace.headline,
+      primaryText: workspace.primaryText,
+      callToAction: workspace.callToAction,
+      dailyBudget,
+    });
   }
 
   return (

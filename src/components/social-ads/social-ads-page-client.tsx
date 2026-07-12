@@ -13,6 +13,7 @@ import {
   Unplug,
 } from "lucide-react";
 import { SocialAdLaunchWorkspace } from "@/components/social-ads/launch-workspace";
+import { SocialPublishComposer } from "@/components/social-ads/publish-composer";
 import { PageHeader, StatCard } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,10 +30,12 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { employees } from "@/lib/workforce/mock-data";
 import { useSessionStore } from "@/lib/workforce/session";
 
-type KlirlineMeta = {
-  hubUrl: string;
-  contact: string;
-  managedBy: string;
+type ProviderMeta = {
+  hubUrl?: string;
+  contact?: string;
+  managedBy?: string;
+  enabled?: boolean;
+  dashboardUrl?: string;
 };
 
 function PlatformIcon({ platform }: { platform: string }) {
@@ -57,7 +60,9 @@ export function SocialAdsPageClient() {
 
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [campaigns, setCampaigns] = useState<SocialAdCampaign[]>([]);
-  const [klirline, setKlirline] = useState<KlirlineMeta | null>(null);
+  const [klirline, setKlirline] = useState<ProviderMeta | null>(null);
+  const [zernio, setZernio] = useState<ProviderMeta | null>(null);
+  const [provider, setProvider] = useState<"zernio" | "klirline">("klirline");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,6 +76,8 @@ export function SocialAdsPageClient() {
     setAccounts(list);
     setCampaigns(data.campaigns ?? []);
     setKlirline(data.klirline ?? null);
+    setZernio(data.zernio ?? null);
+    setProvider(data.provider === "zernio" ? "zernio" : "klirline");
     if (!selectedAccount) {
       const first = list.find((a) => a.status === "connected") ?? list[0];
       if (first) setSelectedAccount(first.id);
@@ -87,8 +94,9 @@ export function SocialAdsPageClient() {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
     if (connected) {
+      const via = searchParams.get("provider") === "zernio" ? "Zernio" : provider === "zernio" ? "Zernio" : "Klirline.ca";
       setMessage(
-        `Compte ${PLATFORM_LABELS[connected as keyof typeof PLATFORM_LABELS] ?? connected} connecté via Klirline.ca.`
+        `Compte ${PLATFORM_LABELS[connected as keyof typeof PLATFORM_LABELS] ?? connected} connecté via ${via}.`
       );
       void load();
     } else if (error) {
@@ -112,7 +120,7 @@ export function SocialAdsPageClient() {
     [workspaces]
   );
 
-  async function connectViaKlirline(account: SocialAccount) {
+  async function connectAccount(account: SocialAccount) {
     if (!canLaunch || busy) return;
     setBusy(true);
     try {
@@ -127,7 +135,29 @@ export function SocialAdsPageClient() {
         window.location.href = data.oauthUrl;
         return;
       }
-      setMessage("Impossible d'ouvrir la connexion Klirline.ca.");
+      setMessage("Impossible d'ouvrir la connexion.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function syncZernioAccounts() {
+    if (!canLaunch || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(apiUrl("/api/social-ads"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "sync_accounts" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setMessage(data.error);
+        return;
+      }
+      setAccounts(data.accounts ?? accounts);
+      setMessage(`${data.synced ?? 0} compte(s) synchronisé(s) depuis Zernio.`);
     } finally {
       setBusy(false);
     }
@@ -190,7 +220,7 @@ export function SocialAdsPageClient() {
       setCampaigns(data.campaigns ?? campaigns);
       setMessage(
         data.synced > 0
-          ? `${data.synced} campagne(s) synchronisée(s) via Klirline.ca.`
+          ? `${data.synced} campagne(s) synchronisée(s).`
           : "Aucune campagne active à synchroniser."
       );
     } finally {
@@ -202,7 +232,7 @@ export function SocialAdsPageClient() {
     if (!canLaunch || !newAdName.trim() || !selectedAccount) return;
     const account = accounts.find((a) => a.id === selectedAccount);
     if (!account || account.status !== "connected") {
-      setMessage("Connectez d'abord le compte via Klirline.ca.");
+      setMessage("Connectez d'abord le compte via Zernio ou Klirline.");
       return;
     }
     createWorkspace({
@@ -215,19 +245,28 @@ export function SocialAdsPageClient() {
     );
   }
 
-  async function handleLaunched(name: string) {
+  async function handleLaunched(name: string, workspace?: {
+    headline: string;
+    primaryText: string;
+    callToAction: string;
+    dailyBudget: number;
+  }) {
     const account = accounts.find((a) => a.id === selectedAccount);
     const res = await fetch(apiUrl("/api/social-ads"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        action: "launch_campaign",
+        action: provider === "zernio" ? "publish" : "launch_campaign",
         name,
+        headline: workspace?.headline,
+        primaryText: workspace?.primaryText,
+        callToAction: workspace?.callToAction,
         accountId: account?.id ?? selectedAccount,
         platform: account?.platform ?? "facebook",
+        mode: "queue",
         objective: "leads",
-        dailyBudget: 50,
+        dailyBudget: workspace?.dailyBudget ?? 50,
       }),
     });
     const data = await res.json();
@@ -243,7 +282,8 @@ export function SocialAdsPageClient() {
     setNewAdName("");
     setActiveWorkspace(null);
     setMessage(
-      `Publicité « ${name} » publiée sur ${account ? PLATFORM_LABELS[account.platform] : "la plateforme"} via Klirline.ca.`
+      data.message ??
+        `Publicité « ${name} » publiée sur ${account ? PLATFORM_LABELS[account.platform] : "la plateforme"}.`
     );
   }
 
@@ -255,18 +295,50 @@ export function SocialAdsPageClient() {
     <div>
       <PageHeader
         title="Marketing réseaux sociaux"
-        description="Connectez les comptes de l'entreprise via Klirline.ca et gérez vos publicités Meta, Google, Instagram, LinkedIn…"
+        description="Connectez vos comptes via Zernio, publiez sur toutes les plateformes et planifiez aux heures d'audience optimales."
         actions={
           canLaunch ? (
-            <Button variant="outline" disabled={busy} onClick={() => void syncInsights()}>
-              <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
-              Synchroniser
-            </Button>
+            <div className="flex gap-2">
+              {provider === "zernio" ? (
+                <Button variant="outline" disabled={busy} onClick={() => void syncZernioAccounts()}>
+                  <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+                  Sync Zernio
+                </Button>
+              ) : null}
+              <Button variant="outline" disabled={busy} onClick={() => void syncInsights()}>
+                <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+                Synchroniser
+              </Button>
+            </div>
           ) : undefined
         }
       />
 
-      {klirline ? (
+      {provider === "zernio" && zernio?.enabled ? (
+        <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/80 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-brand-900 dark:text-brand-100">
+                Zernio API — publication multi-réseaux
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {klirline?.managedBy ?? "Instagram, Facebook, LinkedIn, TikTok, YouTube…"} — style Metricool
+              </p>
+            </div>
+            <a
+              href={zernio.dashboardUrl ?? "https://zernio.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex"
+            >
+              <Button size="sm" variant="outline">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Tableau Zernio
+              </Button>
+            </a>
+          </div>
+        </div>
+      ) : klirline ? (
         <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/80 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -277,17 +349,14 @@ export function SocialAdsPageClient() {
                 {klirline.managedBy} · {klirline.contact}
               </p>
             </div>
-            <a
-              href={klirline.hubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex"
-            >
-              <Button size="sm" variant="outline">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Portail Klirline.ca
-              </Button>
-            </a>
+            {klirline.hubUrl ? (
+              <a href={klirline.hubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                <Button size="sm" variant="outline">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Portail Klirline.ca
+                </Button>
+              </a>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -309,6 +378,20 @@ export function SocialAdsPageClient() {
           label="Leads ads"
           value={String(leads)}
           hint={`${impressions.toLocaleString("fr-CA")} impressions`}
+        />
+      </div>
+
+      <div className="mb-6">
+        <SocialPublishComposer
+          accounts={accounts}
+          selectedAccountId={selectedAccount}
+          onAccountChange={setSelectedAccount}
+          canManage={canLaunch}
+          zernioEnabled={provider === "zernio"}
+          onPublished={(msg) => {
+            setMessage(msg);
+            void load();
+          }}
         />
       </div>
 
@@ -347,10 +430,10 @@ export function SocialAdsPageClient() {
                       <Button
                         size="sm"
                         disabled={busy}
-                        onClick={() => void connectViaKlirline(account)}
+                        onClick={() => void connectAccount(account)}
                       >
                         <Link2 className="h-3.5 w-3.5" />
-                        Connecter via Klirline.ca
+                        {provider === "zernio" ? "Connecter via Zernio" : "Connecter via Klirline.ca"}
                       </Button>
                     ) : null}
                     {account.status === "needs_reauth" ? (
@@ -410,7 +493,7 @@ export function SocialAdsPageClient() {
                 {accessLabel ? (
                   <p className="text-xs text-muted-foreground">
                     Accès {accessLabel} — textes, photos, tableau et commentaires
-                    synchronisés via Klirline.ca.
+                    synchronisés via {provider === "zernio" ? "Zernio" : "Klirline.ca"}.
                   </p>
                 ) : null}
               </>
@@ -429,7 +512,7 @@ export function SocialAdsPageClient() {
 
             {canLaunch && activeWorkspaceId ? (
               <SocialAdLaunchWorkspace
-                onLaunched={(name) => void handleLaunched(name)}
+                onLaunched={(name, workspace) => void handleLaunched(name, workspace)}
                 onClose={() => setActiveWorkspace(null)}
               />
             ) : null}
@@ -458,6 +541,7 @@ export function SocialAdsPageClient() {
                     <th className="py-2">Campagne</th>
                     <th className="py-2">Plateforme</th>
                     <th className="py-2">Statut</th>
+                    <th className="py-2">Publication</th>
                     <th className="py-2">Budget/j</th>
                     <th className="py-2">Spend</th>
                     <th className="py-2">Leads</th>
@@ -481,6 +565,15 @@ export function SocialAdsPageClient() {
                         <td className="py-2 capitalize">{ad.platform}</td>
                         <td className="py-2">
                           <StatusBadge status={ad.status} />
+                        </td>
+                        <td className="py-2 text-xs text-muted-foreground">
+                          {ad.publishMode === "queue"
+                            ? "Créneau optimal"
+                            : ad.publishMode === "now"
+                              ? "Immédiat"
+                              : ad.scheduledFor
+                                ? formatDate(ad.scheduledFor.slice(0, 10))
+                                : "—"}
                         </td>
                         <td className="py-2">{formatCurrency(ad.dailyBudget)}</td>
                         <td className="py-2">{formatCurrency(ad.spend)}</td>

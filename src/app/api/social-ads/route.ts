@@ -15,6 +15,15 @@ import {
   klirlineMarketingPortalUrl,
   klirlineOAuthUrl,
 } from "@/lib/social-ads/klirline-marketing";
+import {
+  getAudienceRecommendations,
+  getZernioConnectUrl,
+  getZernioNextSlot,
+  isZernioEnabled,
+  publishViaZernio,
+  syncZernioAccounts,
+} from "@/lib/social-ads/zernio-service";
+import { ZernioApiError } from "@/lib/social-ads/zernio-client";
 import type { SocialPlatform } from "@/lib/reports/types";
 
 export const runtime = "nodejs";
@@ -36,22 +45,50 @@ async function companyContext() {
   return { companyId: enriched.companyId, companyName };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const { companyId, companyName } = await companyContext();
+  const url = new URL(request.url);
+  const platform = url.searchParams.get("platform") as SocialPlatform | null;
+
   const [accounts, campaigns] = await Promise.all([
     listSocialAccounts(companyId, companyName),
     listSocialCampaigns(companyId),
   ]);
+
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
+
+  let audience = null;
+  let nextSlot = null;
+  if (platform) {
+    audience = await getAudienceRecommendations(platform);
+    if (isZernioEnabled()) {
+      try {
+        nextSlot = await getZernioNextSlot(companyId, companyName);
+      } catch {
+        nextSlot = null;
+      }
+    }
+  }
+
   return NextResponse.json({
     accounts,
     campaigns,
+    provider: isZernioEnabled() ? "zernio" : "klirline",
+    zernio: {
+      enabled: isZernioEnabled(),
+      dashboardUrl: "https://zernio.com",
+      docsUrl: "https://docs.zernio.com",
+    },
     klirline: {
       hubUrl: klirlineMarketingPortalUrl(companyId),
       contact: "Contact@klirline.ca",
-      managedBy: "Klirline.ca — partenaire marketing officiel",
+      managedBy: isZernioEnabled()
+        ? "Zernio API — publication multi-réseaux"
+        : "Klirline.ca — partenaire marketing officiel",
     },
+    audience,
+    nextSlot,
     callbackUrl: `${appUrl}/api/social-ads/callback`,
   });
 }
@@ -65,87 +102,168 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
   const callbackUrl = `${appUrl}/api/social-ads/callback`;
 
-  if (action === "oauth_url") {
-    const platform = body.platform as SocialPlatform;
-    if (!platform) {
-      return NextResponse.json({ error: "Plateforme requise." }, { status: 400 });
+  try {
+    if (action === "oauth_url") {
+      const platform = body.platform as SocialPlatform;
+      if (!platform) {
+        return NextResponse.json({ error: "Plateforme requise." }, { status: 400 });
+      }
+      if (isZernioEnabled()) {
+        const { authUrl } = await getZernioConnectUrl(companyId, companyName, platform);
+        return NextResponse.json({ oauthUrl: authUrl, provider: "zernio" });
+      }
+      return NextResponse.json({
+        oauthUrl: klirlineOAuthUrl({
+          companyId,
+          companyName,
+          platform,
+          returnUrl: callbackUrl,
+        }),
+        provider: "klirline",
+      });
     }
-    return NextResponse.json({
-      oauthUrl: klirlineOAuthUrl({
-        companyId,
-        companyName,
-        platform,
-        returnUrl: callbackUrl,
-      }),
-    });
-  }
 
-  if (action === "connect") {
-    const platform = body.platform as SocialPlatform;
-    const accountId = typeof body.accountId === "string" ? body.accountId : "";
-    if (!platform && !accountId) {
-      return NextResponse.json({ error: "Plateforme ou ID requis." }, { status: 400 });
-    }
-    let plat = platform;
-    if (!plat && accountId) {
+    if (action === "sync_accounts") {
+      if (!isZernioEnabled()) {
+        return NextResponse.json({ error: "ZERNIO_API_KEY non configuré." }, { status: 503 });
+      }
+      const result = await syncZernioAccounts(companyId, companyName);
       const accounts = await listSocialAccounts(companyId, companyName);
-      plat = accounts.find((a) => a.id === accountId)?.platform ?? "meta";
+      return NextResponse.json({ ...result, accounts });
     }
-    const result = await connectSocialAccountViaKlirline(companyId, plat, {
-      accountName: typeof body.accountName === "string" ? body.accountName : companyName,
-      handle: typeof body.handle === "string" ? body.handle : undefined,
-      adAccountId: typeof body.adAccountId === "string" ? body.adAccountId : undefined,
-      klirlineRef: typeof body.klirlineRef === "string" ? body.klirlineRef : undefined,
-    });
-    return NextResponse.json({
-      ...result,
-      message: `Compte ${plat} connecté via Klirline.ca`,
-    });
-  }
 
-  if (action === "disconnect") {
-    const id = typeof body.id === "string" ? body.id : "";
-    if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
-    const result = await disconnectSocialAccount(companyId, id);
-    if ("error" in result && result.error) {
-      return NextResponse.json({ error: result.error }, { status: 404 });
+    if (action === "connect") {
+      const platform = body.platform as SocialPlatform;
+      const accountId = typeof body.accountId === "string" ? body.accountId : "";
+      if (!platform && !accountId) {
+        return NextResponse.json({ error: "Plateforme ou ID requis." }, { status: 400 });
+      }
+      let plat = platform;
+      if (!plat && accountId) {
+        const accounts = await listSocialAccounts(companyId, companyName);
+        plat = accounts.find((a) => a.id === accountId)?.platform ?? "meta";
+      }
+      const result = await connectSocialAccountViaKlirline(companyId, plat, {
+        accountName: typeof body.accountName === "string" ? body.accountName : companyName,
+        handle: typeof body.handle === "string" ? body.handle : undefined,
+        adAccountId: typeof body.adAccountId === "string" ? body.adAccountId : undefined,
+        klirlineRef: typeof body.klirlineRef === "string" ? body.klirlineRef : undefined,
+      });
+      return NextResponse.json({
+        ...result,
+        message: `Compte ${plat} connecté.`,
+      });
     }
-    return NextResponse.json(result);
-  }
 
-  if (action === "reauth") {
-    const id = typeof body.id === "string" ? body.id : "";
-    if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
-    await reauthSocialAccount(companyId, id);
-    return NextResponse.json({
-      oauthUrl: klirlineOAuthUrl({
-        companyId,
-        companyName,
-        platform: (body.platform as SocialPlatform) ?? "meta",
-        returnUrl: callbackUrl,
-      }),
-    });
-  }
-
-  if (action === "sync") {
-    const result = await syncCampaignInsights(companyId);
-    const campaigns = await listSocialCampaigns(companyId);
-    return NextResponse.json({ ...result, campaigns });
-  }
-
-  if (action === "launch_campaign") {
-    const result = await createSocialCampaign(companyId, {
-      name: typeof body.name === "string" ? body.name : "",
-      accountId: typeof body.accountId === "string" ? body.accountId : "",
-      platform: body.platform as SocialPlatform,
-      objective: body.objective,
-      dailyBudget: typeof body.dailyBudget === "number" ? body.dailyBudget : undefined,
-    });
-    if ("error" in result && result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+    if (action === "disconnect") {
+      const id = typeof body.id === "string" ? body.id : "";
+      if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
+      const result = await disconnectSocialAccount(companyId, id);
+      if ("error" in result && result.error) {
+        return NextResponse.json({ error: result.error }, { status: 404 });
+      }
+      return NextResponse.json(result);
     }
-    return NextResponse.json(result);
-  }
 
-  return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
+    if (action === "reauth") {
+      const id = typeof body.id === "string" ? body.id : "";
+      if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
+      await reauthSocialAccount(companyId, id);
+      const platform = (body.platform as SocialPlatform) ?? "meta";
+      if (isZernioEnabled()) {
+        const { authUrl } = await getZernioConnectUrl(companyId, companyName, platform);
+        return NextResponse.json({ oauthUrl: authUrl });
+      }
+      return NextResponse.json({
+        oauthUrl: klirlineOAuthUrl({
+          companyId,
+          companyName,
+          platform,
+          returnUrl: callbackUrl,
+        }),
+      });
+    }
+
+    if (action === "sync") {
+      const result = await syncCampaignInsights(companyId);
+      const campaigns = await listSocialCampaigns(companyId);
+      return NextResponse.json({ ...result, campaigns });
+    }
+
+    if (action === "audience") {
+      const platform = body.platform as SocialPlatform;
+      if (!platform) return NextResponse.json({ error: "Plateforme requise." }, { status: 400 });
+      const audience = await getAudienceRecommendations(platform);
+      let nextSlot = null;
+      if (isZernioEnabled()) {
+        try {
+          nextSlot = await getZernioNextSlot(companyId, companyName);
+        } catch {
+          nextSlot = null;
+        }
+      }
+      return NextResponse.json({ audience, nextSlot });
+    }
+
+    if (action === "publish") {
+      if (!isZernioEnabled()) {
+        const result = await createSocialCampaign(companyId, {
+          name: typeof body.name === "string" ? body.name : "",
+          accountId: typeof body.accountId === "string" ? body.accountId : "",
+          platform: body.platform as SocialPlatform,
+          objective: body.objective,
+          dailyBudget: typeof body.dailyBudget === "number" ? body.dailyBudget : undefined,
+        });
+        if ("error" in result && result.error) {
+          return NextResponse.json({ error: result.error }, { status: 400 });
+        }
+        return NextResponse.json(result);
+      }
+
+      const mode = body.mode as "now" | "schedule" | "queue";
+      const headline = typeof body.headline === "string" ? body.headline : "";
+      const primaryText = typeof body.primaryText === "string" ? body.primaryText : "";
+      const callToAction = typeof body.callToAction === "string" ? body.callToAction : "";
+      const content = [headline, primaryText, callToAction].filter(Boolean).join("\n\n");
+
+      const result = await publishViaZernio(companyId, companyName, {
+        name: typeof body.name === "string" ? body.name : "Publication",
+        content: content || (typeof body.content === "string" ? body.content : ""),
+        accountId: typeof body.accountId === "string" ? body.accountId : "",
+        platform: body.platform as SocialPlatform,
+        mode: mode ?? "now",
+        scheduledFor: typeof body.scheduledFor === "string" ? body.scheduledFor : undefined,
+        timezone: typeof body.timezone === "string" ? body.timezone : "America/Toronto",
+        mediaUrls: Array.isArray(body.mediaUrls) ? body.mediaUrls : undefined,
+        objective: typeof body.objective === "string" ? body.objective : undefined,
+        dailyBudget: typeof body.dailyBudget === "number" ? body.dailyBudget : undefined,
+      });
+
+      if ("error" in result && result.error) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      return NextResponse.json(result);
+    }
+
+    if (action === "launch_campaign") {
+      const result = await createSocialCampaign(companyId, {
+        name: typeof body.name === "string" ? body.name : "",
+        accountId: typeof body.accountId === "string" ? body.accountId : "",
+        platform: body.platform as SocialPlatform,
+        objective: body.objective,
+        dailyBudget: typeof body.dailyBudget === "number" ? body.dailyBudget : undefined,
+      });
+      if ("error" in result && result.error) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
+  } catch (err) {
+    if (err instanceof ZernioApiError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
+  }
 }

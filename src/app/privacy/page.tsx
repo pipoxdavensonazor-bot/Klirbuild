@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-        <KlirBuildLogo className="mb-6 h-[64px] w-[180px]" />
+        <KlirBuildLogo className="mb-6 h-[52px] w-[148px]" />
         <Card>
           <CardHeader>
             <CardTitle>Politique de confidentialité</CardTitle>

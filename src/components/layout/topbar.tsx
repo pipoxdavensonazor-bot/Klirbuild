@@ -100,7 +100,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         <KlirBuildLogo
           variant="full"
           priority
-          className="h-[52px] w-[150px] shrink-0 lg:hidden"
+          className="h-[42px] w-[122px] shrink-0 lg:hidden"
         />
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground md:flex">

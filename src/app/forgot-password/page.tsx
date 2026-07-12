@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <KlirBuildLogo className="mb-3 h-[80px] w-[220px]" priority />
+            <KlirBuildLogo className="mb-3 h-[64px] w-[176px]" priority />
             <CardTitle>Mot de passe oublié</CardTitle>
           </CardHeader>
           <CardContent>
