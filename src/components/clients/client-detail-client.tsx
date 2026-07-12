@@ -11,6 +11,9 @@ import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import { clients as mockClients } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
+import { LineItemsEditor, emptyLineItem } from "@/components/billing/line-items-editor";
+import { useSessionStore } from "@/lib/workforce/session";
+import type { LineItemInput } from "@/lib/tax/document-tax";
 import type { Client, Invoice, Project, ProjectStatus, Quote } from "@/types";
 import type { EmailRecord } from "@/lib/email/email-service";
 
@@ -22,6 +25,7 @@ const PROJECT_STATUSES: { value: ProjectStatus; label: string }[] = [
 ];
 
 export function ClientDetailClient({ id }: { id: string }) {
+  const marketRegion = useSessionStore((s) => s.marketRegion);
   const [client, setClient] = useState<Client | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -36,10 +40,8 @@ export function ClientDetailClient({ id }: { id: string }) {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
 
-  const [quoteTotal, setQuoteTotal] = useState("");
-  const [quoteDesc, setQuoteDesc] = useState("Soumission de services");
-  const [invoiceTotal, setInvoiceTotal] = useState("");
-  const [invoiceDesc, setInvoiceDesc] = useState("Services professionnels");
+  const [quoteItems, setQuoteItems] = useState<LineItemInput[]>([emptyLineItem()]);
+  const [invoiceItems, setInvoiceItems] = useState<LineItemInput[]>([emptyLineItem()]);
   const [projectName, setProjectName] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -101,8 +103,8 @@ export function ClientDetailClient({ id }: { id: string }) {
         credentials: "include",
         body: JSON.stringify({
           clientId: id,
-          total: Number(quoteTotal),
-          description: quoteDesc,
+          items: quoteItems,
+          marketRegion,
         }),
       });
       const data = await parseApiResponse(res);
@@ -111,7 +113,7 @@ export function ClientDetailClient({ id }: { id: string }) {
         return;
       }
       setShowQuoteForm(false);
-      setQuoteTotal("");
+      setQuoteItems([emptyLineItem()]);
       setMessage("Soumission créée.");
       await load();
     } catch (err) {
@@ -132,8 +134,8 @@ export function ClientDetailClient({ id }: { id: string }) {
         credentials: "include",
         body: JSON.stringify({
           clientId: id,
-          total: Number(invoiceTotal),
-          description: invoiceDesc,
+          items: invoiceItems,
+          marketRegion,
         }),
       });
       const data = await parseApiResponse(res);
@@ -142,7 +144,7 @@ export function ClientDetailClient({ id }: { id: string }) {
         return;
       }
       setShowInvoiceForm(false);
-      setInvoiceTotal("");
+      setInvoiceItems([emptyLineItem()]);
       setMessage("Facture créée.");
       await load();
     } catch (err) {
@@ -369,21 +371,15 @@ export function ClientDetailClient({ id }: { id: string }) {
             <CardContent className="space-y-2">
               {showQuoteForm ? (
                 <div className="space-y-2 rounded-md border border-dashed border-border p-2">
-                  <Input
-                    type="number"
-                    placeholder="Montant ($)"
-                    value={quoteTotal}
-                    onChange={(e) => setQuoteTotal(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Description"
-                    value={quoteDesc}
-                    onChange={(e) => setQuoteDesc(e.target.value)}
+                  <LineItemsEditor
+                    items={quoteItems}
+                    onChange={setQuoteItems}
+                    marketRegion={marketRegion}
                   />
                   <Button
                     size="sm"
                     className="w-full"
-                    disabled={loading === "create-quote" || !quoteTotal}
+                    disabled={loading === "create-quote"}
                     onClick={createQuote}
                   >
                     Créer la soumission
@@ -433,21 +429,15 @@ export function ClientDetailClient({ id }: { id: string }) {
             <CardContent className="space-y-2">
               {showInvoiceForm ? (
                 <div className="space-y-2 rounded-md border border-dashed border-border p-2">
-                  <Input
-                    type="number"
-                    placeholder="Montant ($)"
-                    value={invoiceTotal}
-                    onChange={(e) => setInvoiceTotal(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Description"
-                    value={invoiceDesc}
-                    onChange={(e) => setInvoiceDesc(e.target.value)}
+                  <LineItemsEditor
+                    items={invoiceItems}
+                    onChange={setInvoiceItems}
+                    marketRegion={marketRegion}
                   />
                   <Button
                     size="sm"
                     className="w-full"
-                    disabled={loading === "create-invoice" || !invoiceTotal}
+                    disabled={loading === "create-invoice"}
                     onClick={createInvoice}
                   >
                     Créer la facture

@@ -15,6 +15,8 @@ import {
   quoteEmailText,
 } from "@/lib/email/templates";
 import { demoCompany } from "@/lib/mock-data";
+import { computeDocumentTax, type LineItemInput } from "@/lib/tax/document-tax";
+import type { MarketRegionId } from "@/lib/markets/regions";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(DATA_DIR, "quotes.json");
@@ -228,21 +230,34 @@ export async function sendQuoteToClient(companyId: string, id: string) {
 export async function createQuote(input: {
   companyId: string;
   clientId: string;
-  total: number;
+  items?: LineItemInput[];
+  total?: number;
   description?: string;
   currency?: string;
+  marketRegion?: MarketRegionId;
 }) {
-  const total = Number(input.total);
   if (!input.clientId?.trim()) return { error: "Client requis." as const };
-  if (!Number.isFinite(total) || total <= 0) {
-    return { error: "Montant invalide." as const };
+
+  const lineItems: LineItemInput[] =
+    input.items && input.items.length > 0
+      ? input.items
+      : [
+          {
+            description: input.description?.trim() || "Soumission de services",
+            quantity: 1,
+            unitPrice: Number(input.total) || 0,
+          },
+        ];
+
+  const breakdown = computeDocumentTax(lineItems, input.marketRegion ?? "CA-QC");
+  if (breakdown.subtotal <= 0) {
+    return { error: "Ajoutez au moins une ligne avec un montant." as const };
   }
 
   const year = new Date().getFullYear();
   const validUntil = new Date();
   validUntil.setDate(validUntil.getDate() + 14);
-  const currency = input.currency?.trim() || "CAD";
-  const description = input.description?.trim() || "Soumission de services";
+  const currency = input.currency?.trim() || breakdown.currency;
 
   if (hasDatabase()) {
     const count = await prisma.quote.count({ where: { companyId: input.companyId } });
@@ -254,23 +269,23 @@ export async function createQuote(input: {
         number,
         status: "draft",
         currency,
-        subtotal: total,
-        tax: 0,
+        subtotal: breakdown.subtotal,
+        tax: breakdown.taxTotal,
         discount: 0,
-        total,
+        total: breakdown.total,
         validUntil,
         items: {
-          create: {
-            description,
-            quantity: 1,
-            unitPrice: total,
-            total,
-          },
+          create: breakdown.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
         },
       },
       include: { client: { select: { name: true } } },
     });
-    return { quote: mapDbQuote(row) };
+    return { quote: mapDbQuote(row), tax: breakdown };
   }
 
   const { clients } = await import("@/lib/mock-data");
@@ -281,13 +296,13 @@ export async function createQuote(input: {
     clientId: input.clientId,
     clientName: mockClient?.name ?? "—",
     status: "draft",
-    total,
+    total: breakdown.total,
     currency,
     issueDate: new Date().toISOString().slice(0, 10),
     validUntil: validUntil.toISOString().slice(0, 10),
   };
   writeFileQuote(quote);
-  return { quote };
+  return { quote, tax: breakdown };
 }
 
 export async function convertQuoteToInvoice(companyId: string, id: string) {

@@ -22,16 +22,21 @@ export async function POST(request: Request) {
   const cid = await companyId();
   const body = await request.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
+  const items = Array.isArray(body.items) ? body.items : undefined;
   const total = typeof body.total === "number" ? body.total : Number(body.total);
   const description = typeof body.description === "string" ? body.description : undefined;
   const currency = typeof body.currency === "string" ? body.currency : undefined;
+  const marketRegion =
+    typeof body.marketRegion === "string" ? body.marketRegion : undefined;
 
   const result = await createInvoice({
     companyId: cid,
     clientId,
+    items,
     total,
     description,
     currency,
+    marketRegion: marketRegion as import("@/lib/markets/regions").MarketRegionId | undefined,
   });
 
   if ("error" in result && result.error) {

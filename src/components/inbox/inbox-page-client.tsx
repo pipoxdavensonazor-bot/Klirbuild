@@ -1,33 +1,79 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Inbox, Mail, MailOpen } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Inbox, Mail, MailOpen, Send } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { apiUrl, parseApiResponse } from "@/lib/api-client";
+import { clients as mockClients } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
 import type { EmailRecord } from "@/lib/email/email-service";
+import type { Client } from "@/types";
 
 export function InboxPageClient() {
+  const searchParams = useSearchParams();
+  const filterClientId = searchParams.get("clientId") ?? "";
+
   const [emails, setEmails] = useState<EmailRecord[]>([]);
   const [selected, setSelected] = useState<EmailRecord | null>(null);
   const [inboxAddress, setInboxAddress] = useState("");
   const [senderName, setSenderName] = useState("");
   const [hasResend, setHasResend] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [composeClientId, setComposeClientId] = useState(filterClientId);
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/inbox");
+    const q = filterClientId ? `?clientId=${encodeURIComponent(filterClientId)}` : "";
+    const res = await fetch(apiUrl(`/api/inbox${q}`), { credentials: "include" });
     const data = await res.json();
     setEmails(data.emails ?? []);
     setInboxAddress(data.inboxAddress ?? "");
     setSenderName(data.senderName ?? data.companyName ?? "");
     setHasResend(Boolean(data.hasResend));
     setSelected((prev) => prev ?? data.emails?.[0] ?? null);
-  }, []);
+  }, [filterClientId]);
 
   useEffect(() => {
     load();
+    fetch(apiUrl("/api/clients"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setClients(d.clients?.length ? d.clients : mockClients))
+      .catch(() => setClients(mockClients));
   }, [load]);
+
+  useEffect(() => {
+    if (filterClientId) setComposeClientId(filterClientId);
+  }, [filterClientId]);
+
+  async function sendCompose() {
+    const res = await fetch(apiUrl("/api/inbox"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        clientId: composeClientId,
+        subject: composeSubject,
+        body: composeBody,
+      }),
+    });
+    const data = await parseApiResponse(res);
+    if (!res.ok) {
+      setMessage(typeof data.error === "string" ? data.error : "Envoi échoué");
+      return;
+    }
+    setComposeOpen(false);
+    setComposeSubject("");
+    setComposeBody("");
+    setMessage(`Courriel envoyé à ${data.to}`);
+    await load();
+  }
 
   const inbound = emails.filter((e) => e.direction === "inbound").length;
   const outbound = emails.filter((e) => e.direction === "outbound").length;
@@ -36,12 +82,18 @@ export function InboxPageClient() {
     <div>
       <PageHeader
         title="Boîte courriel"
-        description="Courriels envoyés aux clients et messages reçus de l'entreprise."
+        description="Recevez et envoyez des courriels au nom de votre entreprise."
         actions={
-          <Button variant="outline" onClick={load}>
-            <Inbox className="h-4 w-4" />
-            Actualiser
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setComposeOpen((v) => !v)}>
+              <Send className="h-4 w-4" />
+              Nouveau message
+            </Button>
+            <Button variant="outline" onClick={load}>
+              <Inbox className="h-4 w-4" />
+              Actualiser
+            </Button>
+          </div>
         }
       />
 
@@ -50,6 +102,51 @@ export function InboxPageClient() {
           L&apos;envoi automatique n&apos;est pas encore activé sur la plateforme.
           Contactez l&apos;administrateur système pour configurer Resend.
         </div>
+      ) : null}
+
+      {message ? (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {message}
+        </div>
+      ) : null}
+
+      {composeOpen ? (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-sm">Nouveau courriel</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <select
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              value={composeClientId}
+              onChange={(e) => setComposeClientId(e.target.value)}
+            >
+              <option value="">Choisir un client</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.email ? `(${c.email})` : ""}
+                </option>
+              ))}
+            </select>
+            <Input
+              placeholder="Objet"
+              value={composeSubject}
+              onChange={(e) => setComposeSubject(e.target.value)}
+            />
+            <textarea
+              className="min-h-[100px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Votre message…"
+              value={composeBody}
+              onChange={(e) => setComposeBody(e.target.value)}
+            />
+            <Button
+              disabled={!composeClientId || !composeSubject.trim() || !composeBody.trim()}
+              onClick={() => void sendCompose()}
+            >
+              Envoyer
+            </Button>
+          </CardContent>
+        </Card>
       ) : null}
 
       <div className="mb-4 rounded-lg border border-border bg-slate-50/70 px-4 py-3 text-sm dark:bg-slate-900/40">

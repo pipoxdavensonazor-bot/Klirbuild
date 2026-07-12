@@ -121,3 +121,47 @@ export function inviteEmailText(input: {
   const roleLabel = ROLE_LABELS[input.role] ?? input.role;
   return `Bonjour,\n\n${input.invitedByEmail} vous invite à rejoindre ${input.companyName}.\n\nRôle: ${roleLabel}\nExpire le: ${formatDate(input.expiresAt)}\n\nAcceptez l'invitation ici:\n${input.inviteUrl}\n\n— ${input.companyName}`;
 }
+
+export function receiptEmailHtml(input: {
+  companyName: string;
+  clientName: string;
+  amount: number;
+  currency: string;
+  invoiceNumber?: string;
+  projectName?: string;
+  method: string;
+  paidAt: string;
+}) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a365d">
+      <h2 style="color:#004F6E">Reçu de paiement</h2>
+      <p>Bonjour ${input.clientName},</p>
+      <p><strong>${input.companyName}</strong> confirme la réception de votre paiement.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0">
+        <tr><td style="padding:8px;border:1px solid #e2e8f0">Montant reçu</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold">${formatCurrency(input.amount, input.currency)}</td></tr>
+        ${input.invoiceNumber ? `<tr><td style="padding:8px;border:1px solid #e2e8f0">Facture</td><td style="padding:8px;border:1px solid #e2e8f0">${input.invoiceNumber}</td></tr>` : ""}
+        ${input.projectName ? `<tr><td style="padding:8px;border:1px solid #e2e8f0">Projet</td><td style="padding:8px;border:1px solid #e2e8f0">${input.projectName}</td></tr>` : ""}
+        <tr><td style="padding:8px;border:1px solid #e2e8f0">Mode</td>
+            <td style="padding:8px;border:1px solid #e2e8f0">${input.method}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #e2e8f0">Date</td>
+            <td style="padding:8px;border:1px solid #e2e8f0">${formatDate(input.paidAt)}</td></tr>
+      </table>
+      <p>Merci pour votre confiance.</p>
+      <p style="font-size:12px;color:#64748b">— ${input.companyName}</p>
+    </div>
+  `;
+}
+
+export function receiptEmailText(input: {
+  companyName: string;
+  clientName: string;
+  amount: number;
+  currency: string;
+  invoiceNumber?: string;
+  projectName?: string;
+  method: string;
+  paidAt: string;
+}) {
+  return `Bonjour ${input.clientName},\n\n${input.companyName} confirme la réception de ${formatCurrency(input.amount, input.currency)}.\n${input.invoiceNumber ? `Facture: ${input.invoiceNumber}\n` : ""}${input.projectName ? `Projet: ${input.projectName}\n` : ""}Mode: ${input.method}\nDate: ${formatDate(input.paidAt)}\n\nMerci.\n— ${input.companyName}`;
+}

@@ -14,6 +14,8 @@ import {
   invoiceEmailText,
 } from "@/lib/email/templates";
 import { demoCompany } from "@/lib/mock-data";
+import { computeDocumentTax, type LineItemInput } from "@/lib/tax/document-tax";
+import type { MarketRegionId } from "@/lib/markets/regions";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(DATA_DIR, "invoices.json");
@@ -227,21 +229,34 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
 export async function createInvoice(input: {
   companyId: string;
   clientId: string;
-  total: number;
+  items?: LineItemInput[];
+  total?: number;
   description?: string;
   currency?: string;
+  marketRegion?: MarketRegionId;
 }) {
-  const total = Number(input.total);
   if (!input.clientId?.trim()) return { error: "Client requis." as const };
-  if (!Number.isFinite(total) || total <= 0) {
-    return { error: "Montant invalide." as const };
+
+  const lineItems: LineItemInput[] =
+    input.items && input.items.length > 0
+      ? input.items
+      : [
+          {
+            description: input.description?.trim() || "Services professionnels",
+            quantity: 1,
+            unitPrice: Number(input.total) || 0,
+          },
+        ];
+
+  const breakdown = computeDocumentTax(lineItems, input.marketRegion ?? "CA-QC");
+  if (breakdown.subtotal <= 0) {
+    return { error: "Ajoutez au moins une ligne avec un montant." as const };
   }
 
   const year = new Date().getFullYear();
   const due = new Date();
   due.setDate(due.getDate() + 30);
-  const currency = input.currency?.trim() || "CAD";
-  const description = input.description?.trim() || "Services professionnels";
+  const currency = input.currency?.trim() || breakdown.currency;
 
   if (hasDatabase()) {
     const count = await prisma.invoice.count({ where: { companyId: input.companyId } });
@@ -253,23 +268,23 @@ export async function createInvoice(input: {
         number,
         status: "draft",
         currency,
-        subtotal: total,
-        tax: 0,
+        subtotal: breakdown.subtotal,
+        tax: breakdown.taxTotal,
         discount: 0,
-        total,
+        total: breakdown.total,
         dueDate: due,
         items: {
-          create: {
-            description,
-            quantity: 1,
-            unitPrice: total,
-            total,
-          },
+          create: breakdown.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
         },
       },
       include: { client: { select: { name: true } } },
     });
-    return { invoice: mapDbInvoice(row) };
+    return { invoice: mapDbInvoice(row), tax: breakdown };
   }
 
   const { clients } = await import("@/lib/mock-data");
@@ -280,13 +295,13 @@ export async function createInvoice(input: {
     clientId: input.clientId,
     clientName: mockClient?.name ?? "—",
     status: "draft",
-    total,
+    total: breakdown.total,
     currency,
     issueDate: new Date().toISOString().slice(0, 10),
     dueDate: due.toISOString().slice(0, 10),
   };
   writeFileInvoice(invoice);
-  return { invoice };
+  return { invoice, tax: breakdown };
 }
 
 export async function createInvoiceFromQuote(companyId: string, quote: Quote) {

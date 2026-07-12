@@ -73,7 +73,6 @@ const coreNav: NavDef[] = [
   { href: "/markets", label: "Marchés US/CA/CB", icon: Globe2, planFeature: "markets" },
   { href: "/compliance", label: "Conformité", icon: ClipboardList, permission: "settings:manage", planFeature: "compliance_hub" },
   { href: "/auto-pilot", label: "Auto-Pilot", icon: Workflow, permission: "automations:manage", planFeature: "auto_pilot" },
-  { href: "/billing", label: "Abonnement", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings, permission: "settings:manage" },
 ];
 
@@ -93,6 +92,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
   const plan = getPlan(planId);
   const moduleNav = getEnabledModuleNav(demoCompany.enabledModules);
   const [showLocked, setShowLocked] = useState(false);
+  const isCentralAdmin = role === "SUPER_ADMIN" || role === "COMPANY_ADMIN";
 
   const { visibleNav, lockedNav } = useMemo(() => {
     const byRole = coreNav.filter((item) => roleAllowed(role, item.permission));
@@ -225,12 +225,15 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
             <p className="text-xs text-white/75">
               {plan.maxUsers} users · accès filtrés par abonnement
             </p>
-            <Link
-              href="/billing"
-              className="mt-2 inline-block text-[11px] font-medium text-accent-500 hover:underline"
-            >
-              Gérer l&apos;abonnement →
-            </Link>
+            {isCentralAdmin ? (
+              <Link
+                href="/billing"
+                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-accent-500 hover:underline"
+              >
+                <Sparkles className="h-3 w-3" />
+                Gérer l&apos;abonnement KlirBuild →
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}
