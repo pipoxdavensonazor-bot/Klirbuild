@@ -2,7 +2,7 @@ import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import { generatePayslip, splitRegularOvertime } from "@/lib/workforce/payroll";
 import { getEmployeeTaxConfig } from "@/lib/payroll/employee-service";
-import { payslips as mockPayslips, employees } from "@/lib/workforce/mock-data";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 
 function dec(v: { toNumber(): number } | number) {
   return typeof v === "number" ? v : v.toNumber();
@@ -59,36 +59,19 @@ function mapPayslip(row: {
 }
 
 export async function listPayslips(companyId: string): Promise<PayslipDto[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.payslip.findMany({
+  if (!hasDatabase()) return [];
+  const rows = await prisma.payslip.findMany({
       where: { companyId },
       include: { employee: { select: { name: true } } },
       orderBy: { periodStart: "desc" },
       take: 100,
     });
     return rows.map(mapPayslip);
-  }
-  return mockPayslips.map((p) => {
-    const emp = employees.find((e) => e.id === p.employeeId);
-    return {
-      id: p.id,
-      employeeId: p.employeeId,
-      employeeName: emp?.name ?? "—",
-      periodStart: p.periodStart,
-      periodEnd: p.periodEnd,
-      regularHours: p.regularHours,
-      overtimeHours: p.overtimeHours,
-      grossPay: p.grossPay,
-      netPay: p.netPay,
-      status: p.status,
-      lines: p.lines,
-    };
-  });
 }
 
 export async function listPayrollEmployees(companyId: string) {
-  if (hasDatabase()) {
-    const rows = await prisma.employeeProfile.findMany({
+  if (!hasDatabase()) return [];
+  const rows = await prisma.employeeProfile.findMany({
       where: { companyId, status: "active" },
       orderBy: { name: "asc" },
     });
@@ -97,15 +80,7 @@ export async function listPayrollEmployees(companyId: string) {
       name: r.name,
       email: r.email,
       hourlyRate: dec(r.hourlyRate),
-      jobTitle: r.jobTitle ?? "",
-    }));
-  }
-  return employees.map((e) => ({
-    id: e.id,
-    name: e.name,
-    email: e.email,
-    hourlyRate: e.hourlyRate,
-    jobTitle: e.jobTitle,
+    jobTitle: r.jobTitle ?? "",
   }));
 }
 
@@ -158,7 +133,7 @@ export async function generatePayslipsFromTimeEntries(
   periodEnd: string
 ) {
   if (!hasDatabase()) {
-    return { error: "DATABASE_URL requis pour générer la paie." as const };
+    return { error: DATABASE_REQUIRED_MESSAGE as const };
   }
 
   const start = new Date(periodStart);

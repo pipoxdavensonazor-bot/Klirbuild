@@ -34,5 +34,8 @@ export async function POST(request: Request) {
     amount: typeof body.amount === "number" ? body.amount : 0,
     reference: typeof body.reference === "string" ? body.reference : undefined,
   });
+  if ("error" in result && result.error) {
+    return NextResponse.json({ error: result.error }, { status: 503 });
+  }
   return NextResponse.json(result);
 }

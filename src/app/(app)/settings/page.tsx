@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
-import { demoCompany } from "@/lib/mock-data";
 import { getPlan } from "@/lib/billing/plans";
 import { moduleRegistry } from "@/modules/registry";
 import { useSessionStore } from "@/lib/workforce/session";
+import { apiUrl } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
@@ -34,14 +34,59 @@ const tabs = [
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Company");
-  const [enabledModules, setEnabledModules] = useState(demoCompany.enabledModules);
+  const [enabledModules, setEnabledModules] = useState<string[]>(["construction-os", "crm"]);
+  const [modulesSaving, setModulesSaving] = useState(false);
+  const [modulesMessage, setModulesMessage] = useState("");
+  const [brandingPrimary, setBrandingPrimary] = useState("#004F6E");
+  const [brandingAccent, setBrandingAccent] = useState("#D4AF37");
   const planId = useSessionStore((s) => s.plan);
+  const subscriptionStatus = useSessionStore((s) => s.subscriptionStatus);
+  const setSessionModules = useSessionStore((s) => s.syncProfile);
   const plan = getPlan(planId);
 
-  function toggleModule(id: string) {
-    setEnabledModules((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
+  useEffect(() => {
+    void fetch(apiUrl("/api/company"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.company?.enabledModules?.length) {
+          setEnabledModules(d.company.enabledModules);
+        }
+        if (d.company?.brandingPrimary) setBrandingPrimary(d.company.brandingPrimary);
+        if (d.company?.brandingAccent) setBrandingAccent(d.company.brandingAccent);
+      });
+  }, []);
+
+  async function toggleModule(id: string) {
+    const next = enabledModules.includes(id)
+      ? enabledModules.filter((m) => m !== id)
+      : [...enabledModules, id];
+    setEnabledModules(next);
+    setModulesSaving(true);
+    setModulesMessage("");
+    try {
+      const res = await fetch(apiUrl("/api/company"), {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabledModules: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setModulesMessage(data.error ?? "Enregistrement échoué.");
+        setEnabledModules(enabledModules);
+        return;
+      }
+      if (data.company?.enabledModules) {
+        setEnabledModules(data.company.enabledModules);
+        setSessionModules({ enabledModules: data.company.enabledModules });
+      }
+      setModulesMessage("Modules mis à jour.");
+    } catch {
+      setModulesMessage("Erreur réseau.");
+      setEnabledModules(enabledModules);
+    } finally {
+      setModulesSaving(false);
+    }
   }
 
   return (
@@ -84,13 +129,33 @@ export default function SettingsPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="mb-1 text-sm text-muted-foreground">Primary</p>
-                  <Input defaultValue={demoCompany.brandingPrimary} />
+                  <Input
+                    type="color"
+                    value={brandingPrimary}
+                    onChange={(e) => setBrandingPrimary(e.target.value)}
+                  />
                 </div>
                 <div>
                   <p className="mb-1 text-sm text-muted-foreground">Accent</p>
-                  <Input defaultValue={demoCompany.brandingAccent} />
+                  <Input
+                    type="color"
+                    value={brandingAccent}
+                    onChange={(e) => setBrandingAccent(e.target.value)}
+                  />
                 </div>
-                <Button className="w-fit">Save branding</Button>
+                <Button
+                  className="w-fit"
+                  onClick={() =>
+                    void fetch(apiUrl("/api/company"), {
+                      method: "PATCH",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ brandingPrimary, brandingAccent }),
+                    })
+                  }
+                >
+                  Save branding
+                </Button>
               </div>
             ) : null}
 
@@ -166,8 +231,7 @@ export default function SettingsPage() {
             {tab === "Subscription" ? (
               <div className="space-y-3 text-sm">
                 <p>
-                  Plan: <strong>{plan.name}</strong> ·{" "}
-                  {demoCompany.subscriptionStatus}
+                  Plan: <strong>{plan.name}</strong> · {subscriptionStatus}
                 </p>
                 <p className="text-muted-foreground">
                   {plan.maxUsers === 9999 ? "Illimité" : plan.maxUsers} utilisateurs ·{" "}
@@ -184,6 +248,9 @@ export default function SettingsPage() {
 
             {tab === "Modules" ? (
               <div className="space-y-3">
+                {modulesMessage ? (
+                  <p className="text-sm text-muted-foreground">{modulesMessage}</p>
+                ) : null}
                 {moduleRegistry.map((mod) => {
                   const on = enabledModules.includes(mod.id);
                   return (
@@ -199,7 +266,8 @@ export default function SettingsPage() {
                       </div>
                       <Button
                         variant={on ? "default" : "outline"}
-                        onClick={() => toggleModule(mod.id)}
+                        disabled={modulesSaving}
+                        onClick={() => void toggleModule(mod.id)}
                       >
                         {on ? "Enabled" : "Enable"}
                       </Button>
@@ -207,7 +275,7 @@ export default function SettingsPage() {
                   );
                 })}
                 <p className="text-xs text-muted-foreground">
-                  Demo state only — persist to Company.enabledModules when DB is connected.
+                  Modules enregistrés dans Company.enabledModules (Postgres).
                 </p>
               </div>
             ) : null}

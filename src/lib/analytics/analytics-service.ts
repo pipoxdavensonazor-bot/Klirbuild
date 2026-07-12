@@ -4,7 +4,20 @@ import { listClients } from "@/lib/clients/client-service";
 import { listInvoices } from "@/lib/invoices/invoice-service";
 import { listProjects } from "@/lib/projects/project-service";
 import { listTasks } from "@/lib/tasks/task-service";
-import { clients, deals, invoices, kpi, revenueSeries, tasks } from "@/lib/mock-data";
+
+const EMPTY_ANALYTICS: AnalyticsStats = {
+  revenueMtd: 0,
+  mrr: 0,
+  pipeline: 0,
+  winRate: 0,
+  revenueSeries: [],
+  moduleVolume: [],
+  summary: "Aucune donnée — connectez Postgres.",
+  overdueInvoices: 0,
+  tasksOpen: 0,
+  activeProjects: 0,
+  leadsOpen: 0,
+};
 
 export type AnalyticsVolume = { name: string; value: number };
 
@@ -30,33 +43,8 @@ function formatMonthLabel(key: string) {
   return `${key.slice(5)}/${key.slice(2, 4)}`;
 }
 
-function mockAnalytics(): AnalyticsStats {
-  const conversion =
-    Math.round(
-      (deals.filter((d) => d.stage === "won").length / Math.max(deals.length, 1)) * 100
-    ) || 0;
-  return {
-    revenueMtd: kpi.revenue,
-    mrr: kpi.mrr,
-    pipeline: kpi.pipeline,
-    winRate: conversion,
-    revenueSeries,
-    moduleVolume: [
-      { name: "Clients", value: clients.length },
-      { name: "Factures", value: invoices.length },
-      { name: "Tâches", value: tasks.length },
-      { name: "Deals", value: deals.length },
-    ],
-    summary: `Croissance stable avec ${kpi.pipeline.toLocaleString("fr-CA")} $ en pipeline ouvert. Charge de travail : ${kpi.tasksDue} tâches ouvertes.`,
-    overdueInvoices: invoices.filter((i) => i.status === "overdue").length,
-    tasksOpen: kpi.tasksDue,
-    activeProjects: kpi.projects,
-    leadsOpen: 0,
-  };
-}
-
 export async function getAnalyticsStats(companyId: string): Promise<AnalyticsStats> {
-  if (!hasDatabase()) return mockAnalytics();
+  if (!hasDatabase()) return EMPTY_ANALYTICS;
 
   const [invoiceList, clientList, projectList, taskList, leadList, dealList] =
     await Promise.all([

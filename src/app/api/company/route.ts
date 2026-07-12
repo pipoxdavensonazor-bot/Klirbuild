@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const data: Record<string, string> = {};
+  const data: Record<string, unknown> = {};
 
   for (const key of [
     "name",
@@ -68,9 +68,15 @@ export async function PATCH(request: Request) {
     }
   }
 
-  if (data.email) data.email = data.email.toLowerCase();
-  if (data.emailFrom) data.emailFrom = data.emailFrom.toLowerCase();
-  if (data.inboxEmail) data.inboxEmail = data.inboxEmail.toLowerCase();
+  if (Array.isArray(body.enabledModules)) {
+    data.enabledModules = body.enabledModules.filter(
+      (m: unknown) => typeof m === "string" && m.trim()
+    );
+  }
+
+  if (typeof data.email === "string") data.email = data.email.toLowerCase();
+  if (typeof data.emailFrom === "string") data.emailFrom = data.emailFrom.toLowerCase();
+  if (typeof data.inboxEmail === "string") data.inboxEmail = data.inboxEmail.toLowerCase();
 
   const company = await prisma.company.update({
     where: { id: session.companyId },

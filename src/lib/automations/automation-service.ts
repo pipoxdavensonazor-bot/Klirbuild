@@ -1,6 +1,6 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
-import { automations as mockAutomations } from "@/lib/mock-data";
 import {
   runAllActiveAutomations,
   runSingleAutomation,
@@ -34,21 +34,12 @@ function mapAuto(row: {
 }
 
 export async function listAutomations(companyId: string): Promise<AutomationDto[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.automation.findMany({
-      where: { companyId },
-      orderBy: { updatedAt: "desc" },
-    });
-    return rows.map(mapAuto);
-  }
-  return mockAutomations.map((a) => ({
-    id: a.id,
-    name: a.name,
-    trigger: a.trigger,
-    active: a.active,
-    runs: a.runs,
-    lastRunAt: a.lastRun,
-  }));
+  if (!hasDatabase()) return [];
+  const rows = await prisma.automation.findMany({
+    where: { companyId },
+    orderBy: { updatedAt: "desc" },
+  });
+  return rows.map(mapAuto);
 }
 
 export async function upsertAutomation(
@@ -57,7 +48,7 @@ export async function upsertAutomation(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-  if (!hasDatabase()) return { automation: { id: `auto_${Date.now()}`, name } };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
 
   if (input.id) {
     const row = await prisma.automation.update({
@@ -83,7 +74,7 @@ export async function upsertAutomation(
 }
 
 export async function runAutomation(companyId: string, id: string) {
-  if (!hasDatabase()) return { ok: true, demo: true };
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
   return runSingleAutomation(companyId, id);
 }
 

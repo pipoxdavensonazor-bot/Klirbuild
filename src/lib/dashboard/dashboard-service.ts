@@ -4,8 +4,18 @@ import { listClients } from "@/lib/clients/client-service";
 import { listInvoices } from "@/lib/invoices/invoice-service";
 import { listProjects } from "@/lib/projects/project-service";
 import { listTasks } from "@/lib/tasks/task-service";
-import { activities, kpi, revenueSeries } from "@/lib/mock-data";
 import type { ActivityItem } from "@/types";
+
+const EMPTY_DASHBOARD = {
+  revenue: 0,
+  invoicesOpen: 0,
+  clients: 0,
+  projects: 0,
+  tasksDue: 0,
+  pipeline: 0,
+  revenueSeries: [] as { month: string; revenue: number }[],
+  activities: [] as ActivityItem[],
+};
 
 export type DashboardStats = {
   revenue: number;
@@ -23,18 +33,7 @@ function monthKey(iso: string) {
 }
 
 export async function getDashboardStats(companyId: string): Promise<DashboardStats> {
-  if (!hasDatabase()) {
-    return {
-      revenue: kpi.revenue,
-      invoicesOpen: kpi.invoicesOpen,
-      clients: kpi.clients,
-      projects: kpi.projects,
-      tasksDue: kpi.tasksDue,
-      pipeline: kpi.pipeline,
-      revenueSeries,
-      activities,
-    };
-  }
+  if (!hasDatabase()) return EMPTY_DASHBOARD;
 
   const [invoices, clients, projects, tasks, leads, deals] = await Promise.all([
     listInvoices(companyId),

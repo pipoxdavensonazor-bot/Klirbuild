@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { parseSessionCookie } from "@/lib/auth/demo-session";
+import {
+  apiRequiresDatabase,
+  databaseRequiredResponse,
+  hasDatabaseUrl,
+} from "@/lib/api/database-guard";
 import { can, type Permission, type Role } from "@/types";
 
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/terms"];
@@ -14,6 +19,10 @@ const DEMO_AUTH_BYPASS =
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host")?.split(":")[0];
+
+  if (apiRequiresDatabase(pathname) && !hasDatabaseUrl()) {
+    return databaseRequiredResponse();
+  }
 
   // Redirige le domaine apex vers www, sauf les appels API (évite les POST cassés).
   if (host === "klirline.app" && !pathname.startsWith("/api/")) {

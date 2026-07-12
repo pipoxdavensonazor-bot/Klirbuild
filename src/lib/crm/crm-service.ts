@@ -1,7 +1,6 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
-import { deals as mockDeals, leads as mockLeads } from "@/lib/mock-data";
-import { isDemoMode } from "@/lib/runtime";
 import type { Deal, DealStage, Lead } from "@/types";
 
 function dec(v: { toNumber(): number } | number) {
@@ -55,25 +54,21 @@ function mapDeal(row: {
 }
 
 export async function listLeads(companyId: string): Promise<Lead[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.lead.findMany({
+  if (!hasDatabase()) return [];
+  const rows = await prisma.lead.findMany({
       where: { companyId },
       orderBy: { createdAt: "desc" },
     });
     return rows.map(mapLead);
-  }
-  return mockLeads.filter((l) => l.companyId === companyId);
 }
 
 export async function listDeals(companyId: string): Promise<Deal[]> {
-  if (hasDatabase()) {
-    const rows = await prisma.deal.findMany({
+  if (!hasDatabase()) return [];
+  const rows = await prisma.deal.findMany({
       where: { companyId },
       orderBy: { updatedAt: "desc" },
     });
     return rows.map(mapDeal);
-  }
-  return mockDeals.filter((d) => d.companyId === companyId);
 }
 
 export async function upsertLead(
@@ -90,46 +85,34 @@ export async function upsertLead(
 ) {
   const name = input.name.trim();
   if (!name) return { error: "Nom requis." as const };
-  if (!isDemoMode()) {
-    if (input.id) {
-      const row = await prisma.lead.update({
-        where: { id: input.id },
-        data: {
-          name,
-          email: input.email ?? null,
-          source: input.source ?? null,
-          status: input.status ?? undefined,
-          score: input.score ?? undefined,
-          ownerName: input.owner ?? null,
-        },
-      });
-      return { lead: mapLead(row) };
-    }
-    const row = await prisma.lead.create({
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+
+  if (input.id) {
+    const row = await prisma.lead.update({
+      where: { id: input.id },
       data: {
-        companyId,
         name,
         email: input.email ?? null,
-        source: input.source ?? "Manuel",
-        status: input.status ?? "new",
-        score: input.score ?? 0,
+        source: input.source ?? null,
+        status: input.status ?? undefined,
+        score: input.score ?? undefined,
         ownerName: input.owner ?? null,
       },
     });
     return { lead: mapLead(row) };
   }
-  const lead: Lead = {
-    id: input.id ?? `lead_${Date.now()}`,
-    companyId,
-    name,
-    email: input.email ?? "",
-    source: input.source ?? "Manuel",
-    status: input.status ?? "new",
-    score: input.score ?? 0,
-    owner: input.owner ?? "",
-    createdAt: new Date().toISOString().slice(0, 10),
-  };
-  return { lead };
+  const row = await prisma.lead.create({
+    data: {
+      companyId,
+      name,
+      email: input.email ?? null,
+      source: input.source ?? "Manuel",
+      status: input.status ?? "new",
+      score: input.score ?? 0,
+      ownerName: input.owner ?? null,
+    },
+  });
+  return { lead: mapLead(row) };
 }
 
 export async function upsertDeal(
@@ -146,64 +129,49 @@ export async function upsertDeal(
 ) {
   const title = input.title.trim();
   if (!title) return { error: "Titre requis." as const };
-  if (!isDemoMode()) {
-    if (input.id) {
-      const row = await prisma.deal.update({
-        where: { id: input.id },
-        data: {
-          title,
-          clientName: input.clientName ?? null,
-          value: input.value ?? undefined,
-          stage: input.stage ?? undefined,
-          ownerName: input.owner ?? null,
-          closeDate: input.closeDate ? new Date(input.closeDate) : undefined,
-        },
-      });
-      return { deal: mapDeal(row) };
-    }
-    const row = await prisma.deal.create({
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+
+  if (input.id) {
+    const row = await prisma.deal.update({
+      where: { id: input.id },
       data: {
-        companyId,
         title,
         clientName: input.clientName ?? null,
-        value: input.value ?? 0,
-        stage: input.stage ?? "new",
+        value: input.value ?? undefined,
+        stage: input.stage ?? undefined,
         ownerName: input.owner ?? null,
-        closeDate: input.closeDate ? new Date(input.closeDate) : null,
+        closeDate: input.closeDate ? new Date(input.closeDate) : undefined,
       },
     });
     return { deal: mapDeal(row) };
   }
-  const deal: Deal = {
-    id: input.id ?? `deal_${Date.now()}`,
-    companyId,
-    title,
-    clientName: input.clientName ?? "",
-    value: input.value ?? 0,
-    stage: input.stage ?? "new",
-    owner: input.owner ?? "",
-    closeDate: input.closeDate ?? "",
-  };
-  return { deal };
+  const row = await prisma.deal.create({
+    data: {
+      companyId,
+      title,
+      clientName: input.clientName ?? null,
+      value: input.value ?? 0,
+      stage: input.stage ?? "new",
+      ownerName: input.owner ?? null,
+      closeDate: input.closeDate ? new Date(input.closeDate) : null,
+    },
+  });
+  return { deal: mapDeal(row) };
 }
 
 export async function deleteLead(companyId: string, id: string) {
-  if (!isDemoMode()) {
-    const row = await prisma.lead.findFirst({ where: { id, companyId } });
-    if (!row) return { error: "Lead introuvable." as const };
-    await prisma.lead.delete({ where: { id } });
-    return { ok: true as const };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  const row = await prisma.lead.findFirst({ where: { id, companyId } });
+  if (!row) return { error: "Lead introuvable." as const };
+  await prisma.lead.delete({ where: { id } });
   return { ok: true as const };
 }
 
 export async function deleteDeal(companyId: string, id: string) {
-  if (!isDemoMode()) {
-    const row = await prisma.deal.findFirst({ where: { id, companyId } });
-    if (!row) return { error: "Deal introuvable." as const };
-    await prisma.deal.delete({ where: { id } });
-    return { ok: true as const };
-  }
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE as const };
+  const row = await prisma.deal.findFirst({ where: { id, companyId } });
+  if (!row) return { error: "Deal introuvable." as const };
+  await prisma.deal.delete({ where: { id } });
   return { ok: true as const };
 }
 
