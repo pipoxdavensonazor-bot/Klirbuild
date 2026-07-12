@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 type HealthChecks = {
   database?: { ok: boolean; detail?: string };
   schema?: { ok: boolean; detail?: string };
+  seed?: { ok: boolean; detail?: string };
   zernio?: { ok: boolean; detail?: string };
   appUrl?: { ok: boolean; detail?: string };
 };
@@ -51,6 +52,13 @@ export function MarketingSetupChecklist({ error, provider, onRetry }: Props) {
       ok: checks?.schema?.ok,
       detail: checks?.schema?.detail ?? "Exécutez npm run db:push",
       fix: "npx prisma db push",
+    },
+    {
+      id: "seed",
+      label: "Données démo (seed)",
+      ok: checks?.seed?.ok,
+      detail: checks?.seed?.detail ?? "Exécutez npm run db:seed sur Neon",
+      fix: "npm run db:seed",
     },
     {
       id: "zernio",

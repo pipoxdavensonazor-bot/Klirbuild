@@ -53,6 +53,14 @@ export async function GET() {
       try {
         await prisma.company.count();
         checks.schema = { ok: true };
+        const companyCount = await prisma.company.count();
+        checks.seed = {
+          ok: companyCount > 0,
+          detail:
+            companyCount > 0
+              ? undefined
+              : "Aucune entreprise — exécutez npm run db:seed",
+        };
       } catch (e) {
         checks.schema = {
           ok: false,

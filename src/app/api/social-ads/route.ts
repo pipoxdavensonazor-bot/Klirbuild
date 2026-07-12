@@ -9,6 +9,7 @@ import {
   listSocialAccounts,
   listSocialCampaigns,
   reauthSocialAccount,
+  socialAdsLoadErrorMessage,
   syncCampaignInsights,
 } from "@/lib/social-ads/social-ads-service";
 import {
@@ -114,8 +115,7 @@ export async function GET(request: Request) {
       {
         accounts: [],
         campaigns: [],
-        error:
-          "Impossible de charger les comptes. Vérifiez la base de données (npx prisma db push).",
+        error: socialAdsLoadErrorMessage(err),
         provider: isZernioEnabled() ? "zernio" : "klirline",
         klirline: {
           contact: "Contact@klirline.ca",

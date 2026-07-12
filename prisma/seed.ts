@@ -24,7 +24,7 @@ async function main() {
       email: "billing@klirline.demo",
       plan: "growth",
       subscriptionStatus: "trialing",
-      enabledModules: ["construction-os", "crm", "payroll"],
+      enabledModules: ["construction-os", "crm", "payroll", "social_ads"],
     },
     update: {},
   });

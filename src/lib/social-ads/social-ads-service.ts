@@ -1,4 +1,5 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { prisma } from "@/lib/db";
 import {
   socialAccounts as mockAccounts,
@@ -87,7 +88,47 @@ function mapCampaign(row: {
   };
 }
 
+export function socialAdsLoadErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    msg.includes("COMPANY_NOT_FOUND") ||
+    msg.includes("Foreign key constraint") ||
+    msg.includes("violates foreign key")
+  ) {
+    return "Entreprise introuvable en base. Exécutez npm run db:seed sur la base Neon, puis redéployez.";
+  }
+  if (msg.includes("does not exist")) {
+    return "Tables marketing manquantes. Exécutez npm run db:push.";
+  }
+  return "Impossible de charger les comptes. Vérifiez DATABASE_URL et npm run db:seed.";
+}
+
+async function ensureCompanyExists(companyId: string, companyName: string) {
+  const existing = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  if (companyId === DEMO_COMPANY_ID) {
+    await prisma.company.create({
+      data: {
+        id: DEMO_COMPANY_ID,
+        name: companyName || "KlirBuild Demo Co",
+        email: "billing@klirline.demo",
+        plan: "growth",
+        subscriptionStatus: "trialing",
+        enabledModules: ["construction-os", "crm", "payroll", "social_ads"],
+      },
+    });
+    return;
+  }
+
+  throw new Error(`COMPANY_NOT_FOUND:${companyId}`);
+}
+
 async function ensurePlatformSlots(companyId: string, companyName: string) {
+  await ensureCompanyExists(companyId, companyName);
   const existing = await prisma.socialAccountConnection.findMany({
     where: { companyId },
   });
