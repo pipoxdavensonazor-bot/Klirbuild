@@ -1,6 +1,7 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import { generatePayslip, splitRegularOvertime } from "@/lib/workforce/payroll";
+import { getEmployeeTaxConfig } from "@/lib/payroll/employee-service";
 import { payslips as mockPayslips, employees } from "@/lib/workforce/mock-data";
 
 function dec(v: { toNumber(): number } | number) {
@@ -185,6 +186,7 @@ export async function generatePayslipsFromTimeEntries(
 
   const created: PayslipDto[] = [];
   for (const row of aggregated) {
+    const taxConfig = await getEmployeeTaxConfig(companyId, row.employeeId);
     const calc = generatePayslip({
       employeeId: row.employeeId,
       employeeName: row.employeeName,
@@ -194,6 +196,7 @@ export async function generatePayslipsFromTimeEntries(
       overtimeHours: row.overtimeHours,
       periodStart,
       periodEnd,
+      taxConfig,
     });
 
     const saved = await prisma.payslip.create({

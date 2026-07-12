@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
 import { formatMoney } from "@/lib/markets/currency";
 import { calcMarketTaxes, getMarket } from "@/lib/markets/regions";
+import { PayrollWorkersPanel } from "@/components/payroll/employee-dossier-form";
 import { useSessionStore } from "@/lib/workforce/session";
+import { canApp } from "@/lib/workforce/types";
 import { formatDate } from "@/lib/utils";
 
 export default function AccountingPage() {
@@ -24,6 +26,9 @@ export default function AccountingPage() {
 }
 
 function AccountingInner() {
+  const role = useSessionStore((s) => s.role);
+  const canManagePersonnel =
+    canApp(role, "accounting:manage") || canApp(role, "payroll:manage");
   const marketRegion = useSessionStore((s) => s.marketRegion);
   const currency = useSessionStore((s) => s.currency);
   const market = getMarket(marketRegion);
@@ -155,6 +160,19 @@ function AccountingInner() {
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Dossiers personnel (RH / paie)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              NAS, adresse, type de contrat, date de naissance et informations employeur requises
+              pour la comptabilité et les déclarations (T4, CNESST).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <PayrollWorkersPanel canEdit={canManagePersonnel} />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Plan comptable</CardTitle>

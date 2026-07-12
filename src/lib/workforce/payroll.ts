@@ -3,6 +3,9 @@
  * Not legal advice — replace with certified payroll engine for production.
  */
 
+import type { PayrollTaxConfig } from "@/lib/payroll/tax-config";
+import { DEFAULT_QC_TAX_CONFIG, mergeTaxConfig } from "@/lib/payroll/tax-config";
+
 export type HoursBreakdown = {
   regularHours: number;
   overtimeHours: number;
@@ -17,6 +20,7 @@ export type PayrollInput = {
   overtimeHours: number;
   periodStart: string;
   periodEnd: string;
+  taxConfig?: Partial<PayrollTaxConfig>;
 };
 
 export type PayrollResult = {
@@ -101,46 +105,82 @@ export function isWithinGeofence(
   return { within: d <= site.radiusM, distanceM: d };
 }
 
-/** Simplified CA/QC payroll deductions for demo */
+/** Simplified CA/QC payroll deductions — taux modifiables via taxConfig */
 export function generatePayslip(input: PayrollInput): PayrollResult {
   const regularPay = round2(input.regularHours * input.hourlyRate);
   const overtimePay = round2(input.overtimeHours * input.overtimeRate);
   const grossPay = round2(regularPay + overtimePay);
 
-  // Approximate 2026-style rates (illustrative)
-  const cpp = round2(grossPay * 0.0595); // employee CPP-ish
-  const qpp = round2(grossPay * 0.064); // Quebec Pension (illustrative split)
-  const ei = round2(grossPay * 0.0166);
-  const federalTax = round2(grossPay * 0.15);
-  const quebecTax = round2(grossPay * 0.14);
+  const tax = mergeTaxConfig(input.taxConfig);
 
-  const employerCpp = round2(cpp);
-  const employerQpp = round2(qpp);
-  const employerEi = round2(ei * 1.4);
+  const cpp = round2(grossPay * tax.cppEmployeeRate);
+  const qpp = round2(grossPay * tax.qppEmployeeRate);
+  const ei = round2(grossPay * tax.eiEmployeeRate);
+  const federalTax = round2(grossPay * tax.federalTaxRate);
+  const quebecTax = round2(grossPay * tax.quebecTaxRate);
 
-  const deductions = cpp + qpp + ei + federalTax + quebecTax;
+  const employerCpp = round2(grossPay * tax.cppEmployerRate);
+  const employerQpp = round2(grossPay * tax.qppEmployerRate);
+  const employerEi = round2(ei * tax.eiEmployerMultiplier);
+  const wsib = tax.wsibRate ? round2(grossPay * tax.wsibRate) : 0;
+  const cnesst = tax.cnesstRate ? round2(grossPay * tax.cnesstRate) : 0;
+
+  let extraDeductions = 0;
+  let extraEmployer = 0;
+  const extraLines: PayrollResult["lines"] = [];
+
+  for (const line of tax.extraDeductions) {
+    const amt = line.fixed ?? round2(grossPay * (line.rate ?? 0));
+    extraDeductions += amt;
+    extraLines.push({
+      code: line.code,
+      label: line.label,
+      amount: -amt,
+      type: "deduction",
+    });
+  }
+  for (const line of tax.extraEmployerCharges) {
+    const amt = line.fixed ?? round2(grossPay * (line.rate ?? 0));
+    extraEmployer += amt;
+    extraLines.push({
+      code: line.code,
+      label: line.label,
+      amount: amt,
+      type: "employer",
+    });
+  }
+
+  const deductions = cpp + qpp + ei + federalTax + quebecTax + extraDeductions;
   const netPay = round2(Math.max(0, grossPay - deductions));
 
-  const lines = [
-    { code: "REG", label: `Regular (${input.regularHours}h)`, amount: regularPay, type: "earning" as const },
+  const lines: PayrollResult["lines"] = [
+    { code: "REG", label: `Régulier (${input.regularHours}h)`, amount: regularPay, type: "earning" },
     ...(overtimePay > 0
       ? [
           {
             code: "OT",
-            label: `Overtime (${input.overtimeHours}h)`,
+            label: `Temps supp. (${input.overtimeHours}h)`,
             amount: overtimePay,
             type: "earning" as const,
           },
         ]
       : []),
-    { code: "CPP", label: "CPP (employee)", amount: -cpp, type: "deduction" as const },
-    { code: "QPP", label: "QPP (employee)", amount: -qpp, type: "deduction" as const },
-    { code: "EI", label: "EI (employee)", amount: -ei, type: "deduction" as const },
-    { code: "FED", label: "Federal income tax", amount: -federalTax, type: "deduction" as const },
-    { code: "QC", label: "Quebec income tax", amount: -quebecTax, type: "deduction" as const },
-    { code: "E-CPP", label: "Employer CPP", amount: employerCpp, type: "employer" as const },
-    { code: "E-QPP", label: "Employer QPP", amount: employerQpp, type: "employer" as const },
-    { code: "E-EI", label: "Employer EI", amount: employerEi, type: "employer" as const },
+    { code: "CPP", label: "RPC (employé)", amount: -cpp, type: "deduction" },
+    { code: "QPP", label: "RRQ (employé)", amount: -qpp, type: "deduction" },
+    { code: "EI", label: "AE (employé)", amount: -ei, type: "deduction" },
+    { code: "FED", label: "Impôt fédéral", amount: -federalTax, type: "deduction" },
+    { code: "QC", label: "Impôt Québec", amount: -quebecTax, type: "deduction" },
+    ...extraLines.filter((l) => l.type === "deduction"),
+    { code: "E-CPP", label: "RPC employeur", amount: employerCpp, type: "employer" },
+    { code: "E-QPP", label: "RRQ employeur", amount: employerQpp, type: "employer" },
+    { code: "E-EI", label: "AE employeur", amount: employerEi, type: "employer" },
+    ...(wsib > 0
+      ? [{ code: "E-WSIB", label: "CNESST / SST", amount: wsib, type: "employer" as const }]
+      : []),
+    ...(cnesst > 0
+      ? [{ code: "E-FSS", label: "FSS employeur", amount: cnesst, type: "employer" as const }]
+      : []),
+    ...extraLines.filter((l) => l.type === "employer"),
   ];
 
   return {
@@ -157,6 +197,8 @@ export function generatePayslip(input: PayrollInput): PayrollResult {
     lines,
   };
 }
+
+export { DEFAULT_QC_TAX_CONFIG };
 
 export function round2(n: number) {
   return Math.round(n * 100) / 100;

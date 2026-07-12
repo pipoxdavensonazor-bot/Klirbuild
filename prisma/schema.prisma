@@ -79,6 +79,8 @@ model Company {
   socialAccounts     SocialAccountConnection[]
   socialCampaigns    SocialAdCampaignRecord[]
   zernioProfileId    String?
+  payrollDefaultsJson Json?
+  employees          EmployeeProfile[]
 }
 
 model User {
@@ -523,6 +525,7 @@ model ConstructionWorkspace {
 model EmployeeProfile {
   id            String      @id @default(cuid())
   companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId        String?
   name          String
   email         String
@@ -532,14 +535,29 @@ model EmployeeProfile {
   overtimeRate  Decimal     @default(0) @db.Decimal(10, 2)
   status        String      @default("active")
   phone         String?
+  sinNumber     String?
   sinMasked     String?
+  dateOfBirth   DateTime?
   hireDate      DateTime?
+  contractType  String      @default("full_time")
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  province      String?     @default("QC")
+  postalCode    String?
+  country       String?     @default("CA")
+  emergencyName String?
+  emergencyPhone String?
+  notes         String?
+  payrollTaxJson Json?
+  dossierComplete Boolean   @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   timeEntries   TimeEntry[]
   payslips      Payslip[]
 
   @@index([companyId, status])
+  @@index([companyId, email])
 }
 
 model TimeEntry {
