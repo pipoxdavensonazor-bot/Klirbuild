@@ -214,6 +214,7 @@ export interface Payment {
 export interface Project {
   id: string;
   name: string;
+  clientId?: string;
   clientName: string;
   status: ProjectStatus;
   progress: number;

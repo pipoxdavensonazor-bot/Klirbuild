@@ -225,6 +225,71 @@ export async function sendQuoteToClient(companyId: string, id: string) {
   };
 }
 
+export async function createQuote(input: {
+  companyId: string;
+  clientId: string;
+  total: number;
+  description?: string;
+  currency?: string;
+}) {
+  const total = Number(input.total);
+  if (!input.clientId?.trim()) return { error: "Client requis." as const };
+  if (!Number.isFinite(total) || total <= 0) {
+    return { error: "Montant invalide." as const };
+  }
+
+  const year = new Date().getFullYear();
+  const validUntil = new Date();
+  validUntil.setDate(validUntil.getDate() + 14);
+  const currency = input.currency?.trim() || "CAD";
+  const description = input.description?.trim() || "Soumission de services";
+
+  if (hasDatabase()) {
+    const count = await prisma.quote.count({ where: { companyId: input.companyId } });
+    const number = `Q-${year}-${String(count + 1).padStart(3, "0")}`;
+    const row = await prisma.quote.create({
+      data: {
+        companyId: input.companyId,
+        clientId: input.clientId,
+        number,
+        status: "draft",
+        currency,
+        subtotal: total,
+        tax: 0,
+        discount: 0,
+        total,
+        validUntil,
+        items: {
+          create: {
+            description,
+            quantity: 1,
+            unitPrice: total,
+            total,
+          },
+        },
+      },
+      include: { client: { select: { name: true } } },
+    });
+    return { quote: mapDbQuote(row) };
+  }
+
+  const { clients } = await import("@/lib/mock-data");
+  const mockClient = clients.find((c) => c.id === input.clientId);
+  const quote: Quote = {
+    id: `q_${Date.now()}`,
+    number: `Q-${year}-${String(readFileQuotes(input.companyId).length + 1).padStart(3, "0")}`,
+    clientId: input.clientId,
+    clientName: mockClient?.name ?? "—",
+    status: "draft",
+    total,
+    currency,
+    issueDate: new Date().toISOString().slice(0, 10),
+    validUntil: validUntil.toISOString().slice(0, 10),
+  };
+  writeFileQuote(quote);
+  return { quote };
+}
+
 export async function convertQuoteToInvoice(companyId: string, id: string) {
   const quote = await getQuote(companyId, id);
   if (!quote) return { error: "Soumission introuvable." as const };

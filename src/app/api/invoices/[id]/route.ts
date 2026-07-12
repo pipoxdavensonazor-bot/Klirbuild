@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { getRequestSession } from "@/lib/auth/auth-service";
+import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { sendInvoiceToClient } from "@/lib/invoices/invoice-service";
+
+export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, ctx: Ctx) {
   const session = await getRequestSession();
-  const companyId = session?.companyId ?? DEMO_COMPANY_ID;
+  const companyId = session
+    ? (await enrichSession(session)).companyId
+    : DEMO_COMPANY_ID;
   const { id } = await ctx.params;
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "send";

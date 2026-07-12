@@ -224,6 +224,71 @@ export async function sendInvoiceToClient(companyId: string, id: string) {
   };
 }
 
+export async function createInvoice(input: {
+  companyId: string;
+  clientId: string;
+  total: number;
+  description?: string;
+  currency?: string;
+}) {
+  const total = Number(input.total);
+  if (!input.clientId?.trim()) return { error: "Client requis." as const };
+  if (!Number.isFinite(total) || total <= 0) {
+    return { error: "Montant invalide." as const };
+  }
+
+  const year = new Date().getFullYear();
+  const due = new Date();
+  due.setDate(due.getDate() + 30);
+  const currency = input.currency?.trim() || "CAD";
+  const description = input.description?.trim() || "Services professionnels";
+
+  if (hasDatabase()) {
+    const count = await prisma.invoice.count({ where: { companyId: input.companyId } });
+    const number = `INV-${year}-${String(count + 1).padStart(3, "0")}`;
+    const row = await prisma.invoice.create({
+      data: {
+        companyId: input.companyId,
+        clientId: input.clientId,
+        number,
+        status: "draft",
+        currency,
+        subtotal: total,
+        tax: 0,
+        discount: 0,
+        total,
+        dueDate: due,
+        items: {
+          create: {
+            description,
+            quantity: 1,
+            unitPrice: total,
+            total,
+          },
+        },
+      },
+      include: { client: { select: { name: true } } },
+    });
+    return { invoice: mapDbInvoice(row) };
+  }
+
+  const { clients } = await import("@/lib/mock-data");
+  const mockClient = clients.find((c) => c.id === input.clientId);
+  const invoice: Invoice = {
+    id: `inv_${Date.now()}`,
+    number: `INV-${year}-${String(readFileInvoices().length + 1).padStart(3, "0")}`,
+    clientId: input.clientId,
+    clientName: mockClient?.name ?? "—",
+    status: "draft",
+    total,
+    currency,
+    issueDate: new Date().toISOString().slice(0, 10),
+    dueDate: due.toISOString().slice(0, 10),
+  };
+  writeFileInvoice(invoice);
+  return { invoice };
+}
+
 export async function createInvoiceFromQuote(companyId: string, quote: Quote) {
   const number = quote.number.replace(/^Q-/, "INV-");
   const due = new Date();

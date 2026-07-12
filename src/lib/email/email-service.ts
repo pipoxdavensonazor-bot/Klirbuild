@@ -254,6 +254,81 @@ async function getDemoInboxSeed(companyId: string): Promise<EmailRecord[]> {
   ];
 }
 
+export async function sendClientMessage(input: {
+  companyId: string;
+  clientId: string;
+  subject: string;
+  body: string;
+}) {
+  const subject = input.subject.trim();
+  const body = input.body.trim();
+  if (!subject) return { error: "Objet requis." as const };
+  if (!body) return { error: "Message requis." as const };
+
+  let clientEmail = "";
+  let clientName = "Client";
+  let companyName = "Votre entreprise";
+
+  if (hasDatabase()) {
+    const client = await prisma.client.findFirst({
+      where: { id: input.clientId, companyId: input.companyId },
+      include: { company: { select: { name: true } } },
+    });
+    if (!client) return { error: "Client introuvable." as const };
+    clientEmail = client.email?.trim() ?? "";
+    clientName = client.name;
+    companyName = client.company.name;
+  } else {
+    const { clients, demoCompany } = await import("@/lib/mock-data");
+    const client = clients.find((c) => c.id === input.clientId);
+    if (!client) return { error: "Client introuvable." as const };
+    clientEmail = client.email?.trim() ?? "";
+    clientName = client.name;
+    companyName = demoCompany.name;
+  }
+
+  if (!clientEmail) {
+    return { error: "Le client n'a pas de courriel. Ajoutez-le dans le profil." as const };
+  }
+
+  const html = `<p>${body.replace(/\n/g, "<br/>")}</p><p style="color:#64748b;font-size:12px;margin-top:24px;">— ${companyName}</p>`;
+  const sent = await sendEmail({
+    companyId: input.companyId,
+    to: clientEmail,
+    subject,
+    html,
+    text: body,
+  });
+
+  if ("error" in sent && sent.error) return { error: sent.error };
+
+  const emailCtx = await getCompanyEmailContext(input.companyId);
+  try {
+    await logEmail({
+      companyId: input.companyId,
+      direction: "outbound",
+      fromEmail: emailCtx.logicalFrom,
+      toEmail: clientEmail,
+      subject,
+      bodyText: body,
+      bodyHtml: html,
+      clientId: input.clientId,
+      providerId: "providerId" in sent ? sent.providerId : undefined,
+    });
+  } catch {
+    /* ignore log failure */
+  }
+
+  return {
+    ok: true,
+    delivered: "delivered" in sent ? sent.delivered : false,
+    simulated: "simulated" in sent ? sent.simulated : false,
+    mailto: "mailto" in sent ? sent.mailto : undefined,
+    to: clientEmail,
+    clientName,
+  };
+}
+
 export async function recordInboundEmail(input: {
   companyId: string;
   from: string;

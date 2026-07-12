@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
-import { createQuote, listQuotes } from "@/lib/quotes/quote-service";
+import { createProject, listProjects } from "@/lib/projects/project-service";
 
 export const runtime = "nodejs";
 
@@ -12,26 +12,25 @@ async function companyId() {
   return enriched.companyId;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const cid = await companyId();
-  const quotes = await listQuotes(cid);
-  return NextResponse.json({ quotes });
+  const clientId = new URL(request.url).searchParams.get("clientId") ?? undefined;
+  const projects = await listProjects(cid, clientId);
+  return NextResponse.json({ projects });
 }
 
 export async function POST(request: Request) {
   const cid = await companyId();
   const body = await request.json().catch(() => ({}));
-  const clientId = typeof body.clientId === "string" ? body.clientId : "";
-  const total = typeof body.total === "number" ? body.total : Number(body.total);
-  const description = typeof body.description === "string" ? body.description : undefined;
-  const currency = typeof body.currency === "string" ? body.currency : undefined;
+  const name = typeof body.name === "string" ? body.name : "";
+  const clientId = typeof body.clientId === "string" ? body.clientId : undefined;
+  const budget = typeof body.budget === "number" ? body.budget : Number(body.budget) || 0;
 
-  const result = await createQuote({
+  const result = await createProject({
     companyId: cid,
     clientId,
-    total,
-    description,
-    currency,
+    name,
+    budget,
   });
 
   if ("error" in result && result.error) {
