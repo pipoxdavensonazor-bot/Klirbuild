@@ -28,6 +28,8 @@ import { formatMoney } from "@/lib/markets/currency";
 import { t } from "@/lib/markets/i18n";
 import { getMarket } from "@/lib/markets/regions";
 import { useSessionStore } from "@/lib/workforce/session";
+import { TimeclockDashboardWidget } from "@/components/dashboard/timeclock-dashboard-widget";
+import { TeamChatDashboardWidget } from "@/components/dashboard/team-chat-dashboard-widget";
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -84,6 +86,11 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <TimeclockDashboardWidget />
+        <TeamChatDashboardWidget />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard

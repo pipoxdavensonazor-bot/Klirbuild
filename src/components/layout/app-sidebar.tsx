@@ -59,7 +59,7 @@ const coreNav: NavDef[] = [
   { href: "/payments", label: "Payments", icon: CreditCard, permission: "billing:manage", planFeature: "quotes_invoices" },
   { href: "/projects", label: "Projects", icon: Building2, permission: "projects:read", planFeature: "projects" },
   { href: "/tasks", label: "Tasks", icon: ClipboardList, permission: "projects:read", planFeature: "projects" },
-  { href: "/timeclock", label: "Pointage GPS", icon: Clock, permission: "timeclock:use", planFeature: "timeclock" },
+  { href: "/timeclock", label: "Chronomètre", icon: Clock, permission: "timeclock:use", planFeature: "timeclock" },
   { href: "/locations", label: "Localisation", icon: MapPin, permission: "location:view", planFeature: "locations" },
   { href: "/payroll", label: "Paie", icon: Wallet, permission: "payroll:read", planFeature: "payroll" },
   { href: "/accounting", label: "Comptabilité", icon: Calculator, permission: "accounting:read", planFeature: "accounting" },

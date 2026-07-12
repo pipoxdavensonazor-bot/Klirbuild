@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
 import { SettingsCompanyPanel } from "@/components/settings/settings-company-panel";
+import { SettingsRolesPanel } from "@/components/settings/settings-roles-panel";
 
 const tabs = [
   "Company",
@@ -76,23 +77,7 @@ export default function SettingsPage() {
 
             {tab === "Users" ? <SettingsUsersPanel /> : null}
 
-            {tab === "Roles" ? (
-              <div className="space-y-2 text-sm">
-                {["SUPER_ADMIN", "COMPANY_ADMIN", "MANAGER", "EMPLOYEE"].map(
-                  (role) => (
-                    <div
-                      key={role}
-                      className="flex items-center justify-between rounded-lg border border-border p-3"
-                    >
-                      <span className="font-medium">{role}</span>
-                      <span className="text-muted-foreground">
-                        Middleware + can(user, permission)
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            ) : null}
+            {tab === "Roles" ? <SettingsRolesPanel /> : null}
 
             {tab === "Branding" ? (
               <div className="grid gap-3 sm:grid-cols-2">

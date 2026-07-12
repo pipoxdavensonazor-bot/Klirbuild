@@ -1,4 +1,19 @@
-export type Role = "SUPER_ADMIN" | "COMPANY_ADMIN" | "MANAGER" | "EMPLOYEE";
+export type Role =
+  | "SUPER_ADMIN"
+  | "COMPANY_ADMIN"
+  | "PROJECT_MANAGER"
+  | "SITE_SUPERVISOR"
+  | "FOREMAN"
+  | "FIELD_WORKER"
+  | "ESTIMATOR"
+  | "ACCOUNTANT"
+  | "PAYROLL_CLERK"
+  | "SAFETY_OFFICER"
+  | "HR_MANAGER"
+  | "PROCUREMENT"
+  | "OFFICE_ADMIN"
+  | "MANAGER"
+  | "EMPLOYEE";
 
 export type Permission =
   | "company:manage"
@@ -20,70 +35,24 @@ export type Permission =
   | "settings:manage"
   | "modules:manage";
 
+import { buildBasePermissions } from "@/lib/workforce/roles";
+
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  SUPER_ADMIN: [
-    "company:manage",
-    "users:manage",
-    "billing:manage",
-    "crm:read",
-    "crm:write",
-    "quotes:read",
-    "quotes:write",
-    "invoices:read",
-    "invoices:write",
-    "projects:read",
-    "projects:write",
-    "documents:read",
-    "documents:write",
-    "ai:use",
-    "automations:manage",
-    "analytics:read",
-    "settings:manage",
-    "modules:manage",
-  ],
-  COMPANY_ADMIN: [
-    "company:manage",
-    "users:manage",
-    "billing:manage",
-    "crm:read",
-    "crm:write",
-    "quotes:read",
-    "quotes:write",
-    "invoices:read",
-    "invoices:write",
-    "projects:read",
-    "projects:write",
-    "documents:read",
-    "documents:write",
-    "ai:use",
-    "automations:manage",
-    "analytics:read",
-    "settings:manage",
-    "modules:manage",
-  ],
-  MANAGER: [
-    "crm:read",
-    "crm:write",
-    "quotes:read",
-    "quotes:write",
-    "invoices:read",
-    "invoices:write",
-    "projects:read",
-    "projects:write",
-    "documents:read",
-    "documents:write",
-    "ai:use",
-    "analytics:read",
-  ],
-  EMPLOYEE: [
-    "crm:read",
-    "quotes:read",
-    "invoices:read",
-    "projects:read",
-    "projects:write",
-    "documents:read",
-    "ai:use",
-  ],
+  SUPER_ADMIN: buildBasePermissions("SUPER_ADMIN"),
+  COMPANY_ADMIN: buildBasePermissions("COMPANY_ADMIN"),
+  PROJECT_MANAGER: buildBasePermissions("PROJECT_MANAGER"),
+  SITE_SUPERVISOR: buildBasePermissions("SITE_SUPERVISOR"),
+  FOREMAN: buildBasePermissions("FOREMAN"),
+  FIELD_WORKER: buildBasePermissions("FIELD_WORKER"),
+  ESTIMATOR: buildBasePermissions("ESTIMATOR"),
+  ACCOUNTANT: buildBasePermissions("ACCOUNTANT"),
+  PAYROLL_CLERK: buildBasePermissions("PAYROLL_CLERK"),
+  SAFETY_OFFICER: buildBasePermissions("SAFETY_OFFICER"),
+  HR_MANAGER: buildBasePermissions("HR_MANAGER"),
+  PROCUREMENT: buildBasePermissions("PROCUREMENT"),
+  OFFICE_ADMIN: buildBasePermissions("OFFICE_ADMIN"),
+  MANAGER: buildBasePermissions("MANAGER"),
+  EMPLOYEE: buildBasePermissions("EMPLOYEE"),
 };
 
 export function can(role: Role, permission: Permission) {

@@ -1,4 +1,14 @@
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { roleLabelFr } from "@/lib/workforce/roles";
+import type { Role } from "@/types";
+
+function inviteRoleLabel(role: string) {
+  try {
+    return roleLabelFr(role as Role);
+  } catch {
+    return role.replaceAll("_", " ");
+  }
+}
 
 export function quoteEmailHtml(input: {
   companyName: string;
@@ -74,12 +84,6 @@ export function invoiceEmailText(input: {
   return `Bonjour ${input.clientName},\n\n${input.companyName} vous envoie la facture ${input.invoiceNumber}.\nMontant: ${formatCurrency(input.total, input.currency)}\nÉchéance: ${formatDate(input.dueDate)}\n\n— ${input.companyName}`;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  COMPANY_ADMIN: "Administrateur",
-  MANAGER: "Gestionnaire",
-  EMPLOYEE: "Employé",
-};
-
 export function inviteEmailHtml(input: {
   companyName: string;
   inviteUrl: string;
@@ -88,7 +92,7 @@ export function inviteEmailHtml(input: {
   expiresAt: string;
   appUrl: string;
 }) {
-  const roleLabel = ROLE_LABELS[input.role] ?? input.role;
+  const roleLabel = inviteRoleLabel(input.role);
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a365d">
       <h2 style="color:#004F6E">Invitation — ${input.companyName}</h2>
@@ -118,7 +122,7 @@ export function inviteEmailText(input: {
   invitedByEmail: string;
   expiresAt: string;
 }) {
-  const roleLabel = ROLE_LABELS[input.role] ?? input.role;
+  const roleLabel = inviteRoleLabel(input.role);
   return `Bonjour,\n\n${input.invitedByEmail} vous invite à rejoindre ${input.companyName}.\n\nRôle: ${roleLabel}\nExpire le: ${formatDate(input.expiresAt)}\n\nAcceptez l'invitation ici:\n${input.inviteUrl}\n\n— ${input.companyName}`;
 }
 

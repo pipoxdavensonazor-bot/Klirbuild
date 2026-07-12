@@ -12,6 +12,7 @@ import { useSessionStore } from "@/lib/workforce/session";
 import { getPlan, routeAllowedForPlan, type SubscriptionPlanId } from "@/lib/billing/plans";
 import { getMarket, marketProfiles, type MarketRegionId } from "@/lib/markets/regions";
 import type { Role } from "@/types";
+import { ALL_ROLES, roleLabelFr } from "@/lib/workforce/roles";
 import { cn } from "@/lib/utils";
 
 const commands = [
@@ -43,7 +44,7 @@ const commands = [
   { label: "Settings", href: "/settings" },
 ];
 
-const roles: Role[] = ["COMPANY_ADMIN", "MANAGER", "EMPLOYEE", "SUPER_ADMIN"];
+const roles: Role[] = ALL_ROLES;
 const plans: SubscriptionPlanId[] = ["starter", "growth", "business", "enterprise"];
 
 export function Topbar({ onMenu }: { onMenu?: () => void }) {
@@ -180,7 +181,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         >
           {roles.map((r) => (
             <option key={r} value={r}>
-              {r.replaceAll("_", " ")}
+              {roleLabelFr(r)}
             </option>
           ))}
         </select>

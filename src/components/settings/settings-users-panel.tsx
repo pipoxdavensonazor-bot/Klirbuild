@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 import { demoUser } from "@/lib/mock-data";
 import type { Role } from "@/types";
+import { INVITABLE_ROLES, roleLabelFr } from "@/lib/workforce/roles";
 
 type ApiUser = {
   id: string;
@@ -199,14 +200,16 @@ export function SettingsUsersPanel() {
           disabled={requiresDatabase || loading}
         />
         <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+          className="h-10 max-w-xs rounded-md border border-border bg-background px-3 text-sm"
           value={inviteRole}
           onChange={(e) => setInviteRole(e.target.value as Role)}
           disabled={requiresDatabase || loading}
         >
-          <option value="EMPLOYEE">EMPLOYEE</option>
-          <option value="MANAGER">MANAGER</option>
-          <option value="COMPANY_ADMIN">COMPANY_ADMIN</option>
+          {INVITABLE_ROLES.map((r) => (
+            <option key={r} value={r}>
+              {roleLabelFr(r)}
+            </option>
+          ))}
         </select>
         <Button onClick={sendInvite} disabled={requiresDatabase || loading}>
           {loading ? "Envoi…" : "Send invite"}

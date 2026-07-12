@@ -2,7 +2,7 @@
 
 import { ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { canApp, type AppPermission } from "@/lib/workforce/types";
+import { canApp, roleLabelFr, type AppPermission } from "@/lib/workforce/types";
 import { useSessionStore } from "@/lib/workforce/session";
 
 export function RequirePermission({
@@ -27,7 +27,7 @@ export function RequirePermission({
             <div>
               <p className="font-semibold">Accès restreint</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Votre rôle ({role.replaceAll("_", " ")}) n&apos;a pas la permission
+                Votre rôle ({roleLabelFr(role)}) n&apos;a pas la permission
                 requise pour cette section.
               </p>
             </div>

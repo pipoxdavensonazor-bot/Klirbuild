@@ -1,5 +1,14 @@
 import type { Permission, Role } from "@/types";
 import { ROLE_PERMISSIONS, can as canRole } from "@/types";
+import {
+  ALL_ROLES,
+  buildExtendedPermissions,
+  INVITABLE_ROLES,
+  roleDescriptionFr,
+  roleLabelFr,
+  ROLE_DEFINITIONS,
+  UNIVERSAL_EMPLOYEE_PERMISSIONS,
+} from "@/lib/workforce/roles";
 
 export type {
   Permission,
@@ -9,8 +18,7 @@ export type {
 export type NavItem = {
   href: string;
   label: string;
-  permission?: Permission | Permission[];
-  /** If set, only these roles see the item (in addition to permission) */
+  permission?: AppPermission | AppPermission[];
   roles?: Role[];
 };
 
@@ -31,34 +39,10 @@ export type WorkforcePermission = (typeof WORKFORCE_PERMISSIONS)[number];
 
 export type AppPermission = Permission | WorkforcePermission;
 
-export const EXTENDED_ROLE_PERMISSIONS: Record<Role, AppPermission[]> = {
-  SUPER_ADMIN: [
-    ...ROLE_PERMISSIONS.SUPER_ADMIN,
-    ...WORKFORCE_PERMISSIONS,
-  ],
-  COMPANY_ADMIN: [
-    ...ROLE_PERMISSIONS.COMPANY_ADMIN,
-    ...WORKFORCE_PERMISSIONS,
-  ],
-  MANAGER: [
-    ...ROLE_PERMISSIONS.MANAGER,
-    "timeclock:use",
-    "timeclock:manage",
-    "payroll:read",
-    "accounting:read",
-    "chat:use",
-    "chat:moderate",
-    "location:view",
-    "crm:write", // social ads + construction CRM
-  ],
-  EMPLOYEE: [
-    "projects:read",
-    "documents:read",
-    "timeclock:use",
-    "chat:use",
-    "payroll:read", // own payslips / T4 only (enforced in UI)
-  ],
-};
+export const EXTENDED_ROLE_PERMISSIONS: Record<Role, AppPermission[]> =
+  Object.fromEntries(
+    ALL_ROLES.map((role) => [role, buildExtendedPermissions(role)])
+  ) as Record<Role, AppPermission[]>;
 
 export function canApp(role: Role, permission: AppPermission) {
   return EXTENDED_ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
@@ -68,7 +52,16 @@ export function canAny(role: Role, permissions: AppPermission[]) {
   return permissions.some((p) => canApp(role, p));
 }
 
-export { canRole };
+export {
+  canRole,
+  ALL_ROLES,
+  INVITABLE_ROLES,
+  roleLabelFr,
+  roleDescriptionFr,
+  ROLE_DEFINITIONS,
+  UNIVERSAL_EMPLOYEE_PERMISSIONS,
+  ROLE_PERMISSIONS,
+};
 
 export type GeoPoint = {
   lat: number;
@@ -84,7 +77,6 @@ export type JobSite = {
   clientName: string;
   lat: number;
   lng: number;
-  /** Geofence radius in meters */
   radiusM: number;
 };
 
@@ -160,7 +152,6 @@ export type Payslip = {
 export type TaxRateConfig = {
   id: string;
   name: string;
-  /** e.g. TPS, TVQ, GST */
   code: string;
   rate: number;
   region: "CA" | "QC" | "ON" | "federal";
@@ -203,7 +194,6 @@ export type TeamChatMessage = {
   senderName: string;
   body: string;
   at: string;
-  /** Demo flag — real impl uses E2E / TLS + server encryption at rest */
   encrypted: boolean;
   attachments?: string[];
 };

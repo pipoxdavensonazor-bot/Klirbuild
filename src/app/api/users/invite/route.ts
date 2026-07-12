@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/auth-service";
 import { createInvitation } from "@/lib/users/invite-service";
+import { INVITABLE_ROLES } from "@/lib/workforce/roles";
 import { can, type Role } from "@/types";
 
 export const runtime = "nodejs";
-
-const ALLOWED_ROLES: Role[] = ["COMPANY_ADMIN", "MANAGER", "EMPLOYEE"];
 
 export async function POST(request: Request) {
   try {
@@ -19,9 +18,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email : "";
     const role =
-      typeof body.role === "string" && ALLOWED_ROLES.includes(body.role as Role)
+      typeof body.role === "string" && INVITABLE_ROLES.includes(body.role as Role)
         ? (body.role as Role)
-        : "EMPLOYEE";
+        : "FIELD_WORKER";
 
     const result = await createInvitation({
       companyId: session.companyId,
