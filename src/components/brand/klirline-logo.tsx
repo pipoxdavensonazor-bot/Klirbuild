@@ -5,23 +5,33 @@ type KlirBuildLogoProps = {
   className?: string;
   /** full = wordmark; mark = compact crop for collapsed nav */
   variant?: "full" | "mark";
+  /** rounded = coins arrondis · circle = rond (avatar) */
+  shape?: "rounded" | "circle";
+  /** Zoom du visuel (défaut 1.5) */
+  zoom?: number;
   priority?: boolean;
 };
 
-/**
- * KlirBuild logo — white plate with the mark centered and fully inside.
- * Source PNG has large empty margins; scale from center crops them evenly.
- */
+const shapeClass = {
+  rounded: "rounded-xl",
+  circle: "rounded-full",
+} as const;
+
+const DEFAULT_ZOOM = 1.5;
+
 export function KlirBuildLogo({
   className,
   variant = "full",
+  shape = "rounded",
+  zoom = DEFAULT_ZOOM,
   priority = false,
 }: KlirBuildLogoProps) {
   if (variant === "mark") {
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-xl border border-black/5 bg-white shadow-soft",
+          "relative overflow-hidden border border-black/5 bg-white shadow-soft",
+          shapeClass[shape],
           className ?? "h-12 w-12"
         )}
       >
@@ -30,7 +40,8 @@ export function KlirBuildLogo({
           alt="KlirBuild"
           fill
           priority={priority}
-          className="object-contain object-center origin-center scale-[2.4] p-1"
+          className="object-contain object-center origin-center"
+          style={{ transform: `scale(${zoom})` }}
           sizes="48px"
         />
       </div>
@@ -40,7 +51,8 @@ export function KlirBuildLogo({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-black/5 bg-white shadow-soft",
+        "relative overflow-hidden border border-black/5 bg-white shadow-soft",
+        shapeClass[shape],
         className ?? "h-[68px] w-[200px]"
       )}
     >
@@ -49,7 +61,8 @@ export function KlirBuildLogo({
         alt="KlirBuild"
         fill
         priority={priority}
-        className="object-contain object-center origin-center scale-[1.75] p-2"
+        className="object-contain object-center origin-center"
+        style={{ transform: `scale(${zoom})` }}
         sizes="220px"
       />
     </div>

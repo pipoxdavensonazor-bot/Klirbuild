@@ -155,7 +155,7 @@ export function ProfilePageClient() {
             type="button"
             onClick={() => fileRef.current?.click()}
             title="Cliquez pour changer le logo"
-            className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-brand-300 bg-white shadow-md transition hover:border-brand-500 hover:ring-4 hover:ring-brand-100 dark:bg-slate-900"
+            className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-brand-300 bg-white shadow-md transition hover:border-brand-500 hover:ring-4 hover:ring-brand-100 dark:bg-slate-900"
           >
             {company?.logoUrl ? (
               <Image
@@ -163,7 +163,7 @@ export function ProfilePageClient() {
                 alt={company.name}
                 width={96}
                 height={96}
-                className="h-full w-full object-contain p-2"
+                className="h-full w-full object-contain p-1"
                 unoptimized
               />
             ) : (

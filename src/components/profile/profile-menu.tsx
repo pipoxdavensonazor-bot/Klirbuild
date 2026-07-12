@@ -96,7 +96,7 @@ export function ProfileMenu() {
       <Link
         href="/profile"
         title={`Profil — ${company.name}`}
-        className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white shadow-sm transition hover:border-brand-400 hover:ring-2 hover:ring-brand-200 dark:bg-slate-900"
+        className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-sm transition hover:border-brand-400 hover:ring-2 hover:ring-brand-200 dark:bg-slate-900"
       >
         {company.logoUrl ? (
           <Image
