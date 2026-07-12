@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { ProjectGantt } from "@/components/projects/project-gantt";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { apiUrl } from "@/lib/api-client";
@@ -14,6 +15,9 @@ type TaskRow = {
   status: string;
   priority: string;
   assigneeName?: string;
+  startDate?: string;
+  dueDate?: string;
+  createdAt?: string;
 };
 
 const columns = ["todo", "in_progress", "review", "done"] as const;
@@ -56,13 +60,11 @@ export function ProjectDetailClient({ id }: { id: string }) {
     <div>
       <PageHeader
         title={project.name}
-        description={`${project.clientName} · Kanban`}
+        description={`${project.clientName} · Gantt & Kanban`}
         actions={<StatusBadge status={project.status} />}
       />
 
-      <div className="mb-4 rounded-xl border border-dashed border-border bg-slate-50/70 p-4 text-sm text-muted-foreground dark:bg-slate-900/30">
-        Gantt chart — à venir. Les tâches proviennent de la base de données.
-      </div>
+      <ProjectGantt tasks={tasks} projectDueDate={project.dueDate} />
 
       <div className="flex gap-4 overflow-x-auto pb-2">
         {columns.map((status) => (

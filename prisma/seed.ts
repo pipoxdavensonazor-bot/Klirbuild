@@ -292,16 +292,196 @@ async function main() {
     });
   }
 
+  const estimateCount = await prisma.constructionEstimate.count({ where: { companyId: company.id } });
+  if (estimateCount === 0) {
+    await prisma.constructionEstimate.createMany({
+      data: constructionEstimates.map((e) => ({
+        id: e.id,
+        companyId: company.id,
+        number: e.number,
+        jobId: e.jobId ?? null,
+        clientName: e.clientName,
+        title: e.title,
+        status: e.status,
+        subtotal: e.subtotal,
+        tps: e.tps,
+        tvq: e.tvq,
+        total: e.total,
+        validUntil: e.validUntil,
+        linesJson: e.lines as object,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const coCount = await prisma.constructionChangeOrder.count({ where: { companyId: company.id } });
+  if (coCount === 0) {
+    await prisma.constructionChangeOrder.createMany({
+      data: changeOrders.map((c) => ({
+        id: c.id,
+        companyId: company.id,
+        number: c.number,
+        jobId: c.jobId,
+        jobName: c.jobName,
+        title: c.title,
+        reason: c.reason,
+        amount: c.amount,
+        status: c.status,
+        submittedAt: c.submittedAt ?? null,
+        approvedAt: c.approvedAt ?? null,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const pinvCount = await prisma.constructionProgressInvoice.count({
+    where: { companyId: company.id },
+  });
+  if (pinvCount === 0) {
+    await prisma.constructionProgressInvoice.createMany({
+      data: progressInvoices.map((p) => ({
+        id: p.id,
+        companyId: company.id,
+        jobId: p.jobId,
+        jobName: p.jobName,
+        number: p.number,
+        periodLabel: p.periodLabel,
+        completionPct: p.completionPct,
+        amount: p.amount,
+        holdback: p.holdback,
+        netDue: p.netDue,
+        status: p.status,
+        dueDate: p.dueDate,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const ccqCount = await prisma.constructionCcqWorker.count({ where: { companyId: company.id } });
+  if (ccqCount === 0) {
+    await prisma.constructionCcqWorker.createMany({
+      data: ccqWorkers.map((w) => ({
+        id: w.id,
+        companyId: company.id,
+        name: w.name,
+        trade: w.trade,
+        competency: w.competency,
+        ccqNumber: w.ccqNumber,
+        cardExpires: w.cardExpires,
+        hoursThisPeriod: w.hoursThisPeriod,
+        apprenticeshipRatioOk: w.apprenticeshipRatioOk,
+        trainingDue: w.trainingDue ?? null,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const declCount = await prisma.constructionCcqDeclaration.count({
+    where: { companyId: company.id },
+  });
+  if (declCount === 0) {
+    await prisma.constructionCcqDeclaration.createMany({
+      data: ccqDeclarations.map((d) => ({
+        id: d.id,
+        companyId: company.id,
+        workerId: d.workerId,
+        workerName: d.workerName,
+        jobId: d.jobId,
+        jobName: d.jobName,
+        trade: d.trade,
+        weekEnding: d.weekEnding,
+        hours: d.hours,
+        status: d.status,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const mktCount = await prisma.constructionMarketingCampaign.count({
+    where: { companyId: company.id },
+  });
+  if (mktCount === 0) {
+    await prisma.constructionMarketingCampaign.createMany({
+      data: marketingCampaigns.map((m) => ({
+        id: m.id,
+        companyId: company.id,
+        name: m.name,
+        channel: m.channel,
+        status: m.status,
+        spend: m.spend,
+        leads: m.leads,
+        contracts: m.contracts,
+        revenue: m.revenue,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   if (!wsExisting) {
     const seeded = defaultWorkspace();
-    seeded.estimates = structuredClone(constructionEstimates);
-    seeded.changeOrders = structuredClone(changeOrders);
-    seeded.ccqWorkers = structuredClone(ccqWorkers);
-    seeded.ccqDeclarations = structuredClone(ccqDeclarations);
-    seeded.progressInvoices = structuredClone(progressInvoices);
-    seeded.marketingCampaigns = structuredClone(marketingCampaigns);
     await prisma.constructionWorkspace.create({
-      data: { companyId: company.id, data: seeded as object },
+      data: { companyId: company.id, data: { aiSuggestions: seeded.aiSuggestions } as object },
+    });
+  }
+
+  const projectCount = await prisma.project.count({ where: { companyId: company.id } });
+  if (projectCount === 0) {
+    const clients = await prisma.client.findMany({
+      where: { companyId: company.id },
+      take: 1,
+      orderBy: { createdAt: "asc" },
+    });
+    const client = clients[0];
+    const project = await prisma.project.create({
+      data: {
+        companyId: company.id,
+        clientId: client?.id,
+        name: "Rénovation condo Plateau",
+        status: "active",
+        progress: 45,
+        budget: 186000,
+        dueDate: new Date("2026-09-30"),
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        {
+          projectId: project.id,
+          title: "Démolition structure",
+          status: "done",
+          priority: "high",
+          assigneeName: "Sam Chen",
+          startDate: new Date("2026-04-15"),
+          dueDate: new Date("2026-05-01"),
+        },
+        {
+          projectId: project.id,
+          title: "Charpenterie",
+          status: "in_progress",
+          priority: "high",
+          assigneeName: "Sam Chen",
+          startDate: new Date("2026-05-02"),
+          dueDate: new Date("2026-06-15"),
+        },
+        {
+          projectId: project.id,
+          title: "Électricité",
+          status: "todo",
+          priority: "medium",
+          assigneeName: "Jordan Lee",
+          startDate: new Date("2026-06-16"),
+          dueDate: new Date("2026-07-20"),
+        },
+        {
+          projectId: project.id,
+          title: "Finitions peinture",
+          status: "todo",
+          priority: "low",
+          assigneeName: "Alex Rivera",
+          startDate: new Date("2026-07-21"),
+          dueDate: new Date("2026-09-15"),
+        },
+      ],
     });
   }
 

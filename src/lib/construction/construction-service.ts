@@ -2,6 +2,27 @@ import { hasDatabase } from "@/lib/auth/auth-service";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 import {
+  deleteConstructionEstimate,
+  deleteConstructionChangeOrder,
+  deleteConstructionCcqDeclaration,
+  deleteConstructionCcqWorker,
+  deleteConstructionMarketingCampaign,
+  deleteConstructionProgressInvoice,
+  listConstructionChangeOrders,
+  listConstructionCcqDeclarations,
+  listConstructionCcqWorkers,
+  listConstructionEstimates,
+  listConstructionMarketingCampaigns,
+  listConstructionProgressInvoices,
+  migrateExtraEntitiesFromJson,
+  upsertConstructionChangeOrder,
+  upsertConstructionCcqDeclaration,
+  upsertConstructionCcqWorker,
+  upsertConstructionEstimate,
+  upsertConstructionMarketingCampaign,
+  upsertConstructionProgressInvoice,
+} from "@/lib/construction/construction-extra-relational";
+import {
   deleteConstructionJob,
   deleteConstructionLead,
   listConstructionJobs,
@@ -17,31 +38,58 @@ import {
   newEntityId,
 } from "@/lib/construction/workspace-types";
 
+const RELATIONAL_KEYS: ConstructionEntityKey[] = [
+  "jobs",
+  "estimates",
+  "changeOrders",
+  "leads",
+  "ccqWorkers",
+  "ccqDeclarations",
+  "progressInvoices",
+  "marketingCampaigns",
+];
+
+function emptyRelational(): Pick<
+  ConstructionWorkspaceData,
+  | "jobs"
+  | "estimates"
+  | "changeOrders"
+  | "leads"
+  | "ccqWorkers"
+  | "ccqDeclarations"
+  | "progressInvoices"
+  | "marketingCampaigns"
+> {
+  return {
+    jobs: [],
+    estimates: [],
+    changeOrders: [],
+    leads: [],
+    ccqWorkers: [],
+    ccqDeclarations: [],
+    progressInvoices: [],
+    marketingCampaigns: [],
+  };
+}
+
 function parseWorkspace(raw: unknown): ConstructionWorkspaceData {
   const base = defaultWorkspace();
   if (!raw || typeof raw !== "object") return base;
   const o = raw as Partial<ConstructionWorkspaceData>;
   return {
-    jobs: [],
-    estimates: Array.isArray(o.estimates) ? o.estimates : base.estimates,
-    changeOrders: Array.isArray(o.changeOrders) ? o.changeOrders : base.changeOrders,
-    leads: [],
-    ccqWorkers: Array.isArray(o.ccqWorkers) ? o.ccqWorkers : base.ccqWorkers,
-    ccqDeclarations: Array.isArray(o.ccqDeclarations)
-      ? o.ccqDeclarations
-      : base.ccqDeclarations,
-    progressInvoices: Array.isArray(o.progressInvoices)
-      ? o.progressInvoices
-      : base.progressInvoices,
-    marketingCampaigns: Array.isArray(o.marketingCampaigns)
-      ? o.marketingCampaigns
-      : base.marketingCampaigns,
+    ...emptyRelational(),
     aiSuggestions: Array.isArray(o.aiSuggestions) ? o.aiSuggestions : base.aiSuggestions,
   };
 }
 
-function stripLegacyJobsLeads(data: ConstructionWorkspaceData): ConstructionWorkspaceData {
-  return { ...data, jobs: [], leads: [] };
+function stripRelationalPayload(data: ConstructionWorkspaceData): ConstructionWorkspaceData {
+  return { ...emptyRelational(), aiSuggestions: data.aiSuggestions };
+}
+
+function legacySlice<T>(raw: unknown, key: string): T[] {
+  if (!raw || typeof raw !== "object") return [];
+  const value = (raw as Record<string, unknown>)[key];
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 async function loadJsonWorkspace(companyId: string): Promise<ConstructionWorkspaceData> {
@@ -52,48 +100,116 @@ async function loadJsonWorkspace(companyId: string): Promise<ConstructionWorkspa
 
   const seeded = defaultWorkspace();
   await prisma.constructionWorkspace.create({
-    data: { companyId, data: stripLegacyJobsLeads(seeded) as object },
+    data: { companyId, data: stripRelationalPayload(seeded) as object },
   });
   return seeded;
+}
+
+async function loadRelationalEntities(companyId: string) {
+  const [
+    jobs,
+    estimates,
+    changeOrders,
+    leads,
+    ccqWorkers,
+    ccqDeclarations,
+    progressInvoices,
+    marketingCampaigns,
+    json,
+  ] = await Promise.all([
+    listConstructionJobs(companyId),
+    listConstructionEstimates(companyId),
+    listConstructionChangeOrders(companyId),
+    listConstructionLeads(companyId),
+    listConstructionCcqWorkers(companyId),
+    listConstructionCcqDeclarations(companyId),
+    listConstructionProgressInvoices(companyId),
+    listConstructionMarketingCampaigns(companyId),
+    loadJsonWorkspace(companyId),
+  ]);
+
+  return {
+    jobs,
+    estimates,
+    changeOrders,
+    leads,
+    ccqWorkers,
+    ccqDeclarations,
+    progressInvoices,
+    marketingCampaigns,
+    aiSuggestions: json.aiSuggestions,
+  };
+}
+
+async function maybeMigrateLegacy(companyId: string) {
+  const row = await prisma.constructionWorkspace.findUnique({ where: { companyId } });
+  if (!row?.data || typeof row.data !== "object") return;
+
+  const raw = row.data as Record<string, unknown>;
+  const legacyJobs = legacySlice<ConstructionWorkspaceData["jobs"][number]>(raw, "jobs");
+  const legacyLeads = legacySlice<ConstructionWorkspaceData["leads"][number]>(raw, "leads");
+  const legacyEstimates = legacySlice<ConstructionWorkspaceData["estimates"][number]>(raw, "estimates");
+  const legacyChangeOrders = legacySlice<ConstructionWorkspaceData["changeOrders"][number]>(
+    raw,
+    "changeOrders"
+  );
+  const legacyProgress = legacySlice<ConstructionWorkspaceData["progressInvoices"][number]>(
+    raw,
+    "progressInvoices"
+  );
+  const legacyCcqWorkers = legacySlice<ConstructionWorkspaceData["ccqWorkers"][number]>(
+    raw,
+    "ccqWorkers"
+  );
+  const legacyCcqDecl = legacySlice<ConstructionWorkspaceData["ccqDeclarations"][number]>(
+    raw,
+    "ccqDeclarations"
+  );
+  const legacyMarketing = legacySlice<ConstructionWorkspaceData["marketingCampaigns"][number]>(
+    raw,
+    "marketingCampaigns"
+  );
+
+  const hasLegacy =
+    legacyJobs.length > 0 ||
+    legacyLeads.length > 0 ||
+    legacyEstimates.length > 0 ||
+    legacyChangeOrders.length > 0 ||
+    legacyProgress.length > 0 ||
+    legacyCcqWorkers.length > 0 ||
+    legacyCcqDecl.length > 0 ||
+    legacyMarketing.length > 0;
+
+  if (!hasLegacy) return;
+
+  await migrateJobsLeadsFromJson(companyId, legacyJobs, legacyLeads);
+  await migrateExtraEntitiesFromJson(companyId, {
+    estimates: legacyEstimates,
+    changeOrders: legacyChangeOrders,
+    progressInvoices: legacyProgress,
+    ccqWorkers: legacyCcqWorkers,
+    ccqDeclarations: legacyCcqDecl,
+    marketingCampaigns: legacyMarketing,
+  });
+
+  const json = parseWorkspace(row.data);
+  await prisma.constructionWorkspace.update({
+    where: { companyId },
+    data: { data: stripRelationalPayload(json) as object },
+  });
 }
 
 async function loadWorkspace(companyId: string): Promise<ConstructionWorkspaceData> {
   if (!hasDatabase()) return defaultWorkspace();
 
-  const row = await prisma.constructionWorkspace.findUnique({
-    where: { companyId },
-  });
-
-  const legacyJobs = row && Array.isArray((row.data as { jobs?: unknown }).jobs)
-    ? ((row.data as { jobs: ConstructionWorkspaceData["jobs"] }).jobs ?? [])
-    : [];
-  const legacyLeads = row && Array.isArray((row.data as { leads?: unknown }).leads)
-    ? ((row.data as { leads: ConstructionWorkspaceData["leads"] }).leads ?? [])
-    : [];
-
-  if (legacyJobs.length > 0 || legacyLeads.length > 0) {
-    await migrateJobsLeadsFromJson(companyId, legacyJobs, legacyLeads);
-    const json = parseWorkspace(row?.data);
-    await prisma.constructionWorkspace.upsert({
-      where: { companyId },
-      create: { companyId, data: stripLegacyJobsLeads(json) as object },
-      update: { data: stripLegacyJobsLeads(json) as object },
-    });
-  }
-
-  const [jobs, leads, json] = await Promise.all([
-    listConstructionJobs(companyId),
-    listConstructionLeads(companyId),
-    loadJsonWorkspace(companyId),
-  ]);
-
-  return { ...json, jobs, leads };
+  await maybeMigrateLegacy(companyId);
+  return loadRelationalEntities(companyId);
 }
 
 async function saveJsonWorkspace(companyId: string, data: ConstructionWorkspaceData) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const payload = stripLegacyJobsLeads(data);
+  const payload = stripRelationalPayload(data);
   await prisma.constructionWorkspace.upsert({
     where: { companyId },
     create: { companyId, data: payload as object },
@@ -120,27 +236,75 @@ const idPrefixes: Record<ConstructionEntityKey, string> = {
   marketingCampaigns: "mkt",
 };
 
+type UpsertFn = (
+  companyId: string,
+  input: { id?: string; data: EntityRecord }
+) => Promise<{ item?: unknown; error?: string }>;
+
+type DeleteFn = (companyId: string, id: string) => Promise<{ ok?: true; error?: string }>;
+
+const upsertHandlers: Record<ConstructionEntityKey, UpsertFn> = {
+  jobs: (cid, input) =>
+    upsertConstructionJob(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["jobs"][number]>,
+    }),
+  leads: (cid, input) =>
+    upsertConstructionLead(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["leads"][number]>,
+    }),
+  estimates: (cid, input) =>
+    upsertConstructionEstimate(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["estimates"][number]>,
+    }),
+  changeOrders: (cid, input) =>
+    upsertConstructionChangeOrder(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["changeOrders"][number]>,
+    }),
+  progressInvoices: (cid, input) =>
+    upsertConstructionProgressInvoice(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["progressInvoices"][number]>,
+    }),
+  ccqWorkers: (cid, input) =>
+    upsertConstructionCcqWorker(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["ccqWorkers"][number]>,
+    }),
+  ccqDeclarations: (cid, input) =>
+    upsertConstructionCcqDeclaration(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["ccqDeclarations"][number]>,
+    }),
+  marketingCampaigns: (cid, input) =>
+    upsertConstructionMarketingCampaign(cid, {
+      id: input.id,
+      data: input.data as Partial<ConstructionWorkspaceData["marketingCampaigns"][number]>,
+    }),
+};
+
+const deleteHandlers: Record<ConstructionEntityKey, DeleteFn> = {
+  jobs: deleteConstructionJob,
+  leads: deleteConstructionLead,
+  estimates: deleteConstructionEstimate,
+  changeOrders: deleteConstructionChangeOrder,
+  progressInvoices: deleteConstructionProgressInvoice,
+  ccqWorkers: deleteConstructionCcqWorker,
+  ccqDeclarations: deleteConstructionCcqDeclaration,
+  marketingCampaigns: deleteConstructionMarketingCampaign,
+};
+
 export async function upsertConstructionEntity(
   companyId: string,
   entity: ConstructionEntityKey,
   input: { id?: string; data: EntityRecord }
 ) {
-  if (entity === "jobs") {
-    const result = await upsertConstructionJob(companyId, {
-      id: input.id,
-      data: input.data as Partial<ConstructionWorkspaceData["jobs"][number]>,
-    });
-    if ("error" in result) return result;
-    const workspace = await loadWorkspace(companyId);
-    return { item: result.item, workspace };
-  }
-
-  if (entity === "leads") {
-    const result = await upsertConstructionLead(companyId, {
-      id: input.id,
-      data: input.data as Partial<ConstructionWorkspaceData["leads"][number]>,
-    });
-    if ("error" in result) return result;
+  if (RELATIONAL_KEYS.includes(entity)) {
+    const result = await upsertHandlers[entity](companyId, input);
+    if ("error" in result && result.error) return result;
     const workspace = await loadWorkspace(companyId);
     return { item: result.item, workspace };
   }
@@ -168,16 +332,9 @@ export async function deleteConstructionEntity(
   entity: ConstructionEntityKey,
   id: string
 ) {
-  if (entity === "jobs") {
-    const result = await deleteConstructionJob(companyId, id);
-    if ("error" in result) return result;
-    const workspace = await loadWorkspace(companyId);
-    return { workspace };
-  }
-
-  if (entity === "leads") {
-    const result = await deleteConstructionLead(companyId, id);
-    if ("error" in result) return result;
+  if (RELATIONAL_KEYS.includes(entity)) {
+    const result = await deleteHandlers[entity](companyId, id);
+    if ("error" in result && result.error) return result;
     const workspace = await loadWorkspace(companyId);
     return { workspace };
   }

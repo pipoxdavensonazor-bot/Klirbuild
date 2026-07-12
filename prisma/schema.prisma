@@ -77,8 +77,14 @@ model Company {
   apiKeys            ApiKey[]
   emailMessages      EmailMessage[]
   constructionWorkspace ConstructionWorkspace?
-  constructionJobs   ConstructionJob[]
-  constructionLeads  ConstructionLead[]
+  constructionJobs              ConstructionJob[]
+  constructionLeads             ConstructionLead[]
+  constructionEstimates         ConstructionEstimate[]
+  constructionChangeOrders        ConstructionChangeOrder[]
+  constructionProgressInvoices    ConstructionProgressInvoice[]
+  constructionCcqWorkers          ConstructionCcqWorker[]
+  constructionCcqDeclarations     ConstructionCcqDeclaration[]
+  constructionMarketingCampaigns  ConstructionMarketingCampaign[]
   socialAccounts     SocialAccountConnection[]
   socialCampaigns    SocialAdCampaignRecord[]
   zernioProfileId    String?
@@ -419,6 +425,7 @@ model Task {
   status      String    @default("todo")
   priority    String    @default("medium")
   assigneeName String?
+  startDate   DateTime?
   dueDate     DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -591,6 +598,122 @@ model ConstructionLead {
   updatedAt     DateTime @updatedAt
 
   @@index([companyId, stage])
+}
+
+model ConstructionEstimate {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  number     String
+  jobId      String?
+  clientName String
+  title      String
+  status     String
+  subtotal   Decimal  @default(0) @db.Decimal(14, 2)
+  tps        Decimal  @default(0) @db.Decimal(14, 2)
+  tvq        Decimal  @default(0) @db.Decimal(14, 2)
+  total      Decimal  @default(0) @db.Decimal(14, 2)
+  validUntil String
+  linesJson  Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+}
+
+model ConstructionChangeOrder {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  number      String
+  jobId       String
+  jobName     String
+  title       String
+  reason      String
+  amount      Decimal  @default(0) @db.Decimal(14, 2)
+  status      String
+  submittedAt String?
+  approvedAt  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, jobId])
+}
+
+model ConstructionProgressInvoice {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobId         String
+  jobName       String
+  number        String
+  periodLabel   String
+  completionPct Int      @default(0)
+  amount        Decimal  @default(0) @db.Decimal(14, 2)
+  holdback      Decimal  @default(0) @db.Decimal(14, 2)
+  netDue        Decimal  @default(0) @db.Decimal(14, 2)
+  status        String
+  dueDate       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, jobId])
+}
+
+model ConstructionCcqWorker {
+  id                    String   @id @default(cuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                  String
+  trade                 String
+  competency            String
+  ccqNumber             String
+  cardExpires           String
+  hoursThisPeriod       Decimal  @default(0) @db.Decimal(8, 2)
+  apprenticeshipRatioOk Boolean  @default(true)
+  trainingDue           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model ConstructionCcqDeclaration {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workerId   String
+  workerName String
+  jobId      String
+  jobName    String
+  trade      String
+  weekEnding String
+  hours      Decimal  @default(0) @db.Decimal(8, 2)
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, weekEnding])
+}
+
+model ConstructionMarketingCampaign {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  channel   String
+  status    String
+  spend     Decimal  @default(0) @db.Decimal(14, 2)
+  leads     Int      @default(0)
+  contracts Int      @default(0)
+  revenue   Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, status])
 }
 
 model EmployeeProfile {

@@ -10,7 +10,9 @@ export type TaskDto = {
   status: string;
   priority: string;
   assigneeName?: string;
+  startDate?: string;
   dueDate?: string;
+  createdAt?: string;
 };
 
 function mapTask(row: {
@@ -20,7 +22,9 @@ function mapTask(row: {
   status: string;
   priority: string;
   assigneeName: string | null;
+  startDate: Date | null;
   dueDate: Date | null;
+  createdAt: Date;
   project: { name: string };
 }): TaskDto {
   return {
@@ -31,7 +35,9 @@ function mapTask(row: {
     status: row.status,
     priority: row.priority,
     assigneeName: row.assigneeName ?? undefined,
+    startDate: row.startDate?.toISOString().slice(0, 10),
     dueDate: row.dueDate?.toISOString().slice(0, 10),
+    createdAt: row.createdAt.toISOString().slice(0, 10),
   };
 }
 
@@ -59,6 +65,7 @@ export async function upsertTask(
     status?: string;
     priority?: string;
     assigneeName?: string;
+    startDate?: string;
     dueDate?: string;
   }
 ) {
@@ -90,6 +97,7 @@ export async function upsertTask(
         ...(input.assigneeName !== undefined
           ? { assigneeName: input.assigneeName || null }
           : {}),
+        ...(input.startDate ? { startDate: new Date(input.startDate) } : {}),
         ...(input.dueDate ? { dueDate: new Date(input.dueDate) } : {}),
       },
       include: { project: { select: { name: true } } },
@@ -104,6 +112,7 @@ export async function upsertTask(
       status: input.status ?? "todo",
       priority: input.priority ?? "medium",
       assigneeName: input.assigneeName ?? null,
+      startDate: input.startDate ? new Date(input.startDate) : null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
     },
     include: { project: { select: { name: true } } },
