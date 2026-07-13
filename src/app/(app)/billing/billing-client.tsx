@@ -13,6 +13,7 @@ import {
   subscriptionPlans,
   type SubscriptionPlanId,
 } from "@/lib/billing/plans";
+import { apiUrl } from "@/lib/api-client";
 import { useSessionStore } from "@/lib/workforce/session";
 import { cn } from "@/lib/utils";
 
@@ -43,23 +44,28 @@ export default function BillingPage() {
   const current = getPlan(planId);
 
   useEffect(() => {
-    fetch("/api/billing/subscription")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.plan) {
-          syncBilling({
-            plan: d.plan,
-            billingCycle: d.billingCycle,
-            subscriptionStatus: d.subscriptionStatus,
-            stripeCustomerId: d.stripeCustomerId,
-          });
+    fetch(apiUrl("/api/billing/subscription"), { credentials: "include" })
+      .then((r) => {
+        if (r.status === 401) {
+          window.location.href = `/login?next=${encodeURIComponent("/billing")}`;
+          return null;
         }
+        return r.json();
+      })
+      .then((d) => {
+        if (!d?.plan) return;
+        syncBilling({
+          plan: d.plan,
+          billingCycle: d.billingCycle,
+          subscriptionStatus: d.subscriptionStatus,
+          stripeCustomerId: d.stripeCustomerId,
+        });
       })
       .catch(() => undefined);
   }, [syncBilling]);
 
   useEffect(() => {
-    fetch("/api/stripe/status")
+    fetch(apiUrl("/api/stripe/status"))
       .then((r) => r.json())
       .then((d) => setStripeStatus(d))
       .catch(() =>
@@ -80,7 +86,12 @@ export default function BillingPage() {
     const sessionId = searchParams.get("session_id");
 
     if (checkout === "success" && sessionId) {
-      fetch(`/api/stripe/checkout-session?session_id=${encodeURIComponent(sessionId)}`)
+      fetch(
+        apiUrl(
+          `/api/stripe/checkout-session?session_id=${encodeURIComponent(sessionId)}`
+        ),
+        { credentials: "include" }
+      )
         .then((r) => r.json())
         .then((d) => {
           if (d.ok && d.plan) {
@@ -109,7 +120,7 @@ export default function BillingPage() {
     setError("");
     setPortalLoading(true);
     try {
-      const res = await fetch("/api/stripe/portal", {
+      const res = await fetch(apiUrl("/api/stripe/portal"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -117,6 +128,10 @@ export default function BillingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = `/login?next=${encodeURIComponent("/billing")}`;
+          return;
+        }
         setError(data.error || "Portail indisponible");
         return;
       }
@@ -140,19 +155,22 @@ export default function BillingPage() {
     if (stripeStatus?.configured && stripeStatus.connected) {
       setLoadingPlan(id);
       try {
-        const res = await fetch("/api/stripe/checkout", {
+        const res = await fetch(apiUrl("/api/stripe/checkout"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
             plan: id,
             cycle: billingCycle,
-            email: "billing@klirline.demo",
             customerId: stripeCustomerId,
           }),
         });
         const data = await res.json();
         if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = `/login?next=${encodeURIComponent("/billing")}`;
+            return;
+          }
           setError(data.error || "Erreur Checkout");
           if (res.status === 400 || res.status === 503) {
             setPlan(id);

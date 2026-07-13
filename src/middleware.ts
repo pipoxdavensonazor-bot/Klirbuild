@@ -47,18 +47,20 @@ export function middleware(request: NextRequest) {
   }
 
   const session = request.cookies.get("klirline_session");
-  if (!session) {
+  const parsed = session?.value ? parseSessionCookie(session.value) : null;
+  if (!parsed) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    if (session?.value) {
+      response.cookies.set("klirline_session", "", { path: "/", maxAge: 0 });
+    }
+    return response;
   }
 
-  const parsed = parseSessionCookie(session.value);
   const response = NextResponse.next();
-  if (parsed?.role) {
-    response.headers.set("x-klirline-role", parsed.role);
-  }
+  response.headers.set("x-klirline-role", parsed.role);
   return response;
 }
 

@@ -8,7 +8,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { parseApiResponse } from "@/lib/api-client";
+import { apiUrl, parseApiResponse } from "@/lib/api-client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -29,9 +29,10 @@ export function LoginForm() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
       const data = await parseApiResponse(res);

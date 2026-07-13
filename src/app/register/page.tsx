@@ -8,7 +8,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { parseApiResponse } from "@/lib/api-client";
+import { apiUrl, parseApiResponse } from "@/lib/api-client";
 
 function RegisterForm() {
   const router = useRouter();
@@ -49,7 +49,9 @@ function RegisterForm() {
     setLoading(true);
     setError("");
     try {
-      const url = inviteToken ? "/api/auth/accept-invite" : "/api/auth/register";
+      const url = inviteToken
+        ? apiUrl("/api/auth/accept-invite")
+        : apiUrl("/api/auth/register");
       const body = inviteToken
         ? { token: inviteToken, name, password }
         : { name, email, companyName: company, password };
@@ -57,6 +59,7 @@ function RegisterForm() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       const data = await parseApiResponse(res);
