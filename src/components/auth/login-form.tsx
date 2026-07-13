@@ -18,11 +18,19 @@ export function LoginForm() {
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
 
   useEffect(() => {
     const err = searchParams.get("error");
     if (err) setError(decodeURIComponent(err));
   }, [searchParams]);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/health"))
+      .then((r) => r.json())
+      .then((d) => setGoogleEnabled(Boolean(d?.checks?.googleOAuth?.ok)))
+      .catch(() => setGoogleEnabled(false));
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,12 +97,20 @@ export function LoginForm() {
               variant="outline"
               className="mt-3 w-full"
               type="button"
+              disabled={!googleEnabled}
               onClick={() => {
-                window.location.href = `/api/auth/google?next=${encodeURIComponent(next)}`;
+                window.location.href = apiUrl(
+                  `/api/auth/google?next=${encodeURIComponent(next)}`
+                );
               }}
             >
               Continuer avec Google
             </Button>
+            {!googleEnabled ? (
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Connexion Google bientôt disponible — utilisez email et mot de passe.
+              </p>
+            ) : null}
             <div className="mt-3 flex justify-between text-xs text-muted-foreground">
               <Link href="/forgot-password" className="hover:underline">
                 Mot de passe oublié
