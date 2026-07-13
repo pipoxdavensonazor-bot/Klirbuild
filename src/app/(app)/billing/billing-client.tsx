@@ -14,6 +14,7 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/billing/plans";
 import { apiUrl } from "@/lib/api-client";
+import { EnterpriseContactForm } from "@/components/billing/enterprise-contact-form";
 import { useSessionStore } from "@/lib/workforce/session";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ export default function BillingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
+  const [enterpriseFormOpen, setEnterpriseFormOpen] = useState(false);
   const current = getPlan(planId);
 
   useEffect(() => {
@@ -148,7 +150,7 @@ export default function BillingPage() {
     setMessage("");
 
     if (id === "enterprise") {
-      setMessage("Contactez Contact@klirline.ca pour un devis Enterprise.");
+      setEnterpriseFormOpen(true);
       return;
     }
 
@@ -192,6 +194,12 @@ export default function BillingPage() {
 
   return (
     <div>
+      <EnterpriseContactForm
+        open={enterpriseFormOpen}
+        onClose={() => setEnterpriseFormOpen(false)}
+        onSent={setMessage}
+        onError={setError}
+      />
       <PageHeader
         title="Abonnements KlirBuild"
         description="Choisissez un plan. Paiement via Stripe Checkout (cartes + méthodes activées dans le Dashboard)."
