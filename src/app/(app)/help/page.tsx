@@ -56,11 +56,10 @@ export default function HelpPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardContent className="p-5 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Tutoriels vidéo intégrés</p>
+              <p className="font-medium text-foreground">Tutoriels vidéo</p>
               <p className="mt-2">
-                Les administrateurs peuvent enregistrer l&apos;écran et la caméra directement
-                avec <strong>Loom</strong>. Après l&apos;enregistrement, publiez le lien dans
-                Netlify :
+                Enregistrez avec <strong>Loom</strong> (bouton Studio ci-dessous), puis publiez
+                le lien dans Netlify :
               </p>
               <ul className="mt-3 list-inside list-disc space-y-1">
                 <li>

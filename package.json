@@ -20,15 +20,7 @@
     "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
   },
   "dependencies": {
-    "@atlaskit/icon": "^36.2.0",
-    "@atlaskit/icon-lab": "^7.3.1",
-    "@atlaskit/tokens": "^11.4.3",
-    "@emotion/cache": "^11.14.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.4.0",
-    "@loomhq/loom-embed": "^1.7.0",
-    "@loomhq/record-sdk": "^4.9.1",
     "@netlify/blobs": "^10.7.9",
     "@netlify/database": "^1.1.0",
     "@prisma/client": "5.22.0",
