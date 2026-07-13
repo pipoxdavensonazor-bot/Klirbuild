@@ -18,17 +18,9 @@ const DEMO_AUTH_BYPASS =
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const host = request.headers.get("host")?.split(":")[0];
 
   if (apiRequiresDatabase(pathname) && !hasDatabaseUrl()) {
     return databaseRequiredResponse();
-  }
-
-  // Redirige le domaine apex vers www, sauf les appels API (évite les POST cassés).
-  if (host === "klirline.app" && !pathname.startsWith("/api/")) {
-    const url = request.nextUrl.clone();
-    url.host = "www.klirline.app";
-    return NextResponse.redirect(url, 308);
   }
 
   if (

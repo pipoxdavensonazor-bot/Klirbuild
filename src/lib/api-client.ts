@@ -1,11 +1,11 @@
-/** Évite les redirections 308 apex → www qui cassent certains POST. */
+/** Netlify redirige www → apex ; les POST doivent cibler klirline.app directement. */
 export function apiUrl(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   if (
     typeof window !== "undefined" &&
-    window.location.hostname === "klirline.app"
+    window.location.hostname === "www.klirline.app"
   ) {
-    return `https://www.klirline.app${normalized}`;
+    return `https://klirline.app${normalized}`;
   }
   return normalized;
 }
@@ -19,7 +19,7 @@ export async function parseApiResponse(res: Response) {
     throw new Error(
       res.ok
         ? "Réponse serveur invalide"
-        : `Erreur serveur (${res.status}). Réessayez sur https://www.klirline.app`
+        : `Erreur serveur (${res.status}). Réessayez sur https://klirline.app`
     );
   }
 }
