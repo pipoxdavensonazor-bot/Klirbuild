@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     emails,
     inboxAddress,
     hasResend: Boolean(process.env.RESEND_API_KEY?.trim()),
+    hasResendInbound: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
     inboundWebhookUrl: `${appUrl.replace(/\/$/, "")}/api/resend/webhook`,
     companyName: emailContext.companyName,
     senderName: emailContext.senderName,

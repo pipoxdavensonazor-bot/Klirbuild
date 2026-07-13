@@ -21,6 +21,7 @@ export function InboxPageClient() {
   const [inboxAddress, setInboxAddress] = useState("");
   const [senderName, setSenderName] = useState("");
   const [hasResend, setHasResend] = useState(false);
+  const [hasResendInbound, setHasResendInbound] = useState(false);
   const [inboundWebhookUrl, setInboundWebhookUrl] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [composeClientId, setComposeClientId] = useState(filterClientId);
@@ -37,6 +38,7 @@ export function InboxPageClient() {
     setInboxAddress(data.inboxAddress ?? "");
     setSenderName(data.senderName ?? data.companyName ?? "");
     setHasResend(Boolean(data.hasResend));
+    setHasResendInbound(Boolean(data.hasResendInbound));
     setInboundWebhookUrl(data.inboundWebhookUrl ?? "");
     setSelected((prev) => prev ?? data.emails?.[0] ?? null);
   }, [filterClientId]);
@@ -103,16 +105,31 @@ export function InboxPageClient() {
           L&apos;envoi automatique n&apos;est pas encore activé sur la plateforme.
           Contactez l&apos;administrateur système pour configurer Resend.
         </div>
-      ) : inboundWebhookUrl ? (
-        <div className="mb-4 rounded-lg border border-border bg-slate-50/70 px-4 py-3 text-sm dark:bg-slate-900/40">
-          <p className="font-medium">Réception entrante (Resend)</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+      ) : hasResendInbound && inboundWebhookUrl ? (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+          <p className="font-medium">Réception entrante active (Resend)</p>
+          <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
             Webhook <code className="rounded bg-muted px-1">email.received</code> →{" "}
             <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          {inboxAddress ? (
+            <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
+              Adresse boîte entreprise :{" "}
+              <code className="rounded bg-muted px-1">{inboxAddress}</code>
+            </p>
+          ) : null}
+        </div>
+      ) : inboundWebhookUrl ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          <p className="font-medium">Réception entrante (Resend)</p>
+          <p className="mt-1 text-xs">
+            Webhook <code className="rounded bg-muted px-1">email.received</code> →{" "}
+            <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>
+          </p>
+          <p className="mt-1 text-xs">
             Configurez <code className="rounded bg-muted px-1">RESEND_WEBHOOK_SECRET</code> sur
-            Netlify et routez le domaine de réception vers l&apos;adresse boîte entreprise ci-dessous.
+            Netlify et routez le domaine de réception vers l&apos;adresse boîte entreprise
+            ci-dessous.
           </p>
         </div>
       ) : null}
