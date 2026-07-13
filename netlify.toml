@@ -14,7 +14,8 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
+    # camera + microphone needed for Loom Record SDK (tutoriels Centre d'aide)
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(self)"
 
 [[headers]]
   for = "/api/health"
