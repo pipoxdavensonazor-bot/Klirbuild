@@ -63,7 +63,7 @@ export function LoginForm() {
     <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(26,54,93,0.1),_transparent_42%),linear-gradient(180deg,#f5f6f8,#e8ecf1)] dark:from-slate-950">
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
+          <CardHeader className="items-center text-center">
             <KlirBuildLogo className="mb-3 h-[64px] w-[176px]" priority />
             <CardTitle>Connexion à KlirBuild</CardTitle>
             <p className="text-sm text-muted-foreground">
