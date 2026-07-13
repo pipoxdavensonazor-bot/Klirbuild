@@ -92,7 +92,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   return (
     <>
-      <header className="relative sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenu}>
           <Menu className="h-4 w-4" />
         </Button>
@@ -100,7 +100,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         <KlirBuildLogo
           variant="full"
           priority
-          className="absolute left-1/2 h-[34px] w-[96px] shrink-0 -translate-x-1/2 lg:hidden"
+          className="h-[34px] w-[96px] shrink-0 lg:hidden"
         />
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground md:flex">
