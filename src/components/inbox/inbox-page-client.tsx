@@ -113,10 +113,16 @@ export function InboxPageClient() {
             <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>
           </p>
           {inboxAddress ? (
-            <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
-              Adresse boîte entreprise :{" "}
-              <code className="rounded bg-muted px-1">{inboxAddress}</code>
-            </p>
+            <>
+              <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
+                Adresse dédiée :{" "}
+                <code className="rounded bg-muted px-1">{inboxAddress}</code>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
+                Publiez cette adresse, ou transférez votre courriel professionnel vers
+                celle-ci pour recevoir les messages ici.
+              </p>
+            </>
           ) : null}
         </div>
       ) : inboundWebhookUrl ? (

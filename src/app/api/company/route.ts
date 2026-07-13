@@ -1,7 +1,26 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { requireSession } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
+import { ensureCompanyInboxEmail } from "@/lib/email/company-email";
 import { NextResponse } from "next/server";
+
+const companySelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  website: true,
+  emailFrom: true,
+  inboxEmail: true,
+  emailSenderName: true,
+  logoUrl: true,
+  brandingPrimary: true,
+  brandingAccent: true,
+  plan: true,
+  subscriptionStatus: true,
+  marketRegion: true,
+  enabledModules: true,
+} as const;
 
 export async function GET() {
   const session = await requireSession();
@@ -11,25 +30,11 @@ export async function GET() {
     return NextResponse.json({ error: "Base de données requise." }, { status: 503 });
   }
 
+  await ensureCompanyInboxEmail(session.companyId);
+
   const company = await prisma.company.findUnique({
     where: { id: session.companyId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      website: true,
-      emailFrom: true,
-      inboxEmail: true,
-      emailSenderName: true,
-      logoUrl: true,
-      brandingPrimary: true,
-      brandingAccent: true,
-      plan: true,
-      subscriptionStatus: true,
-      marketRegion: true,
-      enabledModules: true,
-    },
+    select: companySelect,
   });
 
   if (!company) {
@@ -56,7 +61,6 @@ export async function PATCH(request: Request) {
     "phone",
     "website",
     "emailFrom",
-    "inboxEmail",
     "emailSenderName",
     "logoUrl",
     "brandingPrimary",
@@ -76,26 +80,14 @@ export async function PATCH(request: Request) {
 
   if (typeof data.email === "string") data.email = data.email.toLowerCase();
   if (typeof data.emailFrom === "string") data.emailFrom = data.emailFrom.toLowerCase();
-  if (typeof data.inboxEmail === "string") data.inboxEmail = data.inboxEmail.toLowerCase();
+
+  // inboxEmail is platform-managed — never accept client writes
+  await ensureCompanyInboxEmail(session.companyId);
 
   const company = await prisma.company.update({
     where: { id: session.companyId },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      website: true,
-      emailFrom: true,
-      inboxEmail: true,
-      emailSenderName: true,
-      logoUrl: true,
-      brandingPrimary: true,
-      brandingAccent: true,
-      marketRegion: true,
-      enabledModules: true,
-    },
+    select: companySelect,
   });
 
   return NextResponse.json({ company });

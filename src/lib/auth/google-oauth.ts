@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
 import { hasDatabase } from "@/lib/auth/auth-service";
-import { deriveCompanyEmailFields } from "@/lib/email/company-email";
+import {
+  allocateCompanyInboxEmail,
+  deriveCompanyEmailFields,
+} from "@/lib/email/company-email";
 import { hashPassword } from "@/lib/auth/password";
 
 export function isGoogleOAuthConfigured() {
@@ -93,9 +96,12 @@ export async function loginOrRegisterGoogleUser(profile: {
   }
 
   if (!user) {
+    const companyName = profile.name ?? email.split("@")[0];
+    const inboxEmail = await allocateCompanyInboxEmail(companyName);
     const emailFields = deriveCompanyEmailFields({
-      companyName: profile.name ?? email.split("@")[0],
+      companyName,
       adminEmail: email,
+      inboxEmail,
     });
     const company = await prisma.company.create({
       data: {

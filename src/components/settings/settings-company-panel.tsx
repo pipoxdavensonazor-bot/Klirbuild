@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { apiUrl } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ export function SettingsCompanyPanel() {
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(apiUrl("/api/company"), { credentials: "include" });
@@ -40,6 +42,17 @@ export function SettingsCompanyPanel() {
     load();
   }, [load]);
 
+  async function copyInbox() {
+    if (!company?.inboxEmail) return;
+    try {
+      await navigator.clipboard.writeText(company.inboxEmail);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setMessage("Impossible de copier l'adresse.");
+    }
+  }
+
   async function save() {
     if (!company) return;
     setSaving(true);
@@ -48,7 +61,14 @@ export function SettingsCompanyPanel() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(company),
+      body: JSON.stringify({
+        name: company.name,
+        email: company.email,
+        phone: company.phone,
+        website: company.website,
+        emailFrom: company.emailFrom,
+        emailSenderName: company.emailSenderName,
+      }),
     });
     const data = await res.json();
     setSaving(false);
@@ -56,7 +76,9 @@ export function SettingsCompanyPanel() {
       setMessage(data.error ?? "Erreur lors de la sauvegarde.");
       return;
     }
-    setMessage("Profil entreprise synchronisé — les courriels partiront au nom de votre entreprise.");
+    setMessage(
+      "Profil entreprise synchronisé — les courriels partiront au nom de votre entreprise."
+    );
     if (data.company) {
       setCompany({
         name: data.company.name ?? "",
@@ -122,16 +144,27 @@ export function SettingsCompanyPanel() {
             />
           </div>
           <div className="sm:col-span-2">
-            <p className="mb-1 text-xs text-muted-foreground">Boîte de réception entreprise</p>
-            <Input
-              value={company.inboxEmail}
-              onChange={(e) => setCompany({ ...company, inboxEmail: e.target.value })}
-            />
+            <p className="mb-1 text-xs text-muted-foreground">
+              Boîte de réception KlirBuild (dédiée)
+            </p>
+            <div className="flex gap-2">
+              <Input value={company.inboxEmail} readOnly className="font-mono text-sm" />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                onClick={copyInbox}
+                title="Copier l'adresse"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Les réponses de vos clients sont acheminées vers votre boîte. Le nom affiché
-          est celui de votre entreprise.
+          Adresse plateforme unique. Publiez-la auprès de vos clients, ou transférez
+          votre courriel professionnel vers cette adresse pour recevoir les messages
+          dans KlirBuild. Le nom affiché à l&apos;envoi reste celui de votre entreprise.
         </p>
       </div>
       {message ? (

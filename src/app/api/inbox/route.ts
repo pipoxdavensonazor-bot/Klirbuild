@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
-import { getCompanyEmailContext } from "@/lib/email/company-email";
+import {
+  ensureCompanyInboxEmail,
+  getCompanyEmailContext,
+} from "@/lib/email/company-email";
 import {
   companyInboxAddress,
   listEmails,
@@ -19,6 +22,7 @@ async function companyId() {
 
 export async function GET(request: Request) {
   const cid = await companyId();
+  await ensureCompanyInboxEmail(cid);
   const clientId = new URL(request.url).searchParams.get("clientId") ?? undefined;
   const emails = await listEmails(cid, clientId);
   const inboxAddress = await companyInboxAddress(cid);

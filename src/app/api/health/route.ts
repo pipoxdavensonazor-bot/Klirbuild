@@ -106,7 +106,7 @@ export async function GET(request: Request) {
     resendInbound: {
       ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
       detail: process.env.RESEND_WEBHOOK_SECRET?.trim()
-        ? undefined
+        ? `domaine: ${process.env.INBOUND_EMAIL_DOMAIN?.trim() || "inbox.klirline.ca"}`
         : "RESEND_WEBHOOK_SECRET manquant — réception entrante non sécurisée",
       tier: "optional",
     },

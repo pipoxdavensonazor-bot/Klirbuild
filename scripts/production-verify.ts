@@ -121,6 +121,12 @@ const checks: Check[] = [
     tier: "optional",
   },
   {
+    name: "INBOUND_EMAIL_DOMAIN (adresses dédiées)",
+    ok: true,
+    hint: `Défaut inbox.klirline.ca — actuel: ${process.env.INBOUND_EMAIL_DOMAIN?.trim() || "inbox.klirline.ca"}`,
+    tier: "optional",
+  },
+  {
     name: "ZERNIO_API_KEY (marketing réseaux)",
     ok: Boolean(process.env.ZERNIO_API_KEY?.trim()),
     hint: "Publication auto Instagram, Facebook, LinkedIn… via Zernio",
