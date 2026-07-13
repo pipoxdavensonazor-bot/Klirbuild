@@ -146,8 +146,8 @@ export function InvoicesPageClient() {
         window.open(String(data.mailto), "_blank");
         setMessage(
           data.paymentUrl
-            ? `Courriel préparé pour ${data.to} (mode démo) — lien Stripe inclus.`
-            : `Courriel préparé pour ${data.to} (mode démo).`
+            ? `Courriel préparé pour ${data.to} — lien Stripe inclus.`
+            : `Courriel préparé pour ${data.to}.`
         );
       } else {
         setMessage(

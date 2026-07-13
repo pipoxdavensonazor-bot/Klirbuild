@@ -75,7 +75,7 @@ export function mockKeywordReply(message: string, regionId: MarketRegionId) {
   ) {
     tool = "constructionBrief";
     reply =
-      "Mode démo local : connectez OPENAI_API_KEY pour des réponses construction intelligentes basées sur vos chantiers réels. En attendant, consultez Construction OS → Chantiers et IA Chantier.";
+      "Réponses locales : connectez OPENAI_API_KEY pour des réponses construction intelligentes basées sur vos chantiers réels. En attendant, consultez Construction OS → Chantiers et IA Chantier.";
   }
 
   return { reply, tool, market: market.id };

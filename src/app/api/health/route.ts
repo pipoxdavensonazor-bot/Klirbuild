@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       ok: Boolean(process.env.OPENAI_API_KEY?.trim()),
       detail: process.env.OPENAI_API_KEY?.trim()
         ? undefined
-        : "OPENAI_API_KEY manquant — IA en mode démo",
+        : "OPENAI_API_KEY manquant — réponses locales limitées",
       tier: "optional",
     },
     resend: {

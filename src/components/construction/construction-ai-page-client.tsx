@@ -108,7 +108,7 @@ export function ConstructionAiPageClient() {
             <CardTitle>Assistant</CardTitle>
             {provider && (
               <span className="text-xs text-muted-foreground">
-                {provider === "openai" ? "OpenAI actif" : "Mode démo local"}
+                {provider === "openai" ? "OpenAI actif" : "Réponses locales"}
               </span>
             )}
           </CardHeader>

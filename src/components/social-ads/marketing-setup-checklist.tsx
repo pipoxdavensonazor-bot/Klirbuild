@@ -55,7 +55,7 @@ export function MarketingSetupChecklist({ error, provider, onRetry }: Props) {
     },
     {
       id: "seed",
-      label: "Données démo (seed)",
+      label: "Données initiales (seed)",
       ok: checks?.seed?.ok,
       detail: checks?.seed?.detail ?? "Exécutez npm run db:seed sur Neon",
       fix: "npm run db:seed",

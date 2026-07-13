@@ -32,8 +32,8 @@ async function main() {
     where: { id: DEMO_COMPANY_ID },
     create: {
       id: DEMO_COMPANY_ID,
-      name: "KlirBuild Demo Co",
-      email: "billing@klirline.demo",
+      name: "KlirBuild",
+      email: "billing@klirline.app",
       plan: "growth",
       subscriptionStatus: "trialing",
       enabledModules: ["construction-os", "crm", "payroll", "social_ads"],

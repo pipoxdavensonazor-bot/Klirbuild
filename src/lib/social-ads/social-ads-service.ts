@@ -113,7 +113,7 @@ async function ensureCompanyExists(companyId: string, companyName: string) {
     await prisma.company.create({
       data: {
         id: DEMO_COMPANY_ID,
-        name: companyName || "KlirBuild Demo Co",
+        name: companyName || "KlirBuild",
         email: "billing@klirline.demo",
         plan: "growth",
         subscriptionStatus: "trialing",

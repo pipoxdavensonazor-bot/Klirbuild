@@ -91,7 +91,7 @@ export function QuotesPageClient() {
       if (actionName === "send") {
         if (data.simulated && data.mailto) {
           window.open(String(data.mailto), "_blank");
-          setMessage(`Courriel préparé pour ${data.to} (mode démo).`);
+          setMessage(`Courriel préparé pour ${data.to}.`);
         } else {
           setMessage(`Soumission envoyée à ${data.to}`);
         }

@@ -37,7 +37,7 @@ export const runtime = "nodejs";
 async function companyContext() {
   const session = await getRequestSession();
   if (!session) {
-    return { companyId: DEMO_COMPANY_ID, companyName: "KlirBuild Demo" };
+    return { companyId: DEMO_COMPANY_ID, companyName: "KlirBuild" };
   }
   const enriched = await enrichSession(session);
   let companyName = "Mon entreprise";

@@ -19,10 +19,11 @@ export function hasDatabase() {
 
 export async function authenticateUser(email: string, password: string) {
   if (!hasDatabase()) {
-    const demoOk =
+    if (process.env.NODE_ENV === "production") return null;
+    const devOk =
       (email === "alex@klirline.demo" && password === "password") ||
       email.endsWith("@klirline.demo");
-    if (!demoOk) return null;
+    if (!devOk) return null;
     return {
       email,
       companyId: DEMO_COMPANY_ID,

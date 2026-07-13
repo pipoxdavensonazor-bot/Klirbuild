@@ -172,12 +172,6 @@ export default function BillingPage() {
             return;
           }
           setError(data.error || "Erreur Checkout");
-          if (res.status === 400 || res.status === 503) {
-            setPlan(id);
-            setMessage(
-              `Plan ${getPlan(id).name} activé en mode démo (Stripe: ${data.error}).`
-            );
-          }
           return;
         }
         if (data.url) {
@@ -193,10 +187,7 @@ export default function BillingPage() {
       return;
     }
 
-    setPlan(id);
-    setMessage(
-      `Plan ${getPlan(id).name} activé (démo). Ajoutez STRIPE_SECRET_KEY + Price IDs dans .env.local pour payer réellement.`
-    );
+    setError("Paiement indisponible — Stripe n'est pas connecté. Contactez le support.");
   }
 
   return (
@@ -411,7 +402,7 @@ export default function BillingPage() {
                       ) : stripeStatus?.configured ? (
                         `Configurer Stripe`
                       ) : (
-                        `Choisir ${plan.name} (démo)`
+                        `Choisir ${plan.name}`
                       )}
                     </Button>
                   )}

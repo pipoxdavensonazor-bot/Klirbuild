@@ -17,8 +17,8 @@ import type {
 
 export const demoCompany: Company = {
   id: "co_klirline_demo",
-  name: "Klirline Demo Co",
-  email: "ops@klirline.demo",
+  name: "KlirBuild",
+  email: "ops@klirline.app",
   phone: "+1 (514) 555-0142",
   website: "https://www.klirline.ca/",
   plan: "growth",
@@ -283,7 +283,7 @@ export const payments: Payment[] = [
   {
     id: "pay_2",
     invoiceNumber: "SUB-GROWTH",
-    clientName: "Klirline Demo Co",
+    clientName: "KlirBuild",
     amount: 149,
     currency: "CAD",
     status: "succeeded",

@@ -274,7 +274,7 @@ export default function SettingsPage() {
             {tab === "Audit Logs" ? (
               <div className="space-y-2 text-sm">
                 {[
-                  "Alex Rivera invited sam@klirline.demo",
+                  "Alex Rivera a invité un membre d'équipe",
                   "Invoice INV-2026-097 marked overdue",
                   "Growth plan trial started",
                 ].map((row) => (
