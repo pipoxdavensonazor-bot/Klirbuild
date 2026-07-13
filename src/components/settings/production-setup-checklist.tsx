@@ -130,7 +130,7 @@ export function ProductionSetupChecklist() {
           <p className="mt-3 text-xs">
             Webhook Stripe :{" "}
             <code className="rounded bg-muted px-1">
-              {(health?.appUrl ?? "https://www.klirline.app") + "/api/stripe/webhook"}
+              {(health?.appUrl ?? "https://klirline.app") + "/api/stripe/webhook"}
             </code>
           </p>
         </div>

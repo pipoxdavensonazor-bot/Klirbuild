@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/ui/badge";
 import { getPlan } from "@/lib/billing/plans";
 import { moduleRegistry } from "@/modules/registry";
 import { useSessionStore } from "@/lib/workforce/session";
@@ -16,6 +15,7 @@ import { SettingsUsersPanel } from "@/components/settings/settings-users-panel";
 import { SettingsCompanyPanel } from "@/components/settings/settings-company-panel";
 import { SettingsRolesPanel } from "@/components/settings/settings-roles-panel";
 import { ProductionSetupChecklist } from "@/components/settings/production-setup-checklist";
+import { IntegrationStatusCards } from "@/components/settings/integration-status-cards";
 import { SettingsSecurityPanel } from "@/components/settings/settings-security-panel";
 import { SettingsApiKeysPanel } from "@/components/settings/settings-api-keys-panel";
 
@@ -196,15 +196,7 @@ export default function SettingsPage() {
                       </a>
                     </p>
                   </div>
-                  {["Stripe", "Google OAuth", "OpenAI"].map((name) => (
-                    <div key={name} className="rounded-lg border border-border p-4">
-                      <p className="font-medium">{name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Configure via environment variables
-                      </p>
-                      <StatusBadge status="pending" />
-                    </div>
-                  ))}
+                  <IntegrationStatusCards />
                 </div>
               </div>
             ) : null}
