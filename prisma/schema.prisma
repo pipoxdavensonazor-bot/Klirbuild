@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -831,26 +832,59 @@ model JournalEntry {
 }
 
 model TeamChannel {
-  id        String            @id @default(cuid())
-  companyId String
-  name      String
-  type      String            @default("company")
-  encrypted Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  messages  TeamChatMessage[]
+  id            String              @id @default(cuid())
+  companyId     String
+  name          String
+  description   String?
+  type          String              @default("company")
+  encrypted     Boolean             @default(true)
+  allowedRoles  String[]            @default([])
+  createdById   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  messages      TeamChatMessage[]
+  members       TeamChannelMember[]
 
   @@index([companyId])
 }
 
 model TeamChatMessage {
-  id         String      @id @default(cuid())
-  channelId  String
-  channel    TeamChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  senderId   String?
-  senderName String
-  body       String
-  encrypted  Boolean     @default(true)
-  createdAt  DateTime    @default(now())
+  id          String               @id @default(cuid())
+  channelId   String
+  channel     TeamChannel          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId    String?
+  senderName  String
+  body        String
+  encrypted   Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  attachments TeamChatAttachment[]
 
   @@index([channelId, createdAt])
+}
+
+model TeamChannelMember {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   TeamChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String?
+  email     String
+  role      Role?
+  createdAt DateTime    @default(now())
+
+  @@unique([channelId, email])
+  @@index([email])
+}
+
+model TeamChatAttachment {
+  id          String          @id @default(cuid())
+  messageId   String
+  message     TeamChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  name        String
+  mimeType    String
+  sizeBytes   Int             @default(0)
+  storageKey  String
+  url         String
+  createdAt   DateTime        @default(now())
+
+  @@index([messageId])
 }

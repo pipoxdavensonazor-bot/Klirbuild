@@ -1,8 +1,18 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
+import type { Role } from "@/types";
 
 const COMPANY_CHANNEL_NAME = "Équipe — Général";
+
+export type ChatAttachmentDto = {
+  id?: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+  url: string;
+};
 
 export type ChatMessageDto = {
   id: string;
@@ -12,6 +22,7 @@ export type ChatMessageDto = {
   body: string;
   at: string;
   encrypted: boolean;
+  attachments: ChatAttachmentDto[];
 };
 
 async function ensureCompanyChannel(companyId: string) {
@@ -39,6 +50,14 @@ function mapRow(row: {
   body: string;
   encrypted: boolean;
   createdAt: Date;
+  attachments?: {
+    id: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+    storageKey: string;
+    url: string;
+  }[];
 }): ChatMessageDto {
   return {
     id: row.id,
@@ -48,18 +67,79 @@ function mapRow(row: {
     body: row.body,
     at: row.createdAt.toISOString(),
     encrypted: row.encrypted,
+    attachments: row.attachments ?? [],
   };
 }
 
 const emptyChat = (email: string, senderName: string) => ({
   channelId: "",
   channelName: COMPANY_CHANNEL_NAME,
-  channels: [] as { id: string; name: string; type: "company" | "site"; encrypted: boolean }[],
+  channels: [] as ChannelDto[],
   messages: [] as ChatMessageDto[],
   me: { email, name: senderName },
+  users: [] as ChatUserDto[],
 });
 
-export async function listTeamChat(companyId: string, email: string, senderName: string) {
+export type ChannelDto = {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: string;
+  encrypted: boolean;
+  allowedRoles: string[];
+  members: { email: string; role?: Role | null }[];
+};
+
+export type ChatUserDto = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+};
+
+function userCanAccessChannel(
+  channel: {
+    type: string;
+    createdById: string | null;
+    allowedRoles: string[];
+    members: { email: string; role: Role | null }[];
+  },
+  email: string,
+  role: Role
+) {
+  if (channel.type === "company") return true;
+  if (!channel.allowedRoles.length && !channel.members.length) return true;
+  if (channel.createdById === email) return true;
+  if (channel.allowedRoles.includes(role)) return true;
+  return channel.members.some((m) => m.email.toLowerCase() === email.toLowerCase());
+}
+
+function mapChannel(channel: {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  encrypted: boolean;
+  allowedRoles: string[];
+  members: { email: string; role: Role | null }[];
+}): ChannelDto {
+  return {
+    id: channel.id,
+    name: channel.name,
+    description: channel.description,
+    type: channel.type,
+    encrypted: channel.encrypted,
+    allowedRoles: channel.allowedRoles,
+    members: channel.members.map((m) => ({ email: m.email, role: m.role })),
+  };
+}
+
+export async function listTeamChat(
+  companyId: string,
+  email: string,
+  senderName: string,
+  role: Role
+) {
   if (!hasDatabase()) return emptyChat(email, senderName);
 
   const channel = await ensureCompanyChannel(companyId);
@@ -67,45 +147,59 @@ export async function listTeamChat(companyId: string, email: string, senderName:
     where: { channelId: channel.id },
     orderBy: { createdAt: "asc" },
     take: 200,
+    include: { attachments: true },
   });
-  const siteChannels = await prisma.teamChannel.findMany({
-    where: { companyId, type: "site" },
+  const allChannels = await prisma.teamChannel.findMany({
+    where: { companyId },
+    include: { members: true },
     orderBy: { name: "asc" },
   });
+  const users = await prisma.user.findMany({
+    where: { companyId },
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { name: "asc" },
+  });
+  const visibleChannels = allChannels
+    .filter((c) => userCanAccessChannel(c, email, role))
+    .sort((a, b) => (a.type === "company" ? -1 : b.type === "company" ? 1 : a.name.localeCompare(b.name)));
+
   return {
     channelId: channel.id,
     channelName: channel.name,
-    channels: [
-      { id: channel.id, name: channel.name, type: "company" as const, encrypted: true },
-      ...siteChannels.map((c) => ({
-        id: c.id,
-        name: c.name,
-        type: "site" as const,
-        encrypted: c.encrypted,
-      })),
-    ],
+    channels: visibleChannels.map(mapChannel),
     messages: rows.map(mapRow),
     me: { email, name: senderName },
+    users,
   };
 }
 
 export async function sendTeamChatMessage(input: {
   companyId: string;
   email: string;
+  role: Role;
   senderName: string;
   body: string;
   channelId?: string;
+  attachments?: ChatAttachmentDto[];
 }) {
   const body = input.body.trim();
-  if (!body) return { error: "Message vide." as const };
+  const attachments = input.attachments ?? [];
+  if (!body && !attachments.length) return { error: "Message ou fichier requis." as const };
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const channel = input.channelId
     ? await prisma.teamChannel.findFirst({
         where: { id: input.channelId, companyId: input.companyId },
+        include: { members: true },
       })
-    : await ensureCompanyChannel(input.companyId);
+    : await prisma.teamChannel.findFirst({
+        where: { id: (await ensureCompanyChannel(input.companyId)).id },
+        include: { members: true },
+      });
   if (!channel) return { error: "Canal introuvable." as const };
+  if (!userCanAccessChannel(channel, input.email, input.role)) {
+    return { error: "Accès au canal refusé." as const };
+  }
 
   const row = await prisma.teamChatMessage.create({
     data: {
@@ -114,22 +208,98 @@ export async function sendTeamChatMessage(input: {
       senderName: input.senderName,
       body,
       encrypted: true,
+      attachments: {
+        create: attachments.map((a) => ({
+          name: a.name,
+          mimeType: a.mimeType,
+          sizeBytes: a.sizeBytes,
+          storageKey: a.storageKey,
+          url: a.url,
+        })),
+      },
     },
+    include: { attachments: true },
   });
   return { message: mapRow(row) };
 }
 
-export async function listChannelMessages(companyId: string, channelId: string) {
+export async function listChannelMessages(
+  companyId: string,
+  channelId: string,
+  email: string,
+  role: Role
+) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   const channel = await prisma.teamChannel.findFirst({
     where: { id: channelId, companyId },
+    include: { members: true },
   });
   if (!channel) return { error: "Canal introuvable." as const };
+  if (!userCanAccessChannel(channel, email, role)) {
+    return { error: "Accès au canal refusé." as const };
+  }
   const rows = await prisma.teamChatMessage.findMany({
     where: { channelId },
     orderBy: { createdAt: "asc" },
     take: 300,
+    include: { attachments: true },
   });
   return { messages: rows.map(mapRow), channel };
+}
+
+export async function createTeamChannel(input: {
+  companyId: string;
+  creatorEmail: string;
+  name: string;
+  description?: string;
+  allowedRoles?: Role[];
+  memberEmails?: string[];
+}) {
+  if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
+  const name = input.name.trim();
+  if (!name) return { error: "Nom du groupe requis." as const };
+
+  const users = await prisma.user.findMany({
+    where: {
+      companyId: input.companyId,
+      email: { in: [...new Set([...(input.memberEmails ?? []), input.creatorEmail])] },
+    },
+    select: { id: true, email: true, role: true },
+  });
+  const members = users.map((u) => ({
+    userId: u.id,
+    email: u.email,
+    role: u.role,
+  }));
+
+  const channel = await prisma.teamChannel.create({
+    data: {
+      companyId: input.companyId,
+      name,
+      description: input.description?.trim() || null,
+      type: "group",
+      encrypted: true,
+      allowedRoles: input.allowedRoles ?? [],
+      createdById: input.creatorEmail,
+      members: { create: members },
+    },
+    include: { members: true },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      companyId: input.companyId,
+      actorId: input.creatorEmail,
+      action: "team_channel.created",
+      meta: {
+        channelId: channel.id,
+        name,
+        allowedRoles: input.allowedRoles ?? [],
+        memberEmails: members.map((m) => m.email),
+      },
+    },
+  });
+
+  return { channel: mapChannel(channel) };
 }
