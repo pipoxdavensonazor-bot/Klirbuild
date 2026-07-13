@@ -105,37 +105,13 @@ export function InboxPageClient() {
           L&apos;envoi automatique n&apos;est pas encore activé sur la plateforme.
           Contactez l&apos;administrateur système pour configurer Resend.
         </div>
-      ) : hasResendInbound && inboundWebhookUrl ? (
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
-          <p className="font-medium">Réception entrante active (Resend)</p>
-          <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
-            Webhook <code className="rounded bg-muted px-1">email.received</code> →{" "}
-            <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>
-          </p>
-          {inboxAddress ? (
-            <>
-              <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
-                Adresse dédiée :{" "}
-                <code className="rounded bg-muted px-1">{inboxAddress}</code>
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground dark:text-emerald-100/80">
-                Publiez cette adresse, ou transférez votre courriel professionnel vers
-                celle-ci pour recevoir les messages ici.
-              </p>
-            </>
-          ) : null}
-        </div>
-      ) : inboundWebhookUrl ? (
+      ) : !hasResendInbound && inboundWebhookUrl ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          <p className="font-medium">Réception entrante (Resend)</p>
-          <p className="mt-1 text-xs">
-            Webhook <code className="rounded bg-muted px-1">email.received</code> →{" "}
-            <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>
-          </p>
+          <p className="font-medium">Réception entrante incomplète</p>
           <p className="mt-1 text-xs">
             Configurez <code className="rounded bg-muted px-1">RESEND_WEBHOOK_SECRET</code> sur
-            Netlify et routez le domaine de réception vers l&apos;adresse boîte entreprise
-            ci-dessous.
+            Netlify pour sécuriser{" "}
+            <code className="break-all rounded bg-muted px-1">{inboundWebhookUrl}</code>.
           </p>
         </div>
       ) : null}
@@ -193,6 +169,12 @@ export function InboxPageClient() {
           Courriels envoyés au nom de <strong>{senderName || "votre entreprise"}</strong>
           {" · "}{inbound} reçus · {outbound} envoyés
         </p>
+        {hasResendInbound && inboxAddress ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Les messages envoyés à cette adresse (ou transférés depuis votre courriel
+            professionnel) apparaissent ici.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
