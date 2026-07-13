@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@loomhq/loom-embed": "^1.7.0",
+    "@loomhq/record-sdk": "^4.9.1",
     "@netlify/blobs": "^10.7.9",
     "@netlify/database": "^1.1.0",
     "@prisma/client": "5.22.0",

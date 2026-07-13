@@ -28,6 +28,7 @@ import {
   Wallet,
   Workflow,
   ClipboardList,
+  GraduationCap,
 } from "lucide-react";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,7 @@ const coreNav: NavDef[] = [
   { href: "/markets", label: "Marchés US/CA/CB", icon: Globe2, planFeature: "markets" },
   { href: "/compliance", label: "Conformité", icon: ClipboardList, permission: "settings:manage", planFeature: "compliance_hub" },
   { href: "/auto-pilot", label: "Auto-Pilot", icon: Workflow, permission: "automations:manage", planFeature: "auto_pilot" },
+  { href: "/help", label: "Centre d'aide", icon: GraduationCap, planFeature: "dashboard" },
   { href: "/settings", label: "Settings", icon: Settings, permission: "settings:manage" },
 ];
 

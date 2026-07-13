@@ -43,6 +43,7 @@ const commands = [
   { label: "Klir AI", href: "/ai" },
   { label: "Mon profil", href: "/profile" },
   { label: "Settings", href: "/settings" },
+  { label: "Centre d'aide", href: "/help" },
 ];
 
 const roles: Role[] = ALL_ROLES;

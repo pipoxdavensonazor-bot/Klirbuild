@@ -32,6 +32,7 @@ import { getMarket } from "@/lib/markets/regions";
 import { useSessionStore } from "@/lib/workforce/session";
 import { TimeclockDashboardWidget } from "@/components/dashboard/timeclock-dashboard-widget";
 import { TeamChatDashboardWidget } from "@/components/dashboard/team-chat-dashboard-widget";
+import { GettingStartedChecklist } from "@/components/help/getting-started-checklist";
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -115,6 +116,10 @@ export default function DashboardPage() {
 
       <div className="mb-6">
         <TeamChatDashboardWidget />
+      </div>
+
+      <div className="mb-6 max-w-md">
+        <GettingStartedChecklist />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

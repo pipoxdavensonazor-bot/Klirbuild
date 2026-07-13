@@ -68,6 +68,7 @@ export const ROUTE_PLAN_FEATURE: Record<string, PlanFeatureKey | undefined> = {
   "/compliance": "compliance_hub",
   "/settings": "dashboard",
   "/billing": "dashboard",
+  "/help": "dashboard",
 };
 
 export const subscriptionPlans: SubscriptionPlan[] = [
