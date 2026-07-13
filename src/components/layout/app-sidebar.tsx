@@ -114,11 +114,11 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
         collapsed ? "w-[80px]" : "w-[280px]"
       )}
     >
-      <div className={cn("flex w-full justify-center px-3 py-5", collapsed && "px-2")}>
+      <div className={cn("px-3 py-5", collapsed && "flex justify-center px-2")}>
         {collapsed ? (
           <KlirBuildLogo variant="mark" shape="circle" priority className="h-9 w-9" />
         ) : (
-          <div className="flex flex-col items-center space-y-2">
+          <div className="flex flex-col items-start space-y-2">
             <KlirBuildLogo variant="full" priority className="h-[52px] w-[148px]" />
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/50">
               Construction OS
