@@ -6,6 +6,7 @@ import {
   listPayrollEmployees,
   listPayslips,
 } from "@/lib/payroll/payroll-service";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { canApp } from "@/lib/workforce/types";
 
 export const runtime = "nodejs";
@@ -18,6 +19,9 @@ export async function GET() {
   if (!canApp(enriched.role, "payroll:read")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
+
+  const denied = await requireCompanyPlanFeature(enriched.companyId, "payroll");
+  if (denied) return denied;
 
   const [payslips, employees] = await Promise.all([
     listPayslips(enriched.companyId),
@@ -34,6 +38,9 @@ export async function POST(request: Request) {
   if (!canApp(enriched.role, "payroll:manage")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
+
+  const denied = await requireCompanyPlanFeature(enriched.companyId, "payroll");
+  if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "";

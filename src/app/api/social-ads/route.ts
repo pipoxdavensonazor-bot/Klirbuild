@@ -31,6 +31,7 @@ import {
 } from "@/lib/social-ads/zernio-connections-service";
 import { ZernioApiError } from "@/lib/social-ads/zernio-client";
 import type { SocialPlatform } from "@/lib/reports/types";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
@@ -54,6 +55,8 @@ async function companyContext() {
 export async function GET(request: Request) {
   try {
     const { companyId, companyName } = await companyContext();
+    const denied = await requireCompanyPlanFeature(companyId, "social_ads");
+    if (denied) return denied;
     const url = new URL(request.url);
     const platform = url.searchParams.get("platform") as SocialPlatform | null;
 
@@ -130,6 +133,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const { companyId, companyName } = await companyContext();
+  const denied = await requireCompanyPlanFeature(companyId, "social_ads");
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "connect";
 

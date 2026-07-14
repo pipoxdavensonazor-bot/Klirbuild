@@ -160,5 +160,15 @@ export async function handleResendInboundEvent(event: ResendReceivedEvent) {
     return { error: record.error };
   }
 
+  const { createNotification } = await import(
+    "@/lib/notifications/notification-service"
+  );
+  await createNotification({
+    companyId,
+    title: "Nouveau courriel reçu",
+    body: subject,
+    href: "/inbox",
+  });
+
   return { ok: true as const, email: record, companyId, clientId };
 }

@@ -8,6 +8,7 @@ import {
   upsertConstructionEntity,
 } from "@/lib/construction/construction-service";
 import type { ConstructionEntityKey } from "@/lib/construction/workspace-types";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
@@ -31,12 +32,16 @@ async function companyId() {
 
 export async function GET() {
   const cid = await companyId();
+  const denied = await requireCompanyPlanFeature(cid, "construction_os");
+  if (denied) return denied;
   const result = await getConstructionWorkspace(cid);
   return NextResponse.json(result);
 }
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  const denied = await requireCompanyPlanFeature(cid, "construction_os");
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "upsert";
 

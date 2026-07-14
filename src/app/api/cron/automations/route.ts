@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { runAllActiveAutomations } from "@/lib/automations/automation-runner";
+import { authorizeCronRequest } from "@/lib/cron/authorize-cron";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return process.env.NODE_ENV !== "production";
-  const header = request.headers.get("authorization");
-  return header === `Bearer ${secret}`;
-}
-
 export async function POST(request: Request) {
-  if (!authorized(request)) {
+  if (!authorizeCronRequest(request)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

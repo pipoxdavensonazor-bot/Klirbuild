@@ -128,6 +128,16 @@ export async function createInvitation(input: {
     },
   });
 
+  const { createNotification } = await import(
+    "@/lib/notifications/notification-service"
+  );
+  await createNotification({
+    companyId,
+    title: "Invitation envoyée",
+    body: `${email} · rôle ${role}`,
+    href: "/settings",
+  });
+
   const origin = appUrl();
   const inviteUrl = `${origin}/register?invite=${token}`;
 

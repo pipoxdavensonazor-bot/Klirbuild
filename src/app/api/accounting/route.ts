@@ -6,6 +6,7 @@ import {
   listJournalEntries,
   listLedgerAccounts,
 } from "@/lib/accounting/accounting-service";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,8 @@ async function cid() {
 
 export async function GET() {
   const companyId = await cid();
+  const denied = await requireCompanyPlanFeature(companyId, "accounting");
+  if (denied) return denied;
   const [accounts, entries] = await Promise.all([
     listLedgerAccounts(companyId),
     listJournalEntries(companyId),
@@ -25,8 +28,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const companyId = await cid();
+  const denied = await requireCompanyPlanFeature(companyId, "accounting");
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
-  const result = await createJournalEntry(await cid(), {
+  const result = await createJournalEntry(companyId, {
     date: typeof body.date === "string" ? body.date : new Date().toISOString().slice(0, 10),
     memo: typeof body.memo === "string" ? body.memo : "",
     debitAccount: typeof body.debitAccount === "string" ? body.debitAccount : "",

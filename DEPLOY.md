@@ -10,13 +10,18 @@ Guide pas à pas pour déployer KlirBuild sur Netlify en production.
 - [x] Schéma Prisma (`db push` au build Netlify)
 - [x] `DEMO_AUTH_BYPASS=false` en production (middleware ignore le bypass en prod)
 - [x] `NEXT_PUBLIC_APP_URL` — défini dans `netlify.toml` + health
-- [ ] Stripe configuré (`npm run stripe:setup` + variables Netlify)
-- [ ] `STRIPE_WEBHOOK_SECRET` + webhook prod
-- [ ] `npm run production:verify` → core + billing ✅
-- [ ] Intégrations optionnelles : Zernio, Google OAuth, OpenAI, Resend, CRON_SECRET
+- [x] Stripe configuré (`npm run stripe:setup` + variables Netlify)
+- [x] `STRIPE_WEBHOOK_SECRET` + webhook prod
+- [ ] `CRON_SECRET` (cron automations + factures récurrentes)
+- [ ] `ZERNIO_API_KEY` (optionnel marketing)
+- [x] Resend outbound + inbound (`RESEND_*`, domaine `inbox.klirline.ca`)
+- [x] Google OAuth
+- [ ] `npm run production:verify` → core + billing ✅ (+ optionnels)
 
-**État actuel prod** (`/api/health`) : base OK, **Stripe manquant** → status `degraded`.
+**État actuel prod** (`/api/health`) : **ready** (core + billing). Optionnels : CRON_SECRET, Zernio.
 Configurez les variables dans **Settings → Integrations** (checklist intégrée).
+
+Voir aussi `.env.example` pour la liste complète.
 
 ---
 

@@ -4,6 +4,7 @@ import {
   availableT4TaxYears,
   buildT4SlipsForCompany,
 } from "@/lib/reports/t4-service";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { canApp } from "@/lib/workforce/types";
 
 export const runtime = "nodejs";
@@ -16,6 +17,9 @@ export async function GET(request: Request) {
   if (!canApp(enriched.role, "payroll:read")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
+
+  const denied = await requireCompanyPlanFeature(enriched.companyId, "t4");
+  if (denied) return denied;
 
   const url = new URL(request.url);
   const taxYear = Number(url.searchParams.get("taxYear")) || new Date().getFullYear();

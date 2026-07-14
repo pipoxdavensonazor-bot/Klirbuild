@@ -6,6 +6,7 @@ import { mockKeywordReply } from "@/lib/ai/mock-replies";
 import { openAiChat, type ChatTurn } from "@/lib/ai/openai-client";
 import { constructionSystemPrompt, generalSystemPrompt } from "@/lib/ai/prompts";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { getMarket, type MarketRegionId } from "@/lib/markets/regions";
 
 export const runtime = "nodejs";
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
 
   const market = getMarket(regionId);
   const { companyId, email } = await resolveSession();
+  const denied = await requireCompanyPlanFeature(companyId, "ai");
+  if (denied) return denied;
   const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
 
   let reply: string;

@@ -18,6 +18,7 @@ import { ProductionSetupChecklist } from "@/components/settings/production-setup
 import { IntegrationStatusCards } from "@/components/settings/integration-status-cards";
 import { SettingsSecurityPanel } from "@/components/settings/settings-security-panel";
 import { SettingsApiKeysPanel } from "@/components/settings/settings-api-keys-panel";
+import { SettingsAuditLogsPanel } from "@/components/settings/settings-audit-logs-panel";
 
 const tabs = [
   "Company",
@@ -263,19 +264,7 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            {tab === "Audit Logs" ? (
-              <div className="space-y-2 text-sm">
-                {[
-                  "Alex Rivera a invité un membre d'équipe",
-                  "Invoice INV-2026-097 marked overdue",
-                  "Growth plan trial started",
-                ].map((row) => (
-                  <div key={row} className="rounded-lg border border-border p-3">
-                    {row}
-                  </div>
-                ))}
-              </div>
-            ) : null}
+            {tab === "Audit Logs" ? <SettingsAuditLogsPanel /> : null}
           </CardContent>
         </Card>
       </div>

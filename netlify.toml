@@ -26,8 +26,13 @@
   command = "npm run dev"
   targetPort = 3000
 
-# Cron quotidien — automations (factures en retard, leads, etc.)
-# Définir CRON_SECRET sur Netlify ; appeler avec Authorization: Bearer <secret>
+# Crons Netlify — définir CRON_SECRET ; Authorization: Bearer <secret> requis en prod
+# Automations (factures en retard, leads, etc.) — 09:00 America/Toronto ≈ 13:00 UTC
 [[scheduled.functions]]
   path = "/api/cron/automations"
   schedule = "0 13 * * *"
+
+# Factures récurrentes — toutes les heures
+[[scheduled.functions]]
+  path = "/api/cron/recurring-invoices"
+  schedule = "15 * * * *"

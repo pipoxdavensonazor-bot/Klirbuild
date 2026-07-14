@@ -7,6 +7,7 @@ import {
   runCompanyAutomations,
   upsertAutomation,
 } from "@/lib/automations/automation-service";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,10 @@ async function cid() {
 }
 
 export async function GET() {
-  const automations = await listAutomations(await cid());
+  const companyId = await cid();
+  const denied = await requireCompanyPlanFeature(companyId, "automations");
+  if (denied) return denied;
+  const automations = await listAutomations(companyId);
   return NextResponse.json({ automations });
 }
 
@@ -25,6 +29,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "upsert";
   const companyId = await cid();
+  const denied = await requireCompanyPlanFeature(companyId, "automations");
+  if (denied) return denied;
 
   if (action === "run") {
     const id = typeof body.id === "string" ? body.id : "";

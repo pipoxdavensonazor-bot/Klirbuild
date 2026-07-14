@@ -77,6 +77,7 @@ model Company {
   auditLogs          AuditLog[]
   apiKeys            ApiKey[]
   emailMessages      EmailMessage[]
+  notifications      Notification[]
   constructionWorkspace ConstructionWorkspace?
   constructionJobs              ConstructionJob[]
   constructionLeads             ConstructionLead[]
@@ -516,6 +517,21 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([companyId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  title     String
+  body      String?
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, readAt])
 }
 
 model ApiKey {

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu, Moon, Search, Sun, Command } from "lucide-react";
+import { Menu, Moon, Search, Sun, Command } from "lucide-react";
 import { ProfileMenu } from "@/components/profile/profile-menu";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { useTheme } from "next-themes";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { Button } from "@/components/ui/button";
@@ -180,9 +181,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           <Moon className="hidden h-4 w-4 dark:block" />
         </Button>
 
-        <Button variant="ghost" size="icon" aria-label="Notifications">
-          <Bell className="h-4 w-4" />
-        </Button>
+        <NotificationsBell />
 
         <ProfileMenu />
       </header>
