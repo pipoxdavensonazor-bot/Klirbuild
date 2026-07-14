@@ -103,6 +103,13 @@ export async function GET(request: Request) {
         : "RESEND_API_KEY manquant — courriels désactivés",
       tier: "optional",
     },
+    daily: {
+      ok: Boolean(process.env.DAILY_API_KEY?.trim()),
+      detail: process.env.DAILY_API_KEY?.trim()
+        ? `domaine: ${process.env.NEXT_PUBLIC_DAILY_DOMAIN?.trim() || "klirbuild.daily.co"}`
+        : "DAILY_API_KEY manquant — visio en mode démo",
+      tier: "optional",
+    },
     resendInbound: {
       ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
       detail: process.env.RESEND_WEBHOOK_SECRET?.trim()

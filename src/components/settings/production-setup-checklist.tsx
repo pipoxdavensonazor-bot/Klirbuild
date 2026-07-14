@@ -32,6 +32,8 @@ const NETLIFY_VARS: { key: string; hint: string; tier: "billing" | "optional" }[
   { key: "GOOGLE_CLIENT_SECRET", hint: "OAuth Google", tier: "optional" },
   { key: "OPENAI_API_KEY", hint: "Klir AI en direct", tier: "optional" },
   { key: "RESEND_API_KEY", hint: "Courriels transactionnels", tier: "optional" },
+  { key: "DAILY_API_KEY", hint: "Visio + live streaming", tier: "optional" },
+  { key: "NEXT_PUBLIC_DAILY_DOMAIN", hint: "ex. klirbuild.daily.co", tier: "optional" },
 ];
 
 export function ProductionSetupChecklist() {

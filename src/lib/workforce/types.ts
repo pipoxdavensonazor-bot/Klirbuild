@@ -33,6 +33,10 @@ export const WORKFORCE_PERMISSIONS = [
   "chat:use",
   "chat:moderate",
   "location:view",
+  "meetings:join",
+  "meetings:host",
+  "posts:write",
+  "live:host",
 ] as const;
 
 export type WorkforcePermission = (typeof WORKFORCE_PERMISSIONS)[number];

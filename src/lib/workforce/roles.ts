@@ -9,7 +9,11 @@ type WorkforcePermission =
   | "accounting:manage"
   | "chat:use"
   | "chat:moderate"
-  | "location:view";
+  | "location:view"
+  | "meetings:join"
+  | "meetings:host"
+  | "posts:write"
+  | "live:host";
 
 export type AppPermission = Permission | WorkforcePermission;
 
@@ -17,6 +21,7 @@ export type AppPermission = Permission | WorkforcePermission;
 export const UNIVERSAL_EMPLOYEE_PERMISSIONS = [
   "timeclock:use",
   "chat:use",
+  "meetings:join",
 ] as const satisfies readonly AppPermission[];
 
 export type RoleCategory = "direction" | "chantier" | "bureau" | "support";
@@ -77,7 +82,10 @@ export const ROLE_DEFINITIONS: Record<
         "payroll:manage",
         "accounting:manage",
         "chat:moderate",
-        "location:view"
+        "location:view",
+        "meetings:host",
+        "posts:write",
+        "live:host"
       )
     ),
   },
@@ -111,7 +119,10 @@ export const ROLE_DEFINITIONS: Record<
         "payroll:manage",
         "accounting:manage",
         "chat:moderate",
-        "location:view"
+        "location:view",
+        "meetings:host",
+        "posts:write",
+        "live:host"
       )
     ),
   },
@@ -133,7 +144,15 @@ export const ROLE_DEFINITIONS: Record<
         "ai:use",
         "analytics:read",
       ],
-      wf("timeclock:manage", "payroll:read", "chat:moderate", "location:view")
+      wf(
+        "timeclock:manage",
+        "payroll:read",
+        "chat:moderate",
+        "location:view",
+        "meetings:host",
+        "posts:write",
+        "live:host"
+      )
     ),
   },
   SITE_SUPERVISOR: {
@@ -142,7 +161,13 @@ export const ROLE_DEFINITIONS: Record<
     category: "chantier",
     ...base(
       ["projects:read", "projects:write", "documents:read", "documents:write"],
-      wf("timeclock:manage", "chat:moderate", "location:view")
+      wf(
+        "timeclock:manage",
+        "chat:moderate",
+        "location:view",
+        "meetings:host",
+        "posts:write"
+      )
     ),
   },
   FOREMAN: {
@@ -215,7 +240,7 @@ export const ROLE_DEFINITIONS: Record<
     category: "bureau",
     ...base(
       ["crm:read", "crm:write", "quotes:read", "invoices:read", "projects:read", "documents:read"],
-      wf()
+      wf("posts:write", "meetings:host")
     ),
   },
   MANAGER: {
@@ -237,7 +262,16 @@ export const ROLE_DEFINITIONS: Record<
         "ai:use",
         "analytics:read",
       ],
-      wf("timeclock:manage", "payroll:read", "accounting:read", "chat:moderate", "location:view")
+      wf(
+        "timeclock:manage",
+        "payroll:read",
+        "accounting:read",
+        "chat:moderate",
+        "location:view",
+        "meetings:host",
+        "posts:write",
+        "live:host"
+      )
     ),
   },
   EMPLOYEE: {

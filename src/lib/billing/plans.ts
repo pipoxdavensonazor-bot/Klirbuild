@@ -14,6 +14,7 @@ export type PlanFeatureKey =
   | "t4"
   | "social_ads"
   | "team_chat"
+  | "meetings"
   | "documents"
   | "ai"
   | "automations"
@@ -58,6 +59,8 @@ export const ROUTE_PLAN_FEATURE: Record<string, PlanFeatureKey | undefined> = {
   "/reports/t4": "t4",
   "/social-ads": "social_ads",
   "/team-chat": "team_chat",
+  "/meetings": "meetings",
+  "/feed": "meetings",
   "/documents": "documents",
   "/ai": "ai",
   "/automations": "automations",
@@ -120,6 +123,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "accounting",
       "t4",
       "team_chat",
+      "meetings",
       "documents",
       "ai",
       "analytics",
@@ -133,7 +137,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "50 chantiers + Construction OS",
       "Taxes multi-marchés + conformité",
       "Paie + T4 / W-2 ready",
-      "IA chantier + analytics",
+      "Visio + live streaming",
     ],
   },
   {
@@ -157,6 +161,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "t4",
       "social_ads",
       "team_chat",
+      "meetings",
       "documents",
       "ai",
       "automations",
@@ -197,6 +202,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
       "t4",
       "social_ads",
       "team_chat",
+      "meetings",
       "documents",
       "ai",
       "automations",
@@ -259,6 +265,7 @@ export const FEATURE_PERMISSION_HINT: Partial<Record<PlanFeatureKey, AppPermissi
   t4: "payroll:read",
   social_ads: "crm:write",
   team_chat: "chat:use",
+  meetings: "meetings:join",
   documents: "documents:read",
   ai: "ai:use",
   automations: "automations:manage",

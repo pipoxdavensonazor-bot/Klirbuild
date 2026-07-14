@@ -10,6 +10,8 @@ export type ResendReceivedEvent = {
     email_id?: string;
     from?: string;
     to?: string[];
+    /** Adresse d’origine si le message a été transféré (ex. Cloudflare → Resend). */
+    received_for?: string[];
     subject?: string;
   };
 };
@@ -99,25 +101,85 @@ async function resolveClientId(companyId: string, fromEmail: string) {
   return client?.id;
 }
 
-async function fetchReceivedEmailContent(emailId: string): Promise<{
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Resend webhook arrives before body is always ready — retry briefly. */
+export async function fetchReceivedEmailContent(emailId: string): Promise<{
   text?: string;
   html?: string;
 }> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) return {};
 
-  const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) return {};
-  const data = (await res.json().catch(() => ({}))) as {
-    text?: string | null;
-    html?: string | null;
-  };
-  return {
-    text: data.text ?? undefined,
-    html: data.html ?? undefined,
-  };
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(
+        `https://api.resend.com/emails/receiving/${emailId}`,
+        { headers: { Authorization: `Bearer ${apiKey}` } }
+      );
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          text?: string | null;
+          html?: string | null;
+        };
+        const text = data.text?.trim() || undefined;
+        const html = data.html?.trim() || undefined;
+        if (text || html) return { text, html };
+      } else if (res.status === 404 || res.status === 409 || res.status >= 500) {
+        /* content may not be ready yet — retry */
+      } else {
+        console.warn(
+          `[inbound] Resend receiving ${emailId} HTTP ${res.status}`
+        );
+        return {};
+      }
+    } catch (error) {
+      console.warn(`[inbound] Resend receiving ${emailId} failed`, error);
+    }
+    if (attempt < maxAttempts) await sleep(250 * attempt);
+  }
+  return {};
+}
+
+/** Backfill body for inbound rows saved before content was available. */
+export async function hydrateInboundEmailBodies(
+  emails: Array<{
+    id: string;
+    direction: string;
+    providerId?: string | null;
+    bodyText?: string | null;
+    bodyHtml?: string | null;
+  }>
+) {
+  const needs = emails.filter(
+    (e) =>
+      e.direction === "inbound" &&
+      e.providerId &&
+      !e.bodyText?.trim() &&
+      !e.bodyHtml?.trim()
+  );
+  if (!needs.length) return emails;
+
+  await Promise.all(
+    needs.slice(0, 10).map(async (e) => {
+      const content = await fetchReceivedEmailContent(e.providerId!);
+      if (!content.text && !content.html) return;
+      await prisma.emailMessage.update({
+        where: { id: e.id },
+        data: {
+          bodyText: content.text ?? null,
+          bodyHtml: content.html ?? null,
+        },
+      });
+      e.bodyText = content.text ?? e.bodyText;
+      e.bodyHtml = content.html ?? e.bodyHtml;
+    })
+  );
+
+  return emails;
 }
 
 export async function handleResendInboundEvent(event: ResendReceivedEvent) {
@@ -131,24 +193,32 @@ export async function handleResendInboundEvent(event: ResendReceivedEvent) {
   const emailId = event.data.email_id;
   const from = event.data.from ?? "unknown@unknown";
   const toList = event.data.to ?? [];
+  const receivedFor = event.data.received_for ?? [];
   const subject = event.data.subject?.trim() || "(sans objet)";
 
-  if (!toList.length) {
+  // Prefer original recipient (forwarded) then envelope To — enables free
+  // branding: *@inbox.klirline.ca → Cloudflare → *@estabronae.resend.app
+  const routeCandidates = [...receivedFor, ...toList];
+  if (!routeCandidates.length) {
     return { error: "Destinataire manquant dans l'événement Resend." as const };
   }
 
-  const companyId = await resolveCompanyIdForRecipients(toList);
+  const companyId = await resolveCompanyIdForRecipients(routeCandidates);
   if (!companyId) {
     return { error: "Aucune entreprise ne correspond à cette adresse de réception." as const };
   }
 
   const clientId = await resolveClientId(companyId, from);
   const content = emailId ? await fetchReceivedEmailContent(emailId) : {};
+  const displayTo =
+    receivedFor.map(normalizeAddress).find(Boolean) ||
+    toList.map(normalizeAddress).find(Boolean) ||
+    routeCandidates[0];
 
   const record = await recordInboundEmail({
     companyId,
     from,
-    to: toList[0],
+    to: displayTo,
     subject,
     bodyText: content.text,
     bodyHtml: content.html,

@@ -148,7 +148,14 @@ export async function listEmails(companyId: string, clientId?: string) {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
-  return rows.map(mapRow);
+  const mapped = rows.map(mapRow);
+
+  const { hydrateInboundEmailBodies } = await import(
+    "@/lib/email/inbound-service"
+  );
+  await hydrateInboundEmailBodies(mapped);
+
+  return mapped;
 }
 
 export async function markEmailRead(companyId: string, emailId: string) {

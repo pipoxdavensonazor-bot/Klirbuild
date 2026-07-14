@@ -92,6 +92,9 @@ model Company {
   zernioProfileId    String?
   payrollDefaultsJson Json?
   employees          EmployeeProfile[]
+  meetings           Meeting[]
+  liveSessions       LiveSession[]
+  feedPosts          FeedPost[]
 }
 
 model User {
@@ -903,4 +906,78 @@ model TeamChatAttachment {
   createdAt   DateTime        @default(now())
 
   @@index([messageId])
+}
+
+// Meetings and live streaming (Daily.co)
+model Meeting {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title         String
+  audience      String        @default("company")
+  slug          String
+  dailyRoomName String
+  dailyRoomUrl  String
+  status        String        @default("scheduled")
+  hostUserId    String?
+  hostName      String?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  allowedRoles  String[]      @default([])
+  clientIds     String[]      @default([])
+  shareToken    String        @unique @default(cuid())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  liveSessions  LiveSession[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, createdAt])
+  @@index([companyId, audience])
+  @@index([slug])
+}
+
+model LiveSession {
+  id            String     @id @default(cuid())
+  companyId     String
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  meetingId     String?
+  meeting       Meeting?   @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  title         String?
+  dailyRoomName String
+  dailyRoomUrl  String
+  status        String     @default("scheduled")
+  audience      String     @default("company")
+  slug          String
+  shareToken    String     @unique @default(cuid())
+  startedAt     DateTime?
+  endedAt       DateTime?
+  recordingUrl  String?
+  clientIds     String[]   @default([])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  posts         FeedPost[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, status])
+  @@index([slug])
+}
+
+model FeedPost {
+  id              String       @id @default(cuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId        String?
+  authorName      String
+  body            String
+  audience        String       @default("company")
+  liveSessionId   String?
+  liveSession     LiveSession? @relation(fields: [liveSessionId], references: [id], onDelete: SetNull)
+  recordingUrl    String?
+  visibilityRoles String[]     @default([])
+  clientIds       String[]     @default([])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([companyId, audience])
 }

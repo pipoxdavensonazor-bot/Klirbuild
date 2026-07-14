@@ -7,7 +7,15 @@ import {
 } from "@/lib/api/database-guard";
 import { can, type Permission, type Role } from "@/types";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/privacy", "/terms"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/privacy",
+  "/terms",
+  "/live",
+  "/client-live",
+];
 
 /**
  * La connexion est obligatoire par défaut (SIGN IN / SIGN UP requis).
