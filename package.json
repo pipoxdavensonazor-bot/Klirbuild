@@ -17,6 +17,8 @@
     "stripe:verify": "tsx scripts/stripe-verify.ts",
     "production:verify": "tsx scripts/production-verify.ts",
     "smoke:test": "tsx scripts/smoke-test.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
     "security:check": "node scripts/security-check.mjs",
     "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
   },
@@ -47,6 +49,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.2",
+    "@playwright/test": "^1.54.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.20",
     "postcss": "^8.5.16",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { createProject, listProjects } from "@/lib/projects/project-service";
 
 export const runtime = "nodejs";
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  const gated = await requireCompanyPlanFeature(cid, "projects");
+  if (gated) return gated;
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name : "";
   const clientId = typeof body.clientId === "string" ? body.clientId : undefined;
@@ -40,7 +43,8 @@ export async function POST(request: Request) {
   });
 
   if ("error" in result && result.error) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    const status = result.error.includes("Limite") ? 403 : 400;
+    return NextResponse.json({ error: result.error }, { status });
   }
 
   return NextResponse.json(result);

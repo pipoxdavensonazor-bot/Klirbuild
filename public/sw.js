@@ -1,5 +1,12 @@
-const CACHE_NAME = "klirbuild-shell-v1";
-const SHELL_ASSETS = ["/", "/login", "/klirbuild-logo.png", "/manifest.webmanifest"];
+const CACHE_NAME = "klirbuild-shell-v2";
+const SHELL_ASSETS = [
+  "/",
+  "/login",
+  "/offline",
+  "/dashboard",
+  "/klirbuild-logo.png",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -36,6 +43,10 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/login")))
+      .catch(() =>
+        caches
+          .match(request)
+          .then((cached) => cached || caches.match("/offline") || caches.match("/login"))
+      )
   );
 });

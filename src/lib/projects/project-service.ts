@@ -60,6 +60,10 @@ export async function createProject(input: {
   if (!name) return { error: "Nom du projet requis." as const };
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
+  const { assertProjectQuota } = await import("@/lib/billing/require-plan-server");
+  const quota = await assertProjectQuota(input.companyId);
+  if (!quota.ok) return { error: quota.error };
+
   const status = input.status ?? "planned";
   const budget = input.budget ?? 0;
   const due = new Date();

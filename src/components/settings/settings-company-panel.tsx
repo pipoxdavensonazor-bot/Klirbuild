@@ -14,6 +14,7 @@ type CompanyProfile = {
   emailFrom: string;
   inboxEmail: string;
   emailSenderName: string;
+  employerBn: string;
 };
 
 export function SettingsCompanyPanel() {
@@ -34,6 +35,7 @@ export function SettingsCompanyPanel() {
         emailFrom: data.company.emailFrom ?? data.company.email ?? "",
         inboxEmail: data.company.inboxEmail ?? data.company.email ?? "",
         emailSenderName: data.company.emailSenderName ?? data.company.name ?? "",
+        employerBn: data.company.employerBn ?? "",
       });
     }
   }, []);
@@ -68,6 +70,7 @@ export function SettingsCompanyPanel() {
         website: company.website,
         emailFrom: company.emailFrom,
         emailSenderName: company.emailSenderName,
+        employerBn: company.employerBn,
       }),
     });
     const data = await res.json();
@@ -88,6 +91,7 @@ export function SettingsCompanyPanel() {
         emailFrom: data.company.emailFrom ?? "",
         inboxEmail: data.company.inboxEmail ?? "",
         emailSenderName: data.company.emailSenderName ?? "",
+        employerBn: data.company.employerBn ?? "",
       });
     }
   }
@@ -123,6 +127,16 @@ export function SettingsCompanyPanel() {
           value={company.website}
           onChange={(e) => setCompany({ ...company, website: e.target.value })}
         />
+        <div className="sm:col-span-2">
+          <p className="mb-1 text-xs text-muted-foreground">
+            N° d&apos;entreprise ARC (BN) pour T4 — ex. 123456789RP0001
+          </p>
+          <Input
+            placeholder="000000000RP0001"
+            value={company.employerBn}
+            onChange={(e) => setCompany({ ...company, employerBn: e.target.value })}
+          />
+        </div>
       </div>
       <div className="rounded-lg border border-border p-4 space-y-3">
         <p className="text-sm font-medium">Identité courriel (synchronisée)</p>

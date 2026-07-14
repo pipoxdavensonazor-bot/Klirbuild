@@ -44,6 +44,24 @@ import {
   routeAllowedForPlan,
   type PlanFeatureKey,
 } from "@/lib/billing/plans";
+import { t, type UiKey } from "@/lib/markets/i18n";
+
+const NAV_I18N: Partial<Record<string, UiKey>> = {
+  "/dashboard": "dashboard",
+  "/clients": "clients",
+  "/quotes": "quotes",
+  "/invoices": "invoices",
+  "/projects": "projects",
+  "/timeclock": "timeclock",
+  "/accounting": "accounting",
+  "/meetings": "meetings",
+  "/help": "help",
+  "/settings": "settings",
+  "/markets": "markets",
+  "/compliance": "compliance",
+  "/auto-pilot": "autoPilot",
+  "/billing": "billing",
+};
 
 type NavDef = {
   href: string;
@@ -98,6 +116,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const role = useSessionStore((s) => s.role);
   const planId = useSessionStore((s) => s.plan);
+  const locale = useSessionStore((s) => s.locale);
   const enabledModules = useSessionStore((s) => s.enabledModules);
   const plan = getPlan(planId);
   const moduleNav = getEnabledModuleNav(
@@ -141,6 +160,8 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
         {visibleNav.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
+          const i18nKey = NAV_I18N[item.href];
+          const label = i18nKey ? t(locale, i18nKey) : item.label;
           return (
             <Link
               key={item.href}
@@ -152,10 +173,10 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
                   : "text-white/75 hover:bg-white/10 hover:text-white",
                 collapsed && "justify-center px-2"
               )}
-              title={item.label}
+              title={label}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed ? <span>{item.label}</span> : null}
+              {!collapsed ? <span>{label}</span> : null}
             </Link>
           );
         })}

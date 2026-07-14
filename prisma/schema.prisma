@@ -58,6 +58,8 @@ model Company {
   emailFrom          String?
   inboxEmail         String?
   emailSenderName    String?
+  // Numéro d'entreprise ARC (ex. 123456789RP0001) pour export T4
+  employerBn         String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   users              User[]

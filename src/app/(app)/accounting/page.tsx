@@ -14,6 +14,7 @@ import { PayrollWorkersPanel } from "@/components/payroll/employee-dossier-form"
 import { useSessionStore } from "@/lib/workforce/session";
 import { canApp } from "@/lib/workforce/types";
 import { formatDate } from "@/lib/utils";
+import { downloadCsv } from "@/lib/export/download-csv";
 
 export default function AccountingPage() {
   return (
@@ -74,7 +75,43 @@ function AccountingInner() {
       <PageHeader
         title="Comptabilité & taxes"
         description={`Grand livre + taxes ${market.label} (${currency}) — régime ${market.payrollRegime}.`}
-        actions={<Button variant="outline">Exporter CSV</Button>}
+        actions={
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              const rows: string[][] = [
+                ["type", "date", "reference", "memo", "debit", "credit", "amount", "taxCode", "taxAmount"],
+                ...journalEntries.map((e) => [
+                  "journal",
+                  e.date,
+                  e.reference,
+                  e.memo,
+                  e.debitAccount,
+                  e.creditAccount,
+                  String(e.amount),
+                  e.taxCode ?? "",
+                  String(e.taxAmount ?? ""),
+                ]),
+                [],
+                ["type", "code", "name", "accountType", "balance"],
+                ...ledgerAccounts.map((a) => [
+                  "ledger",
+                  a.code,
+                  a.name,
+                  a.type,
+                  String(a.balance),
+                ]),
+              ];
+              downloadCsv(
+                `compta-${new Date().toISOString().slice(0, 10)}.csv`,
+                rows
+              );
+            }}
+          >
+            Exporter CSV
+          </Button>
+        }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

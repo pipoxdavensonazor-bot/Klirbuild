@@ -259,6 +259,10 @@ export async function createInvoice(input: {
   if (!input.clientId?.trim()) return { error: "Client requis." as const };
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
+  const { assertInvoiceQuota } = await import("@/lib/billing/require-plan-server");
+  const quota = await assertInvoiceQuota(input.companyId);
+  if (!quota.ok) return { error: quota.error };
+
   const lineItems: LineItemInput[] =
     input.items && input.items.length > 0
       ? input.items

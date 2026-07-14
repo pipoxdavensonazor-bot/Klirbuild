@@ -166,6 +166,10 @@ export async function generateDueRecurringInvoices(now = new Date()) {
       results.push({ id: recurring.id, ok: false, error: created.error });
       continue;
     }
+    if (!("invoice" in created) || !created.invoice) {
+      results.push({ id: recurring.id, ok: false, error: "Création facture échouée." });
+      continue;
+    }
 
     await prisma.invoice.update({
       where: { id: created.invoice.id },

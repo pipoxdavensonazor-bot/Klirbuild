@@ -36,6 +36,9 @@ export type SubscriptionPlan = {
   popular?: boolean;
   maxUsers: number;
   maxJobs: number;
+  maxClients: number;
+  maxProjects: number;
+  maxInvoices: number;
   maxStorageGb: number;
   features: PlanFeatureKey[];
   highlights: string[];
@@ -83,6 +86,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     yearlyPrice: 790,
     maxUsers: 5,
     maxJobs: 10,
+    maxClients: 50,
+    maxProjects: 20,
+    maxInvoices: 100,
     maxStorageGb: 10,
     features: [
       "dashboard",
@@ -111,6 +117,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     popular: true,
     maxUsers: 25,
     maxJobs: 50,
+    maxClients: 500,
+    maxProjects: 100,
+    maxInvoices: 1000,
     maxStorageGb: 100,
     features: [
       "dashboard",
@@ -148,6 +157,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     yearlyPrice: 2990,
     maxUsers: 100,
     maxJobs: 200,
+    maxClients: 2000,
+    maxProjects: 400,
+    maxInvoices: 5000,
     maxStorageGb: 500,
     features: [
       "dashboard",
@@ -189,6 +201,9 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     yearlyPrice: 0,
     maxUsers: 9999,
     maxJobs: 9999,
+    maxClients: 9999,
+    maxProjects: 9999,
+    maxInvoices: 9999,
     maxStorageGb: 5000,
     features: [
       "dashboard",

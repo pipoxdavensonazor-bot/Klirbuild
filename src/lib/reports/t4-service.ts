@@ -1,7 +1,7 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import type { T4Slip } from "@/lib/reports/types";
-import { generatePayslip, round2 } from "@/lib/workforce/payroll";
+import { round2 } from "@/lib/workforce/payroll";
 
 function dec(v: { toNumber(): number } | number) {
   return typeof v === "number" ? v : v.toNumber();
@@ -27,12 +27,13 @@ export async function buildT4SlipsForCompany(
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true, marketRegion: true },
+    select: { name: true, marketRegion: true, employerBn: true },
   });
   if (!company) return [];
 
   const yearStart = new Date(`${taxYear}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${taxYear}-12-31T23:59:59.999Z`);
+  const employerBn = company.employerBn?.trim() || "";
 
   const employees = await prisma.employeeProfile.findMany({
     where: {
@@ -56,6 +57,9 @@ export async function buildT4SlipsForCompany(
       },
     });
 
+    // Pas de données inventées — seuls les bulletins approuvés/payés comptent.
+    if (payslipRows.length === 0) continue;
+
     let employmentIncome = payslipRows.reduce((s, p) => s + dec(p.grossPay), 0);
     let cpp = 0;
     let ei = 0;
@@ -72,31 +76,11 @@ export async function buildT4SlipsForCompany(
       incomeTax += lineAmount(lines, "FED") + lineAmount(lines, "QC");
     }
 
-    if (employmentIncome < 100) {
-      const hourly = dec(emp.hourlyRate);
-      const ot = dec(emp.overtimeRate) || hourly * 1.5;
-      const sample = generatePayslip({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        hourlyRate: hourly,
-        overtimeRate: ot,
-        regularHours: 40 * 48,
-        overtimeHours: 40,
-        periodStart: `${taxYear}-01-01`,
-        periodEnd: `${taxYear}-12-31`,
-      });
-      employmentIncome = sample.grossPay;
-      cpp = sample.cpp;
-      ei = sample.ei;
-      qpp = sample.qpp;
-      incomeTax = sample.federalTax + sample.quebecTax;
-    } else {
-      cpp = round2(cpp);
-      ei = round2(ei);
-      qpp = round2(qpp);
-      incomeTax = round2(incomeTax);
-      employmentIncome = round2(employmentIncome);
-    }
+    cpp = round2(cpp);
+    ei = round2(ei);
+    qpp = round2(qpp);
+    incomeTax = round2(incomeTax);
+    employmentIncome = round2(employmentIncome);
 
     const province =
       company.marketRegion?.startsWith("CA-QC") || !company.marketRegion
@@ -112,11 +96,11 @@ export async function buildT4SlipsForCompany(
       taxYear,
       employeeId: emp.id,
       employeeName: emp.name,
-      sinMasked: emp.sinMasked ?? "***-***-000",
+      sinMasked: emp.sinMasked ?? "***-***-***",
       employerName: company.name,
-      employerBn: "000000000RP0000",
+      employerBn: employerBn || "BN_MANQUANT",
       province,
-      status: payslipRows.length > 0 ? "generated" : "draft",
+      status: employerBn ? "generated" : "draft",
       generatedAt: new Date().toISOString(),
       boxes: [
         { code: "14", label: "Employment income", amount: employmentIncome },

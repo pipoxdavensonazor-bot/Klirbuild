@@ -324,6 +324,18 @@ export default function BillingPage() {
               <p>
                 {current.maxJobs === 9999 ? "Illimité" : current.maxJobs} chantiers
               </p>
+              <p>
+                {current.maxClients === 9999 ? "Illimité" : current.maxClients}{" "}
+                clients
+              </p>
+              <p>
+                {current.maxProjects === 9999 ? "Illimité" : current.maxProjects}{" "}
+                projets
+              </p>
+              <p>
+                {current.maxInvoices === 9999 ? "Illimité" : current.maxInvoices}{" "}
+                factures
+              </p>
               <p>{current.maxStorageGb} Go stockage</p>
             </div>
             {stripeCustomerId && stripeStatus?.connected ? (

@@ -170,6 +170,29 @@ export async function upsertConstructionJob(
     update: jobToCreate(companyId, merged),
   });
 
+  // Sync GPS JobSite for timeclock geofence (best-effort, respect maxJobs).
+  try {
+    const siteName = merged.name.trim();
+    if (siteName) {
+      const existingSite = await prisma.jobSite.findFirst({
+        where: { companyId, name: siteName },
+        select: { id: true },
+      });
+      if (!existingSite) {
+        const { createJobSite } = await import("@/lib/construction/job-site-service");
+        await createJobSite(companyId, {
+          name: siteName,
+          address: [merged.address, merged.city, merged.province]
+            .filter(Boolean)
+            .join(", "),
+          clientName: merged.clientName || undefined,
+        });
+      }
+    }
+  } catch {
+    /* non-blocking */
+  }
+
   return { item: jobFromRow(row) };
 }
 

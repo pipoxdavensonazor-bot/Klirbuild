@@ -40,22 +40,68 @@ export async function requireCompanyPlanFeature(
   );
 }
 
-/** Compte les chantiers (JobSite) et refuse si maxJobs du plan est atteint. */
-export async function assertJobSiteQuota(
-  companyId: string
-): Promise<{ ok: true } | { ok: false; error: string; plan: SubscriptionPlanId; maxJobs: number; current: number }> {
-  const planId = await getCompanyPlanId(companyId);
-  const maxJobs = getPlan(planId).maxJobs;
-  if (!hasDatabase()) return { ok: true };
-  const current = await prisma.jobSite.count({ where: { companyId } });
-  if (current >= maxJobs) {
+type QuotaFail = {
+  ok: false;
+  error: string;
+  plan: SubscriptionPlanId;
+  max: number;
+  current: number;
+};
+
+async function assertCountQuota(input: {
+  companyId: string;
+  label: string;
+  maxKey: "maxJobs" | "maxClients" | "maxProjects" | "maxInvoices";
+  count: () => Promise<number>;
+}): Promise<{ ok: true } | QuotaFail> {
+  const planId = await getCompanyPlanId(input.companyId);
+  const max = getPlan(planId)[input.maxKey];
+  if (!hasDatabase() || max >= 9999) return { ok: true };
+  const current = await input.count();
+  if (current >= max) {
     return {
       ok: false,
-      error: `Limite de chantiers atteinte (${current}/${maxJobs}) pour le plan ${planId}. Passez à un plan supérieur.`,
+      error: `Limite ${input.label} atteinte (${current}/${max}) pour le plan ${planId}. Passez à un plan supérieur.`,
       plan: planId,
-      maxJobs,
+      max,
       current,
     };
   }
   return { ok: true };
+}
+
+export function assertJobSiteQuota(companyId: string) {
+  return assertCountQuota({
+    companyId,
+    label: "de chantiers",
+    maxKey: "maxJobs",
+    count: () => prisma.jobSite.count({ where: { companyId } }),
+  });
+}
+
+export function assertClientQuota(companyId: string) {
+  return assertCountQuota({
+    companyId,
+    label: "clients",
+    maxKey: "maxClients",
+    count: () => prisma.client.count({ where: { companyId } }),
+  });
+}
+
+export function assertProjectQuota(companyId: string) {
+  return assertCountQuota({
+    companyId,
+    label: "projets",
+    maxKey: "maxProjects",
+    count: () => prisma.project.count({ where: { companyId } }),
+  });
+}
+
+export function assertInvoiceQuota(companyId: string) {
+  return assertCountQuota({
+    companyId,
+    label: "factures",
+    maxKey: "maxInvoices",
+    count: () => prisma.invoice.count({ where: { companyId } }),
+  });
 }

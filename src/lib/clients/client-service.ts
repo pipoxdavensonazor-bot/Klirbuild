@@ -72,6 +72,10 @@ export async function createClient(input: {
 
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
+  const { assertClientQuota } = await import("@/lib/billing/require-plan-server");
+  const quota = await assertClientQuota(input.companyId);
+  if (!quota.ok) return { error: quota.error };
+
   const row = await prisma.client.create({
       data: {
         companyId: input.companyId,

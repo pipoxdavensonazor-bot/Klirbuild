@@ -21,6 +21,7 @@ import {
   type FieldDef,
 } from "@/components/construction/construction-crud-panel";
 import { useConstructionWorkspace } from "@/components/construction/use-construction-workspace";
+import { downloadCsv } from "@/lib/export/download-csv";
 import type {
   ChangeOrder,
   ConstructionEstimate,
@@ -271,7 +272,42 @@ export function ConstructionCcqPageClient() {
   if (error) return <p className="p-8 text-red-700">{error}</p>;
   return (
     <div>
-      <PageHeader title="CCQ — Conformité Québec" description="Travailleurs et déclarations modifiables." />
+      <PageHeader
+        title="CCQ — Conformité Québec"
+        description="Travailleurs et déclarations modifiables. Export CSV pour votre comptable — le dépôt officiel CCQ reste hors plateforme."
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              downloadCsv(`ccq-${new Date().toISOString().slice(0, 10)}.csv`, [
+                ["section", "name", "trade", "ccqNumber", "cardExpires", "hoursThisPeriod"],
+                ...workers.map((w) => [
+                  "worker",
+                  w.name,
+                  w.trade,
+                  w.ccqNumber,
+                  w.cardExpires,
+                  String(w.hoursThisPeriod),
+                ]),
+                [],
+                ["section", "workerName", "jobName", "trade", "weekEnding", "hours", "status"],
+                ...decls.map((d) => [
+                  "declaration",
+                  d.workerName,
+                  d.jobName,
+                  d.trade,
+                  d.weekEnding,
+                  String(d.hours),
+                  d.status,
+                ]),
+              ]);
+            }}
+          >
+            Exporter CSV
+          </Button>
+        }
+      />
       <div className="space-y-8">
         <ConstructionCrudPanel<CcqWorker>
           entity="ccqWorkers" title="Travailleurs & métiers" items={workers} fields={workerFields} addLabel="Ajouter travailleur"

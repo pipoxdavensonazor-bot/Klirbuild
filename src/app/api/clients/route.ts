@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRequestSession } from "@/lib/auth/auth-service";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { createClient, listClients } from "@/lib/clients/client-service";
 import type { ClientStatus } from "@/types";
 
@@ -14,6 +15,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getRequestSession();
   const companyId = session?.companyId ?? DEMO_COMPANY_ID;
+  const gated = await requireCompanyPlanFeature(companyId, "crm");
+  if (gated) return gated;
   const body = await request.json().catch(() => ({}));
 
   const name = typeof body.name === "string" ? body.name : "";
@@ -37,7 +40,8 @@ export async function POST(request: Request) {
   });
 
   if ("error" in result && result.error) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    const status = result.error.includes("Limite") ? 403 : 400;
+    return NextResponse.json({ error: result.error }, { status });
   }
 
   return NextResponse.json({ client: result.client }, { status: 201 });
