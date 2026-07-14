@@ -59,9 +59,26 @@ jobs:
       - name: KlirBuild security checks
         run: npm run security:check
 
-  smoke:
+  # secrets.* cannot be used in job-level `if:` — gate via a probe job output
+  smoke-gate:
     runs-on: ubuntu-latest
-    if: ${{ secrets.SMOKE_BASE_URL != '' }}
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+        run: |
+          if [ -n "$SMOKE_BASE_URL" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  smoke:
+    needs: smoke-gate
+    if: needs.smoke-gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -80,8 +97,9 @@ jobs:
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
 
   e2e:
+    needs: smoke-gate
+    if: needs.smoke-gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    if: ${{ secrets.SMOKE_BASE_URL != '' }}
     steps:
       - uses: actions/checkout@v4
 

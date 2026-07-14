@@ -58,3 +58,6 @@ amplifytools.xcconfig
 .env*
 
 .cursor/
+
+.smoke-ci-creds.json
+
