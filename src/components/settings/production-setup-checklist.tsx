@@ -23,7 +23,7 @@ const NETLIFY_VARS: { key: string; hint: string; tier: "billing" | "optional" }[
   { key: "STRIPE_PRICE_STARTER_YEARLY", hint: "npm run stripe:setup", tier: "billing" },
   { key: "STRIPE_PRICE_GROWTH_YEARLY", hint: "npm run stripe:setup", tier: "billing" },
   { key: "STRIPE_PRICE_BUSINESS_YEARLY", hint: "npm run stripe:setup", tier: "billing" },
-  { key: "BETTER_AUTH_SECRET", hint: "32+ caractères aléatoires", tier: "optional" },
+  { key: "BETTER_AUTH_SECRET", hint: "32+ caractères (sessions HMAC + 2FA)", tier: "billing" },
   { key: "CRON_SECRET", hint: "Bearer pour /api/cron/automations + recurring-invoices", tier: "optional" },
   { key: "RESEND_WEBHOOK_SECRET", hint: "Webhook email.received", tier: "optional" },
   { key: "INBOUND_EMAIL_DOMAIN", hint: "Défaut inbox.klirline.ca", tier: "optional" },

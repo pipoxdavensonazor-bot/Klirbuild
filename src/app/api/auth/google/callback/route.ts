@@ -58,7 +58,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const res = sessionResponse(result.user);
+    const res = await sessionResponse(result.user);
     const location = `${appBaseUrl()}${next}`;
     const redirect = NextResponse.redirect(location);
     const cookie = res.cookies.get("klirline_session");

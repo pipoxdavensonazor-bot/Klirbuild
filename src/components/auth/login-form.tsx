@@ -16,6 +16,8 @@ export function LoginForm() {
   const next = searchParams.get("next") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [requires2fa, setRequires2fa] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -37,6 +39,23 @@ export function LoginForm() {
     setError("");
     setLoading(true);
     try {
+      if (requires2fa) {
+        const res = await fetch(apiUrl("/api/auth/2fa/verify"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ code }),
+        });
+        const data = await parseApiResponse(res);
+        if (!res.ok) {
+          setError(typeof data.error === "string" ? data.error : "Code invalide");
+          return;
+        }
+        router.push(next);
+        router.refresh();
+        return;
+      }
+
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,6 +67,11 @@ export function LoginForm() {
         setError(
           typeof data.error === "string" ? data.error : "Connexion échouée"
         );
+        return;
+      }
+      if (data.requires2fa) {
+        setRequires2fa(true);
+        setError("");
         return;
       }
       router.push(next);
@@ -65,60 +89,101 @@ export function LoginForm() {
         <Card className="w-full max-w-md">
           <CardHeader className="items-center text-center">
             <KlirBuildLogo className="mb-3 h-[64px] w-[176px]" priority />
-            <CardTitle>Connexion à KlirBuild</CardTitle>
+            <CardTitle>
+              {requires2fa ? "Vérification 2FA" : "Connexion à KlirBuild"}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Connectez-vous avec votre courriel et mot de passe KlirBuild.
+              {requires2fa
+                ? "Entrez le code à 6 chiffres de votre application d’authentification."
+                : "Connectez-vous avec votre courriel et mot de passe KlirBuild."}
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-3">
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              {!requires2fa ? (
+                <>
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <Input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </>
+              ) : (
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Code à 6 chiffres"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  required
+                  maxLength={8}
+                />
+              )}
               {error ? (
                 <p className="text-sm text-red-600">{error}</p>
               ) : null}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Connexion…" : "Continuer"}
+                {loading
+                  ? "Connexion…"
+                  : requires2fa
+                    ? "Valider le code"
+                    : "Continuer"}
               </Button>
+              {requires2fa ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setRequires2fa(false);
+                    setCode("");
+                    setError("");
+                  }}
+                >
+                  Retour
+                </Button>
+              ) : null}
             </form>
-            <Button
-              variant="outline"
-              className="mt-3 w-full"
-              type="button"
-              disabled={!googleEnabled}
-              onClick={() => {
-                window.location.href = apiUrl(
-                  `/api/auth/google?next=${encodeURIComponent(next)}`
-                );
-              }}
-            >
-              Continuer avec Google
-            </Button>
-            {!googleEnabled ? (
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Connexion Google bientôt disponible — utilisez email et mot de passe.
-              </p>
+            {!requires2fa ? (
+              <>
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full"
+                  type="button"
+                  disabled={!googleEnabled}
+                  onClick={() => {
+                    window.location.href = apiUrl(
+                      `/api/auth/google?next=${encodeURIComponent(next)}`
+                    );
+                  }}
+                >
+                  Continuer avec Google
+                </Button>
+                {!googleEnabled ? (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Connexion Google bientôt disponible — utilisez email et mot de passe.
+                  </p>
+                ) : null}
+                <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                  <Link href="/forgot-password" className="hover:underline">
+                    Mot de passe oublié
+                  </Link>
+                  <Link href="/register" className="hover:underline">
+                    Créer un compte
+                  </Link>
+                </div>
+              </>
             ) : null}
-            <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-              <Link href="/forgot-password" className="hover:underline">
-                Mot de passe oublié
-              </Link>
-              <Link href="/register" className="hover:underline">
-                Créer un compte
-              </Link>
-            </div>
           </CardContent>
         </Card>
       </div>

@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { isAuthSecretHardened } from "@/lib/auth/demo-session";
 import { isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
-import { isStripeConfigured } from "@/lib/stripe";
+import {
+  isStripeConfigured,
+  isStripePublishableConfigured,
+  stripePriceIdsStatus,
+} from "@/lib/stripe";
 import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
 import { prisma } from "@/lib/db";
 
@@ -40,6 +45,7 @@ function resolveAppUrl(request: Request) {
 
 export async function GET(request: Request) {
   const appUrl = resolveAppUrl(request);
+  const prices = stripePriceIdsStatus();
 
   const checks: Record<string, { ok: boolean; detail?: string; tier?: "core" | "billing" | "optional" }> = {
     app: { ok: true, tier: "core" },
@@ -53,9 +59,33 @@ export async function GET(request: Request) {
           : undefined,
       tier: "core",
     },
+    authSecret: {
+      ok:
+        isAuthSecretHardened() || process.env.NODE_ENV !== "production",
+      detail: isAuthSecretHardened()
+        ? undefined
+        : process.env.NODE_ENV === "production"
+          ? "BETTER_AUTH_SECRET manquant ou trop court (32+ caractères)"
+          : "Secret de développement — définissez BETTER_AUTH_SECRET (32+) en production",
+      tier: "core",
+    },
     stripe: {
       ok: isStripeConfigured(),
       detail: isStripeConfigured() ? undefined : "STRIPE_SECRET_KEY manquant",
+      tier: "billing",
+    },
+    stripePublishable: {
+      ok: isStripePublishableConfigured(),
+      detail: isStripePublishableConfigured()
+        ? undefined
+        : "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY manquant",
+      tier: "billing",
+    },
+    stripePrices: {
+      ok: prices.ok,
+      detail: prices.ok
+        ? `${prices.configured}/${prices.total} Price IDs`
+        : `Price IDs manquants (${prices.missing.length}): ${prices.missing.join(", ")}`,
       tier: "billing",
     },
     webhook: {

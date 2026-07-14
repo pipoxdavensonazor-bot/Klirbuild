@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
   if (result.user) {
-    return sessionResponse(result.user);
+    return await sessionResponse(result.user);
   }
   return NextResponse.json({ ok: true });
 }

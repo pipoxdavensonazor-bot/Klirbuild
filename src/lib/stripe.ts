@@ -30,6 +30,15 @@ export function getStripe() {
 
 export type PaidPlanId = "starter" | "growth" | "business";
 
+export const STRIPE_PRICE_ENV_KEYS = [
+  "STRIPE_PRICE_STARTER_MONTHLY",
+  "STRIPE_PRICE_STARTER_YEARLY",
+  "STRIPE_PRICE_GROWTH_MONTHLY",
+  "STRIPE_PRICE_GROWTH_YEARLY",
+  "STRIPE_PRICE_BUSINESS_MONTHLY",
+  "STRIPE_PRICE_BUSINESS_YEARLY",
+] as const;
+
 export function priceIdForPlan(
   plan: PaidPlanId,
   cycle: "monthly" | "yearly"
@@ -50,6 +59,22 @@ export function priceIdForPlan(
   };
   const id = map[plan]?.[cycle]?.trim();
   return id || null;
+}
+
+export function stripePriceIdsStatus() {
+  const missing = STRIPE_PRICE_ENV_KEYS.filter(
+    (key) => !process.env[key]?.trim()
+  );
+  return {
+    ok: missing.length === 0,
+    configured: STRIPE_PRICE_ENV_KEYS.length - missing.length,
+    total: STRIPE_PRICE_ENV_KEYS.length,
+    missing,
+  };
+}
+
+export function isStripePublishableConfigured() {
+  return Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim());
 }
 
 export function appUrl() {

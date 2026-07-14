@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Inscription échouée" }, { status: 500 });
     }
 
-    return sessionResponse(result.user);
+    return await sessionResponse(result.user);
   } catch (error) {
     console.error("[auth/register]", error);
     const detail =

@@ -31,6 +31,7 @@ export async function authenticateUser(email: string, password: string) {
       email,
       companyId: DEMO_COMPANY_ID,
       role: "COMPANY_ADMIN" as const,
+      totpEnabled: false,
     };
   }
 
@@ -42,6 +43,7 @@ export async function authenticateUser(email: string, password: string) {
     email: user.email,
     companyId: user.companyId,
     role: user.role,
+    totpEnabled: Boolean(user.totpEnabled),
   };
 }
 
@@ -101,11 +103,11 @@ export async function getRequestSession(): Promise<DemoSession | null> {
   return parseSessionCookie(raw);
 }
 
-export function sessionResponse(
+export async function sessionResponse(
   profile: { email: string; companyId: string; role: DemoSession["role"] },
   maxAge?: number
 ) {
-  const { token, session, maxAge: age } = createDemoSession(
+  const { token, session, maxAge: age } = await createDemoSession(
     profile.email,
     profile.role,
     profile.companyId

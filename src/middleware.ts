@@ -24,7 +24,7 @@ const PUBLIC_PATHS = [
 const DEMO_AUTH_BYPASS =
   process.env.DEMO_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (apiRequiresDatabase(pathname) && !hasDatabaseUrl()) {
@@ -47,7 +47,7 @@ export function middleware(request: NextRequest) {
   }
 
   const session = request.cookies.get("klirline_session");
-  const parsed = session?.value ? parseSessionCookie(session.value) : null;
+  const parsed = session?.value ? await parseSessionCookie(session.value) : null;
   if (!parsed) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -21,5 +21,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Acceptation échouée" }, { status: 500 });
   }
 
-  return sessionResponse(result.user);
+  return await sessionResponse(result.user);
 }

@@ -58,3 +58,23 @@ jobs:
 
       - name: KlirBuild security checks
         run: npm run security:check
+
+  smoke:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SMOKE_BASE_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Smoke (health + login + CRM optionnel)
+        run: npm run smoke:test
+        env:
+          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
