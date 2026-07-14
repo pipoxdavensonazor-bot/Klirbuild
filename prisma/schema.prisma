@@ -95,6 +95,8 @@ model Company {
   meetings           Meeting[]
   liveSessions       LiveSession[]
   feedPosts          FeedPost[]
+  deleteRequests     DeleteRequest[]
+  companyBackups     CompanyBackup[]
 }
 
 model User {
@@ -980,4 +982,42 @@ model FeedPost {
 
   @@index([companyId, createdAt])
   @@index([companyId, audience])
+}
+
+// Employee deletion requests — admin must approve sensitive deletes
+model DeleteRequest {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  resourceType String
+  resourceId   String
+  resourceLabel String?
+  reason       String?
+  status       String    @default("pending")
+  requestedByEmail String
+  requestedByName  String?
+  reviewedByEmail  String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, resourceType, resourceId])
+}
+
+// Company backup metadata (payload stored in Netlify Blobs)
+model CompanyBackup {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label       String
+  storageKey  String?
+  sizeBytes   Int      @default(0)
+  status      String   @default("ready")
+  trigger     String   @default("auto")
+  createdByEmail String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
 }

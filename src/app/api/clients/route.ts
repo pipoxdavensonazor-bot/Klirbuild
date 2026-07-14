@@ -42,3 +42,32 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ client: result.client }, { status: 201 });
 }
+
+export async function DELETE(request: Request) {
+  const session = await getRequestSession();
+  if (!session) {
+    return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
+  }
+  const { enrichSession } = await import("@/lib/auth/auth-service");
+  const enriched = await enrichSession(session);
+  const id = new URL(request.url).searchParams.get("id")?.trim() || "";
+  if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
+
+  const client = (await listClients(enriched.companyId)).find((c) => c.id === id);
+  const { requestSensitiveDelete } = await import(
+    "@/lib/admin/delete-governance-service"
+  );
+  const result = await requestSensitiveDelete({
+    companyId: enriched.companyId,
+    role: enriched.role,
+    email: enriched.email,
+    resourceType: "client",
+    resourceId: id,
+    resourceLabel: client?.name,
+    reason: "Suppression client demandée depuis CRM",
+  });
+  if ("error" in result && result.error) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+  return NextResponse.json(result);
+}
