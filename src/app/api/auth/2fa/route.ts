@@ -7,6 +7,7 @@ import {
 import { encryptTotpSecret, decryptTotpSecret } from "@/lib/auth/totp-crypto";
 import { generateTotpSecret, totpUri, verifyTotpCode } from "@/lib/auth/totp";
 import { verifyPassword } from "@/lib/auth/password";
+import { rateLimitResponse } from "@/lib/auth/rate-limit";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -54,6 +55,9 @@ export async function GET() {
 
 /** Start setup: generate secret (not enabled until POST enable). */
 export async function POST(request: Request) {
+  const limited = rateLimitResponse(request, "2fa-setup", { limit: 20 });
+  if (limited) return limited;
+
   const ctx = await requireUser();
   if ("error" in ctx && ctx.error) return ctx.error;
   const { user } = ctx;

@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { rateLimitResponse } from "@/lib/auth/rate-limit";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const limited = rateLimitResponse(request, "change-password", { limit: 10 });
+  if (limited) return limited;
+
   const session = await getRequestSession();
   if (!session) {
     return NextResponse.json({ error: "Connexion requise." }, { status: 401 });

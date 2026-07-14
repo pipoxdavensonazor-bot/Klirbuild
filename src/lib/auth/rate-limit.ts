@@ -2,6 +2,8 @@
  * Simple in-memory rate limiter (per instance). Enough to blunt brute-force
  * on serverless; not a shared store.
  */
+import { NextResponse } from "next/server";
+
 type Bucket = { count: number; resetAt: number };
 
 const buckets = new Map<string, Bucket>();
@@ -32,5 +34,27 @@ export function clientIp(request: Request) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip")?.trim() ||
     "unknown"
+  );
+}
+
+/** Returns a 429 response when the bucket is exhausted; otherwise null. */
+export function rateLimitResponse(
+  request: Request,
+  scope: string,
+  opts?: { limit?: number; windowMs?: number }
+): NextResponse | null {
+  const limit = opts?.limit ?? 20;
+  const windowMs = opts?.windowMs ?? 15 * 60 * 1000;
+  const ip = clientIp(request);
+  const result = rateLimit({ key: `${scope}:${ip}`, limit, windowMs });
+  if (result.ok) return null;
+  return NextResponse.json(
+    {
+      error: `Trop de tentatives. Réessayez dans ${result.retryAfterSec}s.`,
+    },
+    {
+      status: 429,
+      headers: { "Retry-After": String(result.retryAfterSec) },
+    }
   );
 }

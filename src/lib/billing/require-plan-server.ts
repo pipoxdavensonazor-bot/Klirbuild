@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import {
+  getPlan,
   planHasFeature,
   type PlanFeatureKey,
   type SubscriptionPlanId,
@@ -37,4 +38,24 @@ export async function requireCompanyPlanFeature(
     },
     { status: 403 }
   );
+}
+
+/** Compte les chantiers (JobSite) et refuse si maxJobs du plan est atteint. */
+export async function assertJobSiteQuota(
+  companyId: string
+): Promise<{ ok: true } | { ok: false; error: string; plan: SubscriptionPlanId; maxJobs: number; current: number }> {
+  const planId = await getCompanyPlanId(companyId);
+  const maxJobs = getPlan(planId).maxJobs;
+  if (!hasDatabase()) return { ok: true };
+  const current = await prisma.jobSite.count({ where: { companyId } });
+  if (current >= maxJobs) {
+    return {
+      ok: false,
+      error: `Limite de chantiers atteinte (${current}/${maxJobs}) pour le plan ${planId}. Passez à un plan supérieur.`,
+      plan: planId,
+      maxJobs,
+      current,
+    };
+  }
+  return { ok: true };
 }

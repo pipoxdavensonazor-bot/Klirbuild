@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { registerCompany, sessionResponse } from "@/lib/auth/auth-service";
+import { rateLimitResponse } from "@/lib/auth/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const limited = rateLimitResponse(request, "register", { limit: 10 });
+  if (limited) return limited;
+
   try {
     const body = await request.json().catch(() => ({}));
     const name = typeof body.name === "string" ? body.name.trim() : "";

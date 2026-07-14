@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     radiusM: Number(body.radiusM) || undefined,
   });
   if ("error" in result && result.error) {
-    return NextResponse.json({ error: result.error }, { status: 400 });
+    const status = result.error.includes("Limite de chantiers") ? 403 : 400;
+    return NextResponse.json({ error: result.error }, { status });
   }
   return NextResponse.json(result);
 }

@@ -1,5 +1,6 @@
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
+import { assertJobSiteQuota } from "@/lib/billing/require-plan-server";
 import { prisma } from "@/lib/db";
 
 export type JobSiteDto = {
@@ -55,6 +56,9 @@ export async function createJobSite(
   const name = input.name.trim();
   if (!name) return { error: "Nom du chantier requis." as const };
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
+
+  const quota = await assertJobSiteQuota(companyId);
+  if (!quota.ok) return { error: quota.error };
 
   const row = await prisma.jobSite.create({
     data: {
