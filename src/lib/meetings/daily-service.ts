@@ -93,7 +93,7 @@ export async function createDailyRoom(input: {
     };
   }
 
-  const result = await dailyFetch<{ name: string; url: string }>("/rooms", {
+  const result = await dailyFetch<{ name: string; url: string; domain_name?: string }>("/rooms", {
     method: "POST",
     body: JSON.stringify({
       name,
@@ -110,7 +110,10 @@ export async function createDailyRoom(input: {
   });
 
   if (!result.ok) return { error: result.error };
-  return { name: result.data.name, url: result.data.url };
+  return {
+    name: result.data.name,
+    url: result.data.url || `https://${domain}/${result.data.name}`,
+  };
 }
 
 export type MeetingTokenOpts = {

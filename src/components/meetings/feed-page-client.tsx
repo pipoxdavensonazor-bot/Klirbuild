@@ -2,14 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Megaphone, Radio, Square } from "lucide-react";
+import { Check, Copy, Megaphone, Radio, Square, Video, X } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
+import { DailyRoomEmbed } from "@/components/meetings/daily-room-embed";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiUrl } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
+import {
+  absoluteAppPath,
+  audienceLabel,
+  copyText,
+  type MeetingAudience,
+} from "@/lib/meetings/ui";
 
 type FeedPost = {
   id: string;
@@ -27,29 +34,54 @@ type FeedPost = {
   };
 };
 
+type ClientOpt = { id: string; name: string };
+
 export function FeedPageClient() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [clients, setClients] = useState<ClientOpt[]>([]);
   const [canPost, setCanPost] = useState(false);
   const [canLive, setCanLive] = useState(false);
   const [body, setBody] = useState("");
-  const [audience, setAudience] = useState<"company" | "clients" | "public">(
-    "company"
-  );
+  const [audience, setAudience] = useState<MeetingAudience>("company");
+  const [clientIds, setClientIds] = useState<string[]>([]);
   const [startLive, setStartLive] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeLive, setActiveLive] = useState<{
+    id: string;
+    roomUrl: string;
+    token: string;
+    title: string;
+  } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch(apiUrl("/api/feed"), { credentials: "include" });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Chargement impossible.");
-      return;
+    setLoading(true);
+    try {
+      const [fRes, cRes] = await Promise.all([
+        fetch(apiUrl("/api/feed"), { credentials: "include" }),
+        fetch(apiUrl("/api/clients"), { credentials: "include" }),
+      ]);
+      const data = await fRes.json();
+      const cData = await cRes.json().catch(() => ({}));
+      if (!fRes.ok) {
+        setError(data.error || "Chargement impossible.");
+        return;
+      }
+      setPosts(data.posts ?? []);
+      setCanPost(Boolean(data.canPost));
+      setCanLive(Boolean(data.canLive));
+      setClients(
+        (cData.clients ?? []).map((c: { id: string; name: string }) => ({
+          id: c.id,
+          name: c.name,
+        }))
+      );
+      setError("");
+    } finally {
+      setLoading(false);
     }
-    setPosts(data.posts ?? []);
-    setCanPost(Boolean(data.canPost));
-    setCanLive(Boolean(data.canLive));
-    setError("");
   }, []);
 
   useEffect(() => {
@@ -67,6 +99,7 @@ export function FeedPageClient() {
           body,
           audience,
           startLive: startLive && canLive,
+          clientIds: audience === "clients" ? clientIds : [],
         }),
       });
       const data = await res.json();
@@ -76,7 +109,11 @@ export function FeedPageClient() {
       }
       setBody("");
       setStartLive(false);
+      setClientIds([]);
       await load();
+      if (data.post?.live?.id && data.post.live.status === "live") {
+        await joinLive(data.post.live.id, data.post.body?.slice(0, 60));
+      }
     } finally {
       setBusy(false);
     }
@@ -89,10 +126,11 @@ export function FeedPageClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "stop" }),
     });
+    if (activeLive?.id === liveId) setActiveLive(null);
     await load();
   }
 
-  async function joinLive(liveId: string) {
+  async function joinLive(liveId: string, title?: string) {
     const res = await fetch(apiUrl(`/api/live/${liveId}`), {
       method: "POST",
       credentials: "include",
@@ -104,11 +142,20 @@ export function FeedPageClient() {
       setError(data.error || "Impossible de rejoindre le live.");
       return;
     }
-    if (data.roomUrl) {
-      const url = data.token
-        ? `${data.roomUrl}${data.roomUrl.includes("?") ? "&" : "?"}t=${encodeURIComponent(data.token)}`
-        : data.roomUrl;
-      window.open(url, "_blank");
+    setActiveLive({
+      id: liveId,
+      roomUrl: data.roomUrl,
+      token: data.token,
+      title: title || "Live",
+    });
+    setError("");
+  }
+
+  async function copyPath(path: string, key: string) {
+    const ok = await copyText(absoluteAppPath(path));
+    if (ok) {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1800);
     }
   }
 
@@ -118,8 +165,42 @@ export function FeedPageClient() {
         <div className="space-y-6">
           <PageHeader
             title="Feed & live"
-            description="Publications d’équipe avec live streaming intégré. Audiences équipe, clients ou public."
+            description="Annonces d’équipe avec live intégré. Partagez un lien clients ou public."
+            actions={
+              <Link href="/meetings">
+                <Button variant="outline" size="sm">
+                  <Video className="h-4 w-4" /> Réunions
+                </Button>
+              </Link>
+            }
           />
+
+          {activeLive ? (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span className="rounded bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    LIVE
+                  </span>
+                  {activeLive.title}
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveLive(null)}
+                >
+                  <X className="h-4 w-4" /> Fermer
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <DailyRoomEmbed
+                  roomUrl={activeLive.roomUrl}
+                  token={activeLive.token}
+                  title={activeLive.title}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           {canPost ? (
             <Card>
@@ -133,14 +214,14 @@ export function FeedPageClient() {
                   className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  placeholder="Annonce chantier, update client…"
+                  placeholder="Annonce chantier, mise à jour client…"
                 />
                 <div className="flex flex-wrap items-center gap-3">
                   <select
                     className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                     value={audience}
                     onChange={(e) =>
-                      setAudience(e.target.value as typeof audience)
+                      setAudience(e.target.value as MeetingAudience)
                     }
                   >
                     <option value="company">Équipe</option>
@@ -164,84 +245,143 @@ export function FeedPageClient() {
                     Publier
                   </Button>
                 </div>
+                {audience === "clients" ? (
+                  <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto rounded-md border border-border p-2">
+                    {clients.map((c) => {
+                      const on = clientIds.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() =>
+                            setClientIds((prev) =>
+                              on
+                                ? prev.filter((id) => id !== c.id)
+                                : [...prev, c.id]
+                            )
+                          }
+                          className={
+                            on
+                              ? "rounded-full bg-brand-500 px-2.5 py-1 text-xs text-white"
+                              : "rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted"
+                          }
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                    {!clients.length ? (
+                      <span className="text-xs text-muted-foreground">
+                        Aucun client CRM.
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ) : null}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-          <div className="space-y-3">
-            {posts.map((p) => (
-              <Card key={p.id}>
-                <CardContent className="space-y-3 py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{p.authorName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(p.createdAt)} · {p.audience}
-                      </p>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Chargement…</p>
+          ) : (
+            <div className="space-y-3">
+              {posts.map((p) => (
+                <Card key={p.id}>
+                  <CardContent className="space-y-3 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">{p.authorName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(p.createdAt)} · {audienceLabel(p.audience)}
+                        </p>
+                      </div>
+                      {p.live?.status === "live" ? (
+                        <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
+                          LIVE
+                        </span>
+                      ) : null}
                     </div>
-                    {p.live?.status === "live" ? (
-                      <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
-                        LIVE
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm">{p.body}</p>
-                  {p.live ? (
-                    <div className="flex flex-wrap gap-2">
-                      {p.live.status === "live" ? (
-                        <Button
-                          size="sm"
-                          onClick={() => void joinLive(p.live!.id)}
-                        >
-                          <Radio className="h-4 w-4" /> Rejoindre le live
-                        </Button>
-                      ) : null}
-                      {canLive && p.live.status === "live" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void stopLive(p.live!.id)}
-                        >
-                          <Square className="h-4 w-4" /> Arrêter
-                        </Button>
-                      ) : null}
-                      {p.audience === "public" ? (
-                        <Link href={p.live.publicPath} target="_blank">
-                          <Button size="sm" variant="secondary">
+                    <p className="whitespace-pre-wrap text-sm">{p.body}</p>
+                    {p.live ? (
+                      <div className="flex flex-wrap gap-2">
+                        {p.live.status === "live" ? (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              void joinLive(p.live!.id, p.body.slice(0, 60))
+                            }
+                          >
+                            <Radio className="h-4 w-4" /> Rejoindre le live
+                          </Button>
+                        ) : null}
+                        {canLive && p.live.status === "live" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void stopLive(p.live!.id)}
+                          >
+                            <Square className="h-4 w-4" /> Arrêter
+                          </Button>
+                        ) : null}
+                        {p.audience === "public" ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              void copyPath(p.live!.publicPath, `${p.id}-pub`)
+                            }
+                          >
+                            {copied === `${p.id}-pub` ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
                             Lien public
                           </Button>
-                        </Link>
-                      ) : null}
-                      {p.audience === "clients" ? (
-                        <Link href={p.live.clientPath} target="_blank">
-                          <Button size="sm" variant="secondary">
+                        ) : null}
+                        {p.audience === "clients" || p.audience === "public" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              void copyPath(p.live!.clientPath, `${p.id}-cli`)
+                            }
+                          >
+                            {copied === `${p.id}-cli` ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
                             Lien client
                           </Button>
-                        </Link>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {p.recordingUrl ? (
-                    <a
-                      href={p.recordingUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-brand-600 hover:underline"
-                    >
-                      Voir le replay
-                    </a>
-                  ) : null}
-                </CardContent>
-              </Card>
-            ))}
-            {!posts.length ? (
-              <p className="text-sm text-muted-foreground">
-                Aucun post pour l’instant.
-              </p>
-            ) : null}
-          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {p.recordingUrl ? (
+                      <a
+                        href={p.recordingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-brand-600 hover:underline"
+                      >
+                        Voir le replay
+                      </a>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ))}
+              {!posts.length ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                    Aucun post pour l’instant. Publiez une annonce ou démarrez
+                    un live.
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          )}
         </div>
       </RequirePermission>
     </RequirePlan>
