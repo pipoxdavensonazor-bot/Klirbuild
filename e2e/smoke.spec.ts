@@ -24,7 +24,7 @@ test.describe("KlirBuild smoke", () => {
     await page.goto("/login");
     await page.getByPlaceholder("Email").fill(email!);
     await page.getByPlaceholder("Mot de passe").fill(password!);
-    await page.getByRole("button", { name: /Continuer|Valider/i }).click();
+    await page.getByRole("button", { name: /^(Continuer|Valider)$/i }).click();
     await page.waitForURL(/dashboard|2fa|login/i, { timeout: 30_000 });
     if (page.url().includes("login")) {
       // 2FA step on same form
