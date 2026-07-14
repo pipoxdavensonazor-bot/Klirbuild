@@ -17,6 +17,7 @@
     "stripe:verify": "tsx scripts/stripe-verify.ts",
     "production:verify": "tsx scripts/production-verify.ts",
     "smoke:test": "tsx scripts/smoke-test.ts",
+    "security:check": "node scripts/security-check.mjs",
     "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
   },
   "dependencies": {

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [master, main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -26,3 +30,31 @@ jobs:
       - run: npm test
 
       - run: npx tsc --noEmit
+
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Dependency audit (high+)
+        run: npm audit --audit-level=high
+
+      - name: Secret scan (Gitleaks)
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" | tar xz
+          ./gitleaks detect --source . --verbose --redact --no-banner
+
+      - name: KlirBuild security checks
+        run: npm run security:check
