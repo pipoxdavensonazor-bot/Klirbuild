@@ -120,6 +120,15 @@ export default async function HomePage() {
               </Button>
             </div>
           </div>
+          {/* Carte info à droite — descendue légèrement */}
+          <div className="relative flex items-end justify-end pb-16 lg:col-span-6 lg:min-h-[70vh] lg:pb-24">
+            <div className="w-full max-w-xs border border-[#C9A227]/35 bg-[#0B1220]/55 px-5 py-4 backdrop-blur-sm sm:ml-auto translate-y-4 sm:translate-y-6 lg:translate-y-10">
+              <p className="font-[family-name:var(--font-display)] text-2xl text-[#C9A227]">20 ans</p>
+              <p className="mt-1 text-sm text-slate-300">
+                d&apos;expertise immobilière — écoute, stratégie et résultats concrets.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
