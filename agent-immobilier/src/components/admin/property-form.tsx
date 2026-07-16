@@ -51,6 +51,7 @@ export function PropertyAdminForm({
       areaSqft: Number(fd.get("areaSqft") || 0),
       status: String(fd.get("status") || "AVAILABLE"),
       featured: fd.get("featured") === "on",
+      imageUrl: String(fd.get("imageUrl") || ""),
       openHouse: {
         startsAt: String(fd.get("ohStartsAt") || ""),
         endsAt: String(fd.get("ohEndsAt") || ""),
@@ -81,9 +82,27 @@ export function PropertyAdminForm({
           <Input id="title" name="title" defaultValue={initial?.title} required />
         </div>
         <div>
-          <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" name="slug" defaultValue={initial?.slug} required />
+          <Label htmlFor="slug">Slug (URL)</Label>
+          <Input
+            id="slug"
+            name="slug"
+            defaultValue={initial?.slug}
+            placeholder="ex. maison-blainville-27e"
+            required={!initial?.id}
+          />
         </div>
+      </div>
+      <div>
+        <Label htmlFor="imageUrl">Photo (URL)</Label>
+        <Input
+          id="imageUrl"
+          name="imageUrl"
+          type="url"
+          placeholder="https://…"
+        />
+        <p className="mt-1 text-xs text-slate-400">
+          Collez un lien d&apos;image (Centris, Cloudinary, etc.)
+        </p>
       </div>
       <div>
         <Label htmlFor="description">Description</Label>

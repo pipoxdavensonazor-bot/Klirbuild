@@ -46,10 +46,17 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
+  const slug =
+    String(body.slug || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || `maison-${Date.now()}`;
+
   const property = await prisma.property.create({
     data: {
       title: body.title,
-      slug: body.slug,
+      slug,
       description: body.description,
       address: body.address,
       city: body.city,
@@ -60,6 +67,17 @@ export async function POST(req: Request) {
       areaSqft: Number(body.areaSqft || 0),
       status: body.status || "AVAILABLE",
       featured: Boolean(body.featured),
+      images: body.imageUrl
+        ? {
+            create: [
+              {
+                url: String(body.imageUrl),
+                alt: body.title,
+                sortOrder: 0,
+              },
+            ],
+          }
+        : undefined,
     },
   });
   await upsertOpenHouse(property.id, body.openHouse);
@@ -89,5 +107,28 @@ export async function PUT(req: Request) {
     },
   });
   await upsertOpenHouse(property.id, body.openHouse);
+
+  if (body.imageUrl) {
+    const existingImage = await prisma.propertyImage.findFirst({
+      where: { propertyId: property.id },
+      orderBy: { sortOrder: "asc" },
+    });
+    if (existingImage) {
+      await prisma.propertyImage.update({
+        where: { id: existingImage.id },
+        data: { url: String(body.imageUrl) },
+      });
+    } else {
+      await prisma.propertyImage.create({
+        data: {
+          propertyId: property.id,
+          url: String(body.imageUrl),
+          alt: body.title,
+          sortOrder: 0,
+        },
+      });
+    }
+  }
+
   return NextResponse.json(property);
 }
