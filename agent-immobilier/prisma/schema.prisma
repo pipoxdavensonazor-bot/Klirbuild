@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  name           String
+  title          String
+  slogan         String
+  bio            String
+  story          String
+  experience     String
+  degrees        String
+  certifications String
+  awards         String
+  mission        String
+  values         String
+  languages      String
+  photoUrl       String
+  phone          String
+  email          String
+  address        String
+  city           String
+  whatsapp       String
+  messenger      String?
+  facebook       String?
+  instagram      String?
+  linkedin       String?
+  twitter        String?
+  mapEmbedUrl    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Property {
+  id                String              @id @default(cuid())
+  slug              String              @unique
+  title             String
+  description       String
+  address           String
+  city              String
+  price             Int
+  soldPrice         Int?
+  type              String
+  bedrooms          Int
+  bathrooms         Float
+  garage            Boolean             @default(false)
+  areaSqft          Int
+  status            String              @default("AVAILABLE")
+  featured          Boolean             @default(false)
+  videoUrl          String?
+  mapEmbedUrl       String?
+  soldAt            DateTime?
+  daysOnMarket      Int?
+  clientTestimonial String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  images            PropertyImage[]
+  testimonials      Testimonial[]
+  invites           TestimonialInvite[]
+  openHouses        OpenHouse[]
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  url        String
+  alt        String?
+  sortOrder  Int      @default(0)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+/// Visite libre (open house) liée à une propriété
+model OpenHouse {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  startsAt   DateTime
+  endsAt     DateTime
+  notes      String?
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Seminar {
+  id               String                 @id @default(cuid())
+  slug             String                 @unique
+  title            String
+  description      String
+  imageUrl         String?
+  startsAt         DateTime
+  location         String
+  mapEmbedUrl      String?
+  capacity         Int
+  registrationOpen Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  registrations    SeminarRegistration[]
+}
+
+model SeminarRegistration {
+  id        String   @id @default(cuid())
+  seminarId String
+  seminar   Seminar  @relation(fields: [seminarId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  phone     String?
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  articles Article[]
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String
+  content     String
+  coverUrl    String?
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Testimonial {
+  id         String    @id @default(cuid())
+  name       String
+  role       String?
+  content    String
+  rating     Int       @default(5)
+  photoUrl   String?
+  videoUrl   String?
+  featured   Boolean   @default(true)
+  approved   Boolean   @default(false)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+}
+
+model TestimonialInvite {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+  status      String    @default("PENDING")
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  name       String
+  email      String
+  phone      String?
+  subject    String
+  body       String
+  read       Boolean  @default(false)
+  propertyId String?
+  createdAt  DateTime @default(now())
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model SocialAccount {
+  id         String       @id @default(cuid())
+  platform   String
+  label      String
+  enabled    Boolean      @default(true)
+  webhookUrl String?
+  metaJson   String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  posts      SocialPost[]
+}
+
+model SocialPost {
+  id              String         @id @default(cuid())
+  propertyId      String?
+  articleId       String?
+  socialAccountId String?
+  account         SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  platform        String
+  status          String         @default("PENDING")
+  title           String
+  body            String
+  url             String?
+  externalId      String?
+  errorMessage    String?
+  sentAt          DateTime?
+  createdAt       DateTime       @default(now())
+}

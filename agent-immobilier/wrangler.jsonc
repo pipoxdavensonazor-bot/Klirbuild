@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "leonnebienaime",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "leonnebienaime.ca/*", "zone_name": "leonnebienaime.ca" },
+    { "pattern": "www.leonnebienaime.ca/*", "zone_name": "leonnebienaime.ca" }
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "leonnebienaime"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "leonnebienaime-db",
+      "database_id": "e0a182d4-b4b1-49d2-acdf-ed50dbaa5251"
+    }
+  ]
+}
