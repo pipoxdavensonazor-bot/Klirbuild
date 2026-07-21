@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ProfileAdminForm } from "@/components/admin/profile-form";
+import { CAREER_PHOTO_KEY, getSetting } from "@/lib/settings";
 
 export const metadata = { title: "Textes · Admin" };
 
@@ -13,6 +14,8 @@ export default async function AdminTextsPage() {
     );
   }
 
+  const careerPhotoUrl = (await getSetting(CAREER_PHOTO_KEY)) || "";
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-12">
       <div>
@@ -21,7 +24,8 @@ export default async function AdminTextsPage() {
           Profil & textes
         </h1>
         <p className="mt-2 text-slate-500">
-          Coordonnées, réseaux, photo, formation, certifications et textes du site.
+          Coordonnées, réseaux, photos (accueil + carrière), formation et textes du
+          site.
         </p>
       </div>
       <ProfileAdminForm
@@ -47,6 +51,7 @@ export default async function AdminTextsPage() {
           instagram: profile.instagram || "",
           linkedin: profile.linkedin || "",
           photoUrl: profile.photoUrl,
+          careerPhotoUrl,
         }}
       />
     </div>

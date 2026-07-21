@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/properties/property-card";
@@ -8,11 +7,8 @@ import { RichHtml } from "@/components/ui/rich-html";
 import { prisma } from "@/lib/prisma";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { whatsappLink, centrisListingsUrl } from "@/lib/utils";
-import {
-  PORTRAIT_CAREER,
-  PORTRAIT_HERO,
-  resolvePublicPhotoUrl,
-} from "@/lib/photos";
+import { PORTRAIT_HERO, resolvePublicPhotoUrl } from "@/lib/photos";
+import { CAREER_PHOTO_KEY, getSetting } from "@/lib/settings";
 
 const careerHighlights = [
   {
@@ -33,21 +29,23 @@ const careerHighlights = [
 ];
 
 export default async function HomePage() {
-  const [profile, featured, testimonials, feed] = await Promise.all([
-    prisma.profile.findFirst(),
-    prisma.property.findMany({
-      where: { status: { in: ["AVAILABLE", "PENDING"] }, featured: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
-      take: 3,
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.testimonial.findMany({
-      where: { featured: true, approved: true },
-      take: 3,
-      orderBy: { createdAt: "desc" },
-    }),
-    buildHomeFeed(12),
-  ]);
+  const [profile, featured, testimonials, feed, careerPhotoRaw] =
+    await Promise.all([
+      prisma.profile.findFirst(),
+      prisma.property.findMany({
+        where: { status: { in: ["AVAILABLE", "PENDING"] }, featured: true },
+        include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+        take: 3,
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.testimonial.findMany({
+        where: { featured: true, approved: true },
+        take: 3,
+        orderBy: { createdAt: "desc" },
+      }),
+      buildHomeFeed(12),
+      getSetting(CAREER_PHOTO_KEY),
+    ]);
 
   const name = profile?.name ?? "Léonne Bien-Aimé";
   const slogan =
@@ -55,28 +53,31 @@ export default async function HomePage() {
     "Des conseils justes. Des résultats concrets.\nHumain et chaleureux.";
   const title = profile?.title ?? "Courtière immobilière résidentielle";
   const photoHero = resolvePublicPhotoUrl(profile?.photoUrl, PORTRAIT_HERO);
+  const careerPhoto = careerPhotoRaw
+    ? resolvePublicPhotoUrl(careerPhotoRaw, careerPhotoRaw)
+    : null;
 
   return (
     <>
       <section className="relative min-h-[100svh] overflow-hidden bg-[#0B1220]">
-        {/* Photo réduite à 60 % — recul max (image entière visible) */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-end">
-          <div className="relative h-[60%] w-[60%]">
-            <SiteImage
-              src={photoHero}
-              alt={`${name} — courtière immobilière`}
-              fill
-              priority
-              className="object-contain object-right object-center"
-              sizes="60vw"
-            />
-          </div>
+        {/* Photo = 50 % droite du hero */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2">
+          <SiteImage
+            src={photoHero}
+            alt={`${name} — courtière immobilière`}
+            fill
+            priority
+            className="object-cover object-[45%_12%] sm:object-[42%_10%] lg:object-[40%_8%]"
+            sizes="50vw"
+          />
+          <div className="absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-[#0B1220] to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-1/5 bg-gradient-to-t from-[#0B1220]/50 to-transparent" />
         </div>
         {/* Zone texte lisible à gauche */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/80 via-[40%] to-transparent to-[72%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/70 via-[45%] to-transparent to-[55%]" />
 
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
-          <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-xl">
+          <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-[48%]">
             <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#C9A227]">
               Courtage immobilier · Laval · Laurentides · Lanaudière
             </p>
@@ -158,17 +159,23 @@ export default async function HomePage() {
       </section>
 
       <section className="relative overflow-hidden bg-white py-24">
-        <div className="mx-auto grid max-w-7xl items-center gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:gap-10 lg:px-8">
-          <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
-            <Image
-              src={PORTRAIT_CAREER}
-              alt={`${name} — 20 ans de carrière`}
-              fill
-              className="object-cover object-[center_12%]"
-              sizes="45vw"
-            />
-          </div>
-          <div>
+        <div
+          className={`mx-auto grid max-w-7xl items-center gap-6 px-4 sm:px-6 lg:gap-10 lg:px-8 ${
+            careerPhoto ? "lg:grid-cols-2" : ""
+          }`}
+        >
+          {careerPhoto ? (
+            <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
+              <SiteImage
+                src={careerPhoto}
+                alt={`${name} — 20 ans de carrière`}
+                fill
+                className="object-cover object-[center_12%]"
+                sizes="45vw"
+              />
+            </div>
+          ) : null}
+          <div className={careerPhoto ? "" : "max-w-3xl"}>
             <p className="text-xs uppercase tracking-[0.35em] text-[#C9A227]">La carrière</p>
             <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl text-[#0F172A] sm:text-4xl">
               Une présence solide.

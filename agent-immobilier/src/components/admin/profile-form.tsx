@@ -29,6 +29,7 @@ type ProfileFields = {
   instagram: string;
   linkedin: string;
   photoUrl: string;
+  careerPhotoUrl: string;
 };
 
 const RICH_FIELDS = [
@@ -96,9 +97,18 @@ export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
         ))}
         <ImageUploadField
           name="photoUrl"
-          label="Photo d'accueil"
+          label="Photo d'accueil (hero)"
           defaultValue={initial.photoUrl}
         />
+        <ImageUploadField
+          name="careerPhotoUrl"
+          label="Photo section « La carrière » (accueil)"
+          defaultValue={initial.careerPhotoUrl}
+        />
+        <p className="text-xs text-slate-500">
+          Si aucune photo carrière n&apos;est ajoutée, la section s&apos;affiche sans
+          image.
+        </p>
       </section>
 
       <section className="space-y-5 border-t border-slate-100 pt-6">

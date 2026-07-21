@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { sanitizeRichHtml } from "@/lib/rich-text";
+import { CAREER_PHOTO_KEY, setSetting } from "@/lib/settings";
 
 const RICH_KEYS = [
   "slogan",
@@ -63,6 +64,14 @@ export async function PUT(req: Request) {
         : {}),
     },
   });
+
+  if (body.careerPhotoUrl !== undefined) {
+    try {
+      await setSetting(CAREER_PHOTO_KEY, String(body.careerPhotoUrl || ""));
+    } catch {
+      // Setting table absente — ignorer
+    }
+  }
 
   return NextResponse.json(updated);
 }
