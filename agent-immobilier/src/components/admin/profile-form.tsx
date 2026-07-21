@@ -20,6 +20,7 @@ type ProfileFields = {
   email: string;
   address: string;
   city: string;
+  photoUrl: string;
 };
 
 export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
@@ -54,11 +55,21 @@ export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
           ["email", "Courriel"],
           ["address", "Adresse"],
           ["city", "Ville"],
+          ["photoUrl", "Photo d'accueil (URL)"],
         ] as const
       ).map(([key, label]) => (
         <div key={key}>
           <Label htmlFor={key}>{label}</Label>
-          <Input id={key} name={key} defaultValue={initial[key]} required />
+          <Input
+            id={key}
+            name={key}
+            type={key === "photoUrl" ? "url" : "text"}
+            defaultValue={initial[key]}
+            required={key !== "photoUrl"}
+            placeholder={
+              key === "photoUrl" ? "https://… (lien direct vers la photo)" : undefined
+            }
+          />
         </div>
       ))}
       {(

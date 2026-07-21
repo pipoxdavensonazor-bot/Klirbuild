@@ -6,11 +6,11 @@ import { HomeFeed } from "@/components/home/home-feed";
 import { prisma } from "@/lib/prisma";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { whatsappLink, centrisListingsUrl } from "@/lib/utils";
-
-const PORTRAIT_HERO =
-  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80";
-const PORTRAIT_CAREER =
-  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=1200&q=80";
+import {
+  PORTRAIT_CAREER,
+  PORTRAIT_HERO,
+  resolvePublicPhotoUrl,
+} from "@/lib/photos";
 
 const careerHighlights = [
   {
@@ -52,10 +52,7 @@ export default async function HomePage() {
     profile?.slogan ??
     "Des conseils justes. Des résultats concrets.\nHumain et chaleureux.";
   const title = profile?.title ?? "Courtière immobilière résidentielle";
-  const photoHero =
-    profile?.photoUrl?.startsWith("http") || profile?.photoUrl?.startsWith("/")
-      ? profile.photoUrl
-      : PORTRAIT_HERO;
+  const photoHero = resolvePublicPhotoUrl(profile?.photoUrl, PORTRAIT_HERO);
 
   return (
     <>

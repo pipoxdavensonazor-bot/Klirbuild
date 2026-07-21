@@ -39,6 +39,7 @@ export default async function AdminTextsPage() {
           email: profile.email,
           address: profile.address,
           city: profile.city,
+          photoUrl: profile.photoUrl,
         }}
       />
     </div>

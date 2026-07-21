@@ -29,6 +29,9 @@ export async function PUT(req: Request) {
       email: body.email,
       address: body.address,
       city: body.city,
+      ...(body.photoUrl !== undefined
+        ? { photoUrl: String(body.photoUrl || "").trim() || profile.photoUrl }
+        : {}),
     },
   });
 
