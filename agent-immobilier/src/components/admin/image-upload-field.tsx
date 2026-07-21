@@ -189,20 +189,6 @@ export function ImageUploadField({
         </div>
       </div>
 
-      <div className="space-y-1 border-t border-slate-200 pt-3">
-        <Label htmlFor={`${inputId}-url`} className="text-xs text-slate-500">
-          Ou coller une URL d&apos;image
-        </Label>
-        <Input
-          id={`${inputId}-url`}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          type="url"
-          placeholder="https://…"
-          className="bg-white"
-        />
-      </div>
-
       {message ? <p className="text-xs text-emerald-700">{message}</p> : null}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>
