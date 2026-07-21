@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPropertiesPage() {
   const properties = await prisma.property
     .findMany({
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       orderBy: { updatedAt: "desc" },
     })
     .catch(() => []);
@@ -71,6 +72,7 @@ export default async function AdminPropertiesPage() {
                   areaSqft: p.areaSqft,
                   status: p.status,
                   featured: p.featured,
+                  imageUrl: p.images[0]?.url || "",
                 }}
               />
             </div>

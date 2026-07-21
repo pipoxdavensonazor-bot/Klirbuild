@@ -25,5 +25,11 @@
       "database_name": "leonnebienaime-db",
       "database_id": "e0a182d4-b4b1-49d2-acdf-ed50dbaa5251"
     }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "MEDIA",
+      "id": "097f90d87ea8493798c1c8488ed9587d"
+    }
   ]
 }

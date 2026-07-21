@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,32 +112,25 @@ export function ArticleAdminForm({
           />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <Label htmlFor="categorySlug">Catégorie</Label>
-          <select
-            id="categorySlug"
-            name="categorySlug"
-            defaultValue={initial?.categorySlug || "actualites"}
-            className="flex h-10 w-full border border-slate-300 bg-white px-3 text-sm"
-          >
-            <option value="actualites">Actualités / Publication</option>
-            <option value="conseils">Conseils</option>
-            <option value="achat">Achat</option>
-            <option value="vente">Vente</option>
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="coverUrl">Image de couverture (URL)</Label>
-          <Input
-            id="coverUrl"
-            name="coverUrl"
-            type="url"
-            defaultValue={initial?.coverUrl || ""}
-            placeholder="https://…"
-          />
-        </div>
+      <div>
+        <Label htmlFor="categorySlug">Catégorie</Label>
+        <select
+          id="categorySlug"
+          name="categorySlug"
+          defaultValue={initial?.categorySlug || "actualites"}
+          className="flex h-10 w-full border border-slate-300 bg-white px-3 text-sm"
+        >
+          <option value="actualites">Actualités / Publication</option>
+          <option value="conseils">Conseils</option>
+          <option value="achat">Achat</option>
+          <option value="vente">Vente</option>
+        </select>
       </div>
+      <ImageUploadField
+        name="coverUrl"
+        label="Image de couverture"
+        defaultValue={initial?.coverUrl || ""}
+      />
       <div>
         <Label htmlFor="excerpt">Résumé (fil d&apos;actualité)</Label>
         <Textarea

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ type PropertyInput = {
   areaSqft?: number;
   status?: string;
   featured?: boolean;
+  imageUrl?: string;
 };
 
 export function PropertyAdminForm({
@@ -92,18 +94,11 @@ export function PropertyAdminForm({
           />
         </div>
       </div>
-      <div>
-        <Label htmlFor="imageUrl">Photo (URL)</Label>
-        <Input
-          id="imageUrl"
-          name="imageUrl"
-          type="url"
-          placeholder="https://…"
-        />
-        <p className="mt-1 text-xs text-slate-400">
-          Collez un lien d&apos;image (Centris, Cloudinary, etc.)
-        </p>
-      </div>
+      <ImageUploadField
+        name="imageUrl"
+        label="Photo de la propriété"
+        defaultValue={initial?.imageUrl || ""}
+      />
       <div>
         <Label htmlFor="description">Description</Label>
         <Textarea

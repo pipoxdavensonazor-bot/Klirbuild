@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 
 type ProfileFields = {
   name: string;
@@ -55,23 +56,20 @@ export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
           ["email", "Courriel"],
           ["address", "Adresse"],
           ["city", "Ville"],
-          ["photoUrl", "Photo d'accueil (URL)"],
         ] as const
       ).map(([key, label]) => (
         <div key={key}>
           <Label htmlFor={key}>{label}</Label>
-          <Input
-            id={key}
-            name={key}
-            type={key === "photoUrl" ? "url" : "text"}
-            defaultValue={initial[key]}
-            required={key !== "photoUrl"}
-            placeholder={
-              key === "photoUrl" ? "https://… (lien direct vers la photo)" : undefined
-            }
-          />
+          <Input id={key} name={key} defaultValue={initial[key]} required />
         </div>
       ))}
+
+      <ImageUploadField
+        name="photoUrl"
+        label="Photo d'accueil"
+        defaultValue={initial.photoUrl}
+      />
+
       {(
         [
           ["slogan", "Slogan"],

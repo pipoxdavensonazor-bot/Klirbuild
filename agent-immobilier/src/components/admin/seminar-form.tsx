@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,17 +141,12 @@ export function SeminarAdminForm({
             defaultValue={initial?.capacity ?? 50}
           />
         </div>
-        <div>
-          <Label htmlFor="imageUrl">Image (URL)</Label>
-          <Input
-            id="imageUrl"
-            name="imageUrl"
-            type="url"
-            defaultValue={initial?.imageUrl || ""}
-            placeholder="https://…"
-          />
-        </div>
       </div>
+      <ImageUploadField
+        name="imageUrl"
+        label="Image de l'événement"
+        defaultValue={initial?.imageUrl || ""}
+      />
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
