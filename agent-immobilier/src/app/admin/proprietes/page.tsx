@@ -6,48 +6,12 @@ import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
 
 export const dynamic = "force-dynamic";
 
-type PropRow = {
-  id: string;
-  title: string;
-  slug: string;
-  description: string;
-  address: string;
-  city: string;
-  price: number;
-  type: string;
-  bedrooms: number;
-  bathrooms: number;
-  areaSqft: number;
-  status: string;
-  featured: boolean;
-  openHouses: Array<{
-    startsAt: Date;
-    endsAt: Date;
-    published: boolean;
-  }>;
-};
-
 export default async function AdminPropertiesPage() {
-  let properties: PropRow[] = [];
-
-  try {
-    const rows = await prisma.property.findMany({
-      include: {
-        openHouses: { orderBy: { startsAt: "desc" }, take: 1 },
-      },
+  const properties = await prisma.property
+    .findMany({
       orderBy: { updatedAt: "desc" },
-    });
-    properties = rows;
-  } catch {
-    try {
-      const basic = await prisma.property.findMany({
-        orderBy: { updatedAt: "desc" },
-      });
-      properties = basic.map((p) => ({ ...p, openHouses: [] }));
-    } catch {
-      properties = [];
-    }
-  }
+    })
+    .catch(() => []);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">
@@ -80,14 +44,6 @@ export default async function AdminPropertiesPage() {
                   {propertyTypeLabel(p.type)} · {p.city} · {formatPrice(p.price)} ·{" "}
                   {statusLabel(p.status)}
                 </p>
-                {p.openHouses[0] ? (
-                  <p className="mt-2 text-sm text-[#8A7018]">
-                    Visite libre :{" "}
-                    {p.openHouses[0].startsAt.toLocaleString("fr-CA")} →{" "}
-                    {p.openHouses[0].endsAt.toLocaleString("fr-CA")}
-                    {p.openHouses[0].published ? " (publiée)" : " (brouillon)"}
-                  </p>
-                ) : null}
               </div>
               <div className="flex flex-col items-end gap-2">
                 <Link

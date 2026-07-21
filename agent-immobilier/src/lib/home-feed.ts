@@ -47,19 +47,25 @@ function formatOpenHouseWindow(startsAt: Date, endsAt: Date) {
 export async function buildHomeFeed(limit = 12): Promise<HomeFeedItem[]> {
   const now = new Date();
 
-  const [articles, seminars, openHouses, properties] = await Promise.all([
-    prisma.article.findMany({
+  const articles = await prisma.article
+    .findMany({
       where: { published: true },
       include: { category: true },
       orderBy: { publishedAt: "desc" },
       take: limit,
-    }),
-    prisma.seminar.findMany({
+    })
+    .catch(() => []);
+
+  const seminars = await prisma.seminar
+    .findMany({
       where: { startsAt: { gte: now } },
       orderBy: { startsAt: "asc" },
       take: limit,
-    }),
-    prisma.openHouse.findMany({
+    })
+    .catch(() => []);
+
+  const openHouses = await prisma.openHouse
+    .findMany({
       where: { published: true, endsAt: { gte: now } },
       include: {
         property: {
@@ -68,14 +74,17 @@ export async function buildHomeFeed(limit = 12): Promise<HomeFeedItem[]> {
       },
       orderBy: { startsAt: "asc" },
       take: limit,
-    }),
-    prisma.property.findMany({
+    })
+    .catch(() => []);
+
+  const properties = await prisma.property
+    .findMany({
       where: { status: { in: ["AVAILABLE", "PENDING"] } },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       orderBy: { updatedAt: "desc" },
       take: limit,
-    }),
-  ]);
+    })
+    .catch(() => []);
 
   const items: HomeFeedItem[] = [];
 

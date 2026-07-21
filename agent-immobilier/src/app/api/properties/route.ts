@@ -14,33 +14,38 @@ async function upsertOpenHouse(propertyId: string, oh?: OpenHousePayload) {
   const endsAt = new Date(oh.endsAt);
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return;
 
-  const existing = await prisma.openHouse.findFirst({
-    where: { propertyId },
-    orderBy: { startsAt: "desc" },
-  });
+  try {
+    const existing = await prisma.openHouse.findFirst({
+      where: { propertyId },
+      orderBy: { startsAt: "desc" },
+    });
 
-  const data = {
-    startsAt,
-    endsAt,
-    notes: oh.notes?.trim() || null,
-    published: oh.published !== false,
-  };
+    const data = {
+      startsAt,
+      endsAt,
+      notes: oh.notes?.trim() || null,
+      published: oh.published !== false,
+    };
 
-  if (existing) {
-    await prisma.openHouse.update({ where: { id: existing.id }, data });
-  } else {
-    await prisma.openHouse.create({ data: { propertyId, ...data } });
+    if (existing) {
+      await prisma.openHouse.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.openHouse.create({ data: { propertyId, ...data } });
+    }
+  } catch {
+    // Table OpenHouse absente — ignorer jusqu'à migration D1
   }
 }
 
 export async function GET() {
-  const properties = await prisma.property.findMany({
-    include: {
-      images: { orderBy: { sortOrder: "asc" } },
-      openHouses: { orderBy: { startsAt: "desc" }, take: 3 },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const properties = await prisma.property
+    .findMany({
+      include: {
+        images: { orderBy: { sortOrder: "asc" } },
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    .catch(() => []);
   return NextResponse.json(properties);
 }
 
