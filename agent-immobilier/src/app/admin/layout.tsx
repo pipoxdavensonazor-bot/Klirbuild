@@ -11,6 +11,7 @@ const nav = [
   { href: "/admin/proprietes", label: "Maisons" },
   { href: "/admin/temoignages", label: "Témoignages" },
   { href: "/admin/diffusion", label: "Réseaux" },
+  { href: "/admin/securite", label: "Sécurité" },
 ];
 
 export default async function AdminLayout({

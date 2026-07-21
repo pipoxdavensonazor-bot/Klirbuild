@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
 export const CAREER_PHOTO_KEY = "career_photo_url";
+export const TOTP_SECRET_KEY = "admin_totp_secret";
+export const TOTP_ENABLED_KEY = "admin_totp_enabled";
 
 export async function getSetting(key: string): Promise<string | null> {
   try {

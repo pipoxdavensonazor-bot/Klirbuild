@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { signMediaUrl } from "@/lib/media-access";
 
 export type MediaMeta = {
   contentType: string;
@@ -49,7 +50,7 @@ export async function saveMediaObject(opts: {
 
   const key =
     opts.key ||
-    `media_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    `media_${Date.now().toString(36)}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
   const body =
     opts.bytes instanceof Uint8Array
@@ -67,7 +68,14 @@ export async function saveMediaObject(opts: {
     metadata: meta,
   });
 
-  return { key, url: mediaPublicPath(key), meta };
+  let url = mediaPublicPath(key);
+  try {
+    url = await signMediaUrl(key);
+  } catch {
+    // Signing may fail in local without secrets — bare path still works with embed checks
+  }
+
+  return { key, url, meta };
 }
 
 export async function readMediaObject(key: string) {

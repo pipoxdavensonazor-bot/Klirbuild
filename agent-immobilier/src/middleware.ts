@@ -28,10 +28,11 @@ export async function middleware(request: NextRequest) {
 
   // Public pages: still attach security headers
   if (!isAdminPage && !isAdminApi) {
+    // /api/media has its own access rules — still add headers
     return withSecurityHeaders(NextResponse.next());
   }
 
-  // Allow login page + login API without auth
+  // Allow login page + login / totp setup APIs appropriately
   if (isLogin || pathname === "/api/admin/login") {
     return withSecurityHeaders(NextResponse.next());
   }
