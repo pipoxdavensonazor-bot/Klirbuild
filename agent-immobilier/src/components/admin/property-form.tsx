@@ -1,11 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 type PropertyInput = {
   id?: string;
@@ -21,8 +22,24 @@ type PropertyInput = {
   areaSqft?: number;
   status?: string;
   featured?: boolean;
+  garage?: boolean;
   imageUrl?: string;
+  videoUrl?: string | null;
+  openHouse?: {
+    startsAt?: string;
+    endsAt?: string;
+    notes?: string | null;
+    published?: boolean;
+  } | null;
 };
+
+function toLocalInputValue(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function PropertyAdminForm({
   initial,
@@ -31,6 +48,7 @@ export function PropertyAdminForm({
   initial?: PropertyInput;
   onSaved?: () => void;
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -39,6 +57,7 @@ export function PropertyAdminForm({
     setPending(true);
     setMessage(null);
     const fd = new FormData(e.currentTarget);
+    const clearOh = fd.get("ohClear") === "on";
     const payload = {
       id: initial?.id,
       title: String(fd.get("title") || ""),
@@ -53,13 +72,17 @@ export function PropertyAdminForm({
       areaSqft: Number(fd.get("areaSqft") || 0),
       status: String(fd.get("status") || "AVAILABLE"),
       featured: fd.get("featured") === "on",
+      garage: fd.get("garage") === "on",
       imageUrl: String(fd.get("imageUrl") || ""),
-      openHouse: {
-        startsAt: String(fd.get("ohStartsAt") || ""),
-        endsAt: String(fd.get("ohEndsAt") || ""),
-        notes: String(fd.get("ohNotes") || ""),
-        published: fd.get("ohPublished") === "on",
-      },
+      videoUrl: String(fd.get("videoUrl") || "") || null,
+      openHouse: clearOh
+        ? { clear: true }
+        : {
+            startsAt: String(fd.get("ohStartsAt") || ""),
+            endsAt: String(fd.get("ohEndsAt") || ""),
+            notes: String(fd.get("ohNotes") || ""),
+            published: fd.get("ohPublished") === "on",
+          },
     };
 
     const res = await fetch("/api/properties", {
@@ -74,10 +97,11 @@ export function PropertyAdminForm({
     }
     setMessage("Propriété enregistrée.");
     onSaved?.();
+    router.refresh();
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6 border border-slate-200 p-6">
+    <form onSubmit={onSubmit} className="space-y-6 border border-slate-200 bg-white p-6">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <Label htmlFor="title">Titre</Label>
@@ -96,18 +120,25 @@ export function PropertyAdminForm({
       </div>
       <ImageUploadField
         name="imageUrl"
-        label="Photo de la propriété"
+        label="Photo principale"
         defaultValue={initial?.imageUrl || ""}
       />
       <div>
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          name="description"
-          defaultValue={initial?.description}
-          required
+        <Label htmlFor="videoUrl">Vidéo (URL /api/media/… ou YouTube)</Label>
+        <Input
+          id="videoUrl"
+          name="videoUrl"
+          defaultValue={initial?.videoUrl || ""}
+          placeholder="/api/media/… ou https://…"
         />
       </div>
+      <RichTextEditor
+        name="description"
+        label="Description"
+        defaultValue={initial?.description || ""}
+        placeholder="Décrivez la propriété…"
+        enableMedia
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <Label htmlFor="address">Adresse</Label>
@@ -120,7 +151,7 @@ export function PropertyAdminForm({
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <div>
-          <Label htmlFor="price">Prix</Label>
+          <Label htmlFor="price">Prix ($)</Label>
           <Input
             id="price"
             name="price"
@@ -161,20 +192,51 @@ export function PropertyAdminForm({
       <div className="grid gap-4 md:grid-cols-3">
         <div>
           <Label htmlFor="type">Type</Label>
-          <Input id="type" name="type" defaultValue={initial?.type ?? "HOUSE"} />
+          <select
+            id="type"
+            name="type"
+            defaultValue={initial?.type ?? "HOUSE"}
+            className="flex h-10 w-full border border-slate-300 bg-white px-3 text-sm"
+          >
+            <option value="HOUSE">Maison</option>
+            <option value="CONDO">Condo</option>
+            <option value="TOWNHOUSE">Maison de ville</option>
+            <option value="LAND">Terrain</option>
+            <option value="COMMERCIAL">Commercial</option>
+          </select>
         </div>
         <div>
           <Label htmlFor="status">Statut</Label>
-          <Input id="status" name="status" defaultValue={initial?.status ?? "AVAILABLE"} />
+          <select
+            id="status"
+            name="status"
+            defaultValue={initial?.status ?? "AVAILABLE"}
+            className="flex h-10 w-full border border-slate-300 bg-white px-3 text-sm"
+          >
+            <option value="AVAILABLE">À vendre</option>
+            <option value="PENDING">Sous offre / conditional</option>
+            <option value="SOLD">Vendue</option>
+          </select>
         </div>
-        <div className="flex items-end gap-2 pb-2">
-          <input
-            id="featured"
-            name="featured"
-            type="checkbox"
-            defaultChecked={initial?.featured}
-          />
-          <Label htmlFor="featured">En vedette</Label>
+        <div className="flex flex-col justify-end gap-2 pb-1">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              id="featured"
+              name="featured"
+              type="checkbox"
+              defaultChecked={initial?.featured}
+            />
+            En vedette (accueil)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              id="garage"
+              name="garage"
+              type="checkbox"
+              defaultChecked={initial?.garage}
+            />
+            Garage
+          </label>
         </div>
       </div>
 
@@ -183,29 +245,53 @@ export function PropertyAdminForm({
           Visite libre
         </legend>
         <p className="text-sm text-slate-500">
-          Publiez une porte ouverte dans le fil d&apos;actualité de l&apos;accueil.
+          Affichée sur la fiche et dans le fil d&apos;actualité.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="ohStartsAt">Début</Label>
-            <Input id="ohStartsAt" name="ohStartsAt" type="datetime-local" />
+            <Input
+              id="ohStartsAt"
+              name="ohStartsAt"
+              type="datetime-local"
+              defaultValue={toLocalInputValue(initial?.openHouse?.startsAt)}
+            />
           </div>
           <div>
             <Label htmlFor="ohEndsAt">Fin</Label>
-            <Input id="ohEndsAt" name="ohEndsAt" type="datetime-local" />
+            <Input
+              id="ohEndsAt"
+              name="ohEndsAt"
+              type="datetime-local"
+              defaultValue={toLocalInputValue(initial?.openHouse?.endsAt)}
+            />
           </div>
         </div>
         <div>
           <Label htmlFor="ohNotes">Notes (optionnel)</Label>
-          <Textarea
+          <Input
             id="ohNotes"
             name="ohNotes"
-            placeholder="Ex. Stationnement sur place, sans rendez-vous…"
+            defaultValue={initial?.openHouse?.notes || ""}
+            placeholder="Ex. Stationnement sur place…"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <input id="ohPublished" name="ohPublished" type="checkbox" defaultChecked />
-          <Label htmlFor="ohPublished">Publier dans le fil d&apos;actualité</Label>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              id="ohPublished"
+              name="ohPublished"
+              type="checkbox"
+              defaultChecked={initial?.openHouse?.published !== false}
+            />
+            Publier dans le fil d&apos;actualité
+          </label>
+          {initial?.openHouse?.startsAt ? (
+            <label className="flex items-center gap-2 text-sm text-red-700">
+              <input id="ohClear" name="ohClear" type="checkbox" />
+              Supprimer la visite libre
+            </label>
+          ) : null}
         </div>
       </fieldset>
 

@@ -8,6 +8,9 @@ const RICH_KEYS = [
   "bio",
   "story",
   "experience",
+  "degrees",
+  "certifications",
+  "awards",
   "mission",
   "values",
   "languages",
@@ -40,6 +43,9 @@ export async function PUT(req: Request) {
       bio: rich.bio ?? body.bio,
       story: rich.story ?? body.story,
       experience: rich.experience ?? body.experience,
+      degrees: rich.degrees ?? body.degrees,
+      certifications: rich.certifications ?? body.certifications,
+      awards: rich.awards ?? body.awards,
       mission: rich.mission ?? body.mission,
       values: rich.values ?? body.values,
       languages: rich.languages ?? body.languages,
@@ -47,6 +53,11 @@ export async function PUT(req: Request) {
       email: body.email,
       address: body.address,
       city: body.city,
+      whatsapp: body.whatsapp !== undefined ? String(body.whatsapp || "") : undefined,
+      facebook: body.facebook !== undefined ? String(body.facebook || "") || null : undefined,
+      instagram:
+        body.instagram !== undefined ? String(body.instagram || "") || null : undefined,
+      linkedin: body.linkedin !== undefined ? String(body.linkedin || "") || null : undefined,
       ...(body.photoUrl !== undefined
         ? { photoUrl: String(body.photoUrl || "").trim() || profile.photoUrl }
         : {}),

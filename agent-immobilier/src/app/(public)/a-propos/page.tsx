@@ -3,7 +3,15 @@ import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
 import { resolvePublicPhotoUrl, PORTRAIT_CAREER } from "@/lib/photos";
 
-export const metadata = { title: "À propos" };
+export const metadata = {
+  title: "À propos",
+  description:
+    "Parcours, mission et expertise de Léonne Bien-Aimé, courtière immobilière — PROPRIO DIRECT.",
+};
+
+function hasText(html: string) {
+  return html.replace(/<[^>]+>/g, "").trim().length > 0;
+}
 
 export default async function AboutPage() {
   const profile = await prisma.profile.findFirst();
@@ -73,6 +81,39 @@ export default async function AboutPage() {
               className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
             />
           </div>
+          {hasText(profile.degrees) ? (
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+                Formation
+              </h2>
+              <RichHtml
+                html={profile.degrees}
+                className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
+              />
+            </div>
+          ) : null}
+          {hasText(profile.certifications) ? (
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+                Certifications
+              </h2>
+              <RichHtml
+                html={profile.certifications}
+                className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
+              />
+            </div>
+          ) : null}
+          {hasText(profile.awards) ? (
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+                Reconnaissances
+              </h2>
+              <RichHtml
+                html={profile.awards}
+                className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
+              />
+            </div>
+          ) : null}
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
               Valeurs

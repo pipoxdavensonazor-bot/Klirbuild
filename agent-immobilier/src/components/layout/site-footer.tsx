@@ -44,10 +44,22 @@ export function SiteFooter({ profile }: { profile: ProfileBits }) {
           <Link href="/a-propos" className="hover:text-[#C9A227]">
             À propos
           </Link>
+          <Link href="/blog" className="hover:text-[#C9A227]">
+            Conseils
+          </Link>
           <Link href="/contact" className="hover:text-[#C9A227]">
             Contact
           </Link>
+          <Link href="/mentions-legales" className="hover:text-[#C9A227]">
+            Mentions légales
+          </Link>
+          <Link href="/politique-confidentialite" className="hover:text-[#C9A227]">
+            Confidentialité
+          </Link>
         </div>
+      </div>
+      <div className="border-t border-white/10 py-4 text-center text-xs text-slate-500">
+        © {new Date().getFullYear()} {profile.name}. Tous droits réservés.
       </div>
     </footer>
   );

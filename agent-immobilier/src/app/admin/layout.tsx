@@ -2,6 +2,17 @@ import Link from "next/link";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { LogoutButton } from "@/components/admin/logout-button";
 
+const nav = [
+  { href: "/admin", label: "Tableau de bord" },
+  { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/textes", label: "Textes" },
+  { href: "/admin/articles", label: "Articles" },
+  { href: "/admin/evenements", label: "Événements" },
+  { href: "/admin/proprietes", label: "Maisons" },
+  { href: "/admin/temoignages", label: "Témoignages" },
+  { href: "/admin/diffusion", label: "Réseaux" },
+];
+
 export default async function AdminLayout({
   children,
 }: {
@@ -25,24 +36,11 @@ export default async function AdminLayout({
               Admin Léonne
             </Link>
             <nav className="flex flex-wrap gap-4 text-sm text-slate-600">
-              <Link href="/admin" className="hover:text-[#C9A227]">
-                Tableau de bord
-              </Link>
-              <Link href="/admin/textes" className="hover:text-[#C9A227]">
-                Textes
-              </Link>
-              <Link href="/admin/articles" className="hover:text-[#C9A227]">
-                Articles
-              </Link>
-              <Link href="/admin/evenements" className="hover:text-[#C9A227]">
-                Événements
-              </Link>
-              <Link href="/admin/proprietes" className="hover:text-[#C9A227]">
-                Maisons
-              </Link>
-              <Link href="/admin/diffusion" className="hover:text-[#C9A227]">
-                Réseaux
-              </Link>
+              {nav.map((item) => (
+                <Link key={item.href} href={item.href} className="hover:text-[#C9A227]">
+                  {item.label}
+                </Link>
+              ))}
             </nav>
           </div>
           <div className="flex items-center gap-4 text-sm">

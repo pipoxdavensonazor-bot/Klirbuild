@@ -13,14 +13,23 @@ async function safeCount(fn: () => Promise<number>) {
 }
 
 export default async function AdminDashboard() {
-  const [properties, articles, published, seminars, openHouses] =
-    await Promise.all([
-      safeCount(() => prisma.property.count()),
-      safeCount(() => prisma.article.count()),
-      safeCount(() => prisma.article.count({ where: { published: true } })),
-      safeCount(() => prisma.seminar.count()),
-      safeCount(() => prisma.openHouse.count({ where: { published: true } })),
-    ]);
+  const [
+    properties,
+    articles,
+    published,
+    seminars,
+    openHouses,
+    unreadMessages,
+    testimonials,
+  ] = await Promise.all([
+    safeCount(() => prisma.property.count()),
+    safeCount(() => prisma.article.count()),
+    safeCount(() => prisma.article.count({ where: { published: true } })),
+    safeCount(() => prisma.seminar.count()),
+    safeCount(() => prisma.openHouse.count({ where: { published: true } })),
+    safeCount(() => prisma.message.count({ where: { read: false } })),
+    safeCount(() => prisma.testimonial.count({ where: { approved: true } })),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">
@@ -30,20 +39,42 @@ export default async function AdminDashboard() {
           Tableau de bord
         </h1>
         <p className="mt-2 text-slate-500">
-          Gérez textes, articles, conseils, événements, maisons et partages
-          réseaux.
+          Gérez le site professionnel : messages, textes, articles, maisons,
+          témoignages et diffusion.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat
+          label="Messages non lus"
+          value={unreadMessages}
+          href="/admin/messages"
+          highlight={unreadMessages > 0}
+        />
         <Stat label="Maisons" value={properties} href="/admin/proprietes" />
-        <Stat label="Articles" value={articles} href="/admin/articles" />
-        <Stat label="Publiés" value={published} href="/admin/articles" />
+        <Stat label="Articles publiés" value={published} href="/admin/articles" />
+        <Stat label="Témoignages" value={testimonials} href="/admin/temoignages" />
+        <Stat label="Articles (total)" value={articles} href="/admin/articles" />
         <Stat label="Événements" value={seminars} href="/admin/evenements" />
         <Stat label="Visites libres" value={openHouses} href="/admin/proprietes" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <Card
+          href="/admin/messages"
+          title="Boîte de réception"
+          desc="Lire et répondre aux demandes du formulaire de contact."
+        />
+        <Card
+          href="/admin/proprietes"
+          title="Maisons à vendre"
+          desc="Créer une fiche, visite libre, photo/vidéo, puis partager."
+        />
+        <Card
+          href="/admin/temoignages"
+          title="Témoignages clients"
+          desc="Publier les avis qui renforcent la confiance sur l'accueil."
+        />
         <Card
           href="/admin/articles"
           title="Articles & conseils"
@@ -55,14 +86,9 @@ export default async function AdminDashboard() {
           desc="Créer, modifier ou supprimer un séminaire / événement."
         />
         <Card
-          href="/admin/proprietes"
-          title="Ajouter une maison"
-          desc="Créer une annonce, visite libre, puis partager."
-        />
-        <Card
           href="/admin/textes"
-          title="Modifier les textes"
-          desc="Slogan, bio, téléphone, courriel…"
+          title="Profil & textes"
+          desc="Slogan, bio, téléphone, réseaux, certifications…"
         />
         <Card
           href="/admin/diffusion"
@@ -78,13 +104,20 @@ function Stat({
   label,
   value,
   href,
+  highlight,
 }: {
   label: string;
   value: number;
   href: string;
+  highlight?: boolean;
 }) {
   return (
-    <Link href={href} className="border border-slate-200 bg-white p-5 hover:border-[#C9A227]">
+    <Link
+      href={href}
+      className={`border bg-white p-5 hover:border-[#C9A227] ${
+        highlight ? "border-[#C9A227]" : "border-slate-200"
+      }`}
+    >
       <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
       <p className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[#0F172A]">
         {value}

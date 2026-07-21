@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { sanitizeRichHtml } from "@/lib/rich-text";
 
 type OpenHousePayload = {
   startsAt?: string;
   endsAt?: string;
   notes?: string;
   published?: boolean;
+  clear?: boolean;
 };
 
 async function upsertOpenHouse(propertyId: string, oh?: OpenHousePayload) {
-  if (!oh?.startsAt || !oh?.endsAt) return;
-  const startsAt = new Date(oh.startsAt);
-  const endsAt = new Date(oh.endsAt);
-  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return;
-
+  if (!oh) return;
   try {
+    if (oh.clear) {
+      await prisma.openHouse.deleteMany({ where: { propertyId } });
+      return;
+    }
+    if (!oh.startsAt || !oh.endsAt) return;
+    const startsAt = new Date(oh.startsAt);
+    const endsAt = new Date(oh.endsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return;
+
     const existing = await prisma.openHouse.findFirst({
       where: { propertyId },
       orderBy: { startsAt: "desc" },
@@ -42,6 +50,7 @@ export async function GET() {
     .findMany({
       include: {
         images: { orderBy: { sortOrder: "asc" } },
+        openHouses: { orderBy: { startsAt: "desc" }, take: 1 },
       },
       orderBy: { updatedAt: "desc" },
     })
@@ -50,6 +59,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
   const body = await req.json();
   const slug =
     String(body.slug || "")
@@ -62,16 +74,18 @@ export async function POST(req: Request) {
     data: {
       title: body.title,
       slug,
-      description: body.description,
+      description: sanitizeRichHtml(String(body.description || "")),
       address: body.address,
       city: body.city,
       price: Number(body.price),
       type: body.type || "HOUSE",
       bedrooms: Number(body.bedrooms || 0),
       bathrooms: Number(body.bathrooms || 0),
+      garage: Boolean(body.garage),
       areaSqft: Number(body.areaSqft || 0),
       status: body.status || "AVAILABLE",
       featured: Boolean(body.featured),
+      videoUrl: body.videoUrl ? String(body.videoUrl) : null,
       images: body.imageUrl
         ? {
             create: [
@@ -90,6 +104,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
   const body = await req.json();
   if (!body.id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -99,16 +116,21 @@ export async function PUT(req: Request) {
     data: {
       title: body.title,
       slug: body.slug,
-      description: body.description,
+      description:
+        body.description !== undefined
+          ? sanitizeRichHtml(String(body.description || ""))
+          : undefined,
       address: body.address,
       city: body.city,
       price: Number(body.price),
       type: body.type || "HOUSE",
       bedrooms: Number(body.bedrooms || 0),
       bathrooms: Number(body.bathrooms || 0),
+      garage: Boolean(body.garage),
       areaSqft: Number(body.areaSqft || 0),
       status: body.status || "AVAILABLE",
       featured: Boolean(body.featured),
+      videoUrl: body.videoUrl ? String(body.videoUrl) : null,
     },
   });
   await upsertOpenHouse(property.id, body.openHouse);
@@ -136,4 +158,21 @@ export async function PUT(req: Request) {
   }
 
   return NextResponse.json(property);
+}
+
+export async function DELETE(req: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  try {
+    await prisma.property.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Introuvable" }, { status: 404 });
+  }
 }

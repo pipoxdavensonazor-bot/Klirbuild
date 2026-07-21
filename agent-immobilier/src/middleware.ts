@@ -26,6 +26,8 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/seminars") ||
     pathname.startsWith("/api/upload") ||
     pathname.startsWith("/api/social") ||
+    pathname.startsWith("/api/messages") ||
+    pathname.startsWith("/api/testimonials") ||
     pathname.startsWith("/api/admin");
 
   if (!isAdminPage && !isAdminApi) {
@@ -39,6 +41,11 @@ export function middleware(request: NextRequest) {
 
   // Public GET on properties list is ok for site; mutate needs auth
   if (pathname.startsWith("/api/properties") && request.method === "GET") {
+    return NextResponse.next();
+  }
+
+  // Contact form: public POST only
+  if (pathname.startsWith("/api/messages") && request.method === "POST") {
     return NextResponse.next();
   }
 
@@ -65,6 +72,8 @@ export const config = {
     "/api/seminars/:path*",
     "/api/upload/:path*",
     "/api/social/:path*",
+    "/api/messages/:path*",
+    "/api/testimonials/:path*",
     "/api/admin/:path*",
   ],
 };

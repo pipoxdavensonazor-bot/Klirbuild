@@ -18,11 +18,10 @@ export default async function AdminTextsPage() {
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-[#C9A227]">Admin</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[#0F172A]">
-          Modifier les textes
+          Profil & textes
         </h1>
         <p className="mt-2 text-slate-500">
-          Modifiez les infos, la photo, et mettez en forme chaque texte comme
-          dans Word (gras, listes, titres, liens…).
+          Coordonnées, réseaux, photo, formation, certifications et textes du site.
         </p>
       </div>
       <ProfileAdminForm
@@ -33,6 +32,9 @@ export default async function AdminTextsPage() {
           bio: profile.bio,
           story: profile.story,
           experience: profile.experience,
+          degrees: profile.degrees,
+          certifications: profile.certifications,
+          awards: profile.awards,
           mission: profile.mission,
           values: profile.values,
           languages: profile.languages,
@@ -40,6 +42,10 @@ export default async function AdminTextsPage() {
           email: profile.email,
           address: profile.address,
           city: profile.city,
+          whatsapp: profile.whatsapp,
+          facebook: profile.facebook || "",
+          instagram: profile.instagram || "",
+          linkedin: profile.linkedin || "",
           photoUrl: profile.photoUrl,
         }}
       />

@@ -14,6 +14,9 @@ type ProfileFields = {
   bio: string;
   story: string;
   experience: string;
+  degrees: string;
+  certifications: string;
+  awards: string;
   mission: string;
   values: string;
   languages: string;
@@ -21,6 +24,10 @@ type ProfileFields = {
   email: string;
   address: string;
   city: string;
+  whatsapp: string;
+  facebook: string;
+  instagram: string;
+  linkedin: string;
   photoUrl: string;
 };
 
@@ -29,9 +36,28 @@ const RICH_FIELDS = [
   ["bio", "Bio (accueil)"],
   ["story", "Histoire"],
   ["experience", "Expérience"],
+  ["degrees", "Formation / diplômes"],
+  ["certifications", "Certifications / permis"],
+  ["awards", "Reconnaissances"],
   ["mission", "Mission"],
   ["values", "Valeurs"],
   ["languages", "Langues"],
+] as const;
+
+const CONTACT_FIELDS = [
+  ["name", "Nom"],
+  ["title", "Titre"],
+  ["phone", "Téléphone"],
+  ["email", "Courriel"],
+  ["whatsapp", "WhatsApp (numéro ou lien)"],
+  ["address", "Adresse"],
+  ["city", "Ville"],
+] as const;
+
+const SOCIAL_FIELDS = [
+  ["facebook", "Facebook (URL)"],
+  ["instagram", "Instagram (URL)"],
+  ["linkedin", "LinkedIn (URL)"],
 ] as const;
 
 export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
@@ -53,52 +79,66 @@ export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
       body: JSON.stringify(payload),
     });
     setPending(false);
-    setMessage(res.ok ? "Textes enregistrés." : "Erreur à l'enregistrement.");
+    setMessage(res.ok ? "Profil enregistré." : "Erreur à l'enregistrement.");
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5 border border-slate-200 bg-white p-6">
-      {(
-        [
-          ["name", "Nom"],
-          ["title", "Titre"],
-          ["phone", "Téléphone"],
-          ["email", "Courriel"],
-          ["address", "Adresse"],
-          ["city", "Ville"],
-        ] as const
-      ).map(([key, label]) => (
-        <div key={key}>
-          <Label htmlFor={key}>{label}</Label>
-          <Input id={key} name={key} defaultValue={initial[key]} required />
-        </div>
-      ))}
+    <form onSubmit={onSubmit} className="space-y-8 border border-slate-200 bg-white p-6">
+      <section className="space-y-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#C9A227]">
+          Coordonnées
+        </h2>
+        {CONTACT_FIELDS.map(([key, label]) => (
+          <div key={key}>
+            <Label htmlFor={key}>{label}</Label>
+            <Input id={key} name={key} defaultValue={initial[key]} required={key !== "whatsapp"} />
+          </div>
+        ))}
+        <ImageUploadField
+          name="photoUrl"
+          label="Photo d'accueil"
+          defaultValue={initial.photoUrl}
+        />
+      </section>
 
-      <ImageUploadField
-        name="photoUrl"
-        label="Photo d'accueil"
-        defaultValue={initial.photoUrl}
-      />
-
-      <div className="border-t border-slate-100 pt-4">
-        <p className="mb-4 text-sm font-medium text-[#0F172A]">
-          Textes enrichis (mise en forme type Word)
-        </p>
-        <div className="space-y-6">
-          {RICH_FIELDS.map(([key, label]) => (
-            <RichTextEditor
-              key={key}
+      <section className="space-y-5 border-t border-slate-100 pt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#C9A227]">
+          Réseaux sociaux
+        </h2>
+        {SOCIAL_FIELDS.map(([key, label]) => (
+          <div key={key}>
+            <Label htmlFor={key}>{label}</Label>
+            <Input
+              id={key}
               name={key}
-              label={label}
+              type="url"
               defaultValue={initial[key]}
-              placeholder={`Rédigez le texte « ${label} »…`}
+              placeholder="https://…"
             />
-          ))}
-        </div>
-      </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-6 border-t border-slate-100 pt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#C9A227]">
+          Textes enrichis
+        </h2>
+        <p className="text-sm text-slate-500">
+          Mise en forme type Word (gras, listes, titres, liens…).
+        </p>
+        {RICH_FIELDS.map(([key, label]) => (
+          <RichTextEditor
+            key={key}
+            name={key}
+            label={label}
+            defaultValue={initial[key]}
+            placeholder={`Rédigez le texte « ${label} »…`}
+          />
+        ))}
+      </section>
 
       <Button type="submit" variant="gold" disabled={pending}>
-        {pending ? "Enregistrement…" : "Enregistrer les textes"}
+        {pending ? "Enregistrement…" : "Enregistrer le profil"}
       </Button>
       {message ? <p className="text-sm text-slate-600">{message}</p> : null}
     </form>
