@@ -27,8 +27,14 @@ export function ArticleAdminForm({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [shareLinks, setShareLinks] = useState<
-    Array<{ platform: string; status: string; shareUrl?: string }>
+    Array<{
+      platform: string;
+      status: string;
+      shareUrl?: string;
+      caption?: string;
+    }>
   >([]);
+  const [shareHint, setShareHint] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -172,19 +178,41 @@ export function ArticleAdminForm({
       {shareLinks.length > 0 ? (
         <div className="space-y-2 border-t border-slate-100 pt-4">
           <p className="text-sm font-medium text-[#0F172A]">Partager maintenant :</p>
+          {shareHint ? <p className="text-xs text-slate-500">{shareHint}</p> : null}
           <div className="flex flex-wrap gap-2">
             {shareLinks
               .filter((l) => l.shareUrl)
               .map((l) => (
-                <a
+                <button
                   key={l.platform}
-                  href={l.shareUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                  type="button"
                   className="border border-[#C9A227]/50 px-3 py-1.5 text-sm text-[#0F172A] hover:bg-[#C9A227]/10"
+                  onClick={async () => {
+                    if (l.caption) {
+                      try {
+                        await navigator.clipboard.writeText(l.caption);
+                      } catch {
+                        /* ignore */
+                      }
+                    }
+                    if (l.shareUrl) {
+                      window.open(l.shareUrl, "_blank", "noopener,noreferrer");
+                    }
+                    setShareHint(
+                      l.platform === "TIKTOK"
+                        ? "TikTok ouvert. Collez la légende (déjà copiée) et publiez votre vidéo."
+                        : l.platform === "INSTAGRAM"
+                          ? "Instagram ouvert. Collez la légende déjà copiée."
+                          : "Fenêtre de partage ouverte."
+                    );
+                  }}
                 >
-                  {l.platform}
-                </a>
+                  {l.platform === "TIKTOK"
+                    ? "TikTok"
+                    : l.platform === "INSTAGRAM"
+                      ? "Instagram"
+                      : l.platform}
+                </button>
               ))}
           </div>
         </div>

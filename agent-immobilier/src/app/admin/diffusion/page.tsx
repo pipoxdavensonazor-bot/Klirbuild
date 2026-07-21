@@ -13,7 +13,8 @@ export default function AdminDiffusionPage() {
         <p className="mt-2 max-w-2xl text-slate-500">
           Configurez vos canaux, puis depuis Articles ou Maisons cliquez
           « Publier & partager ». Facebook, LinkedIn, X et WhatsApp s&apos;ouvrent
-          dans une fenêtre de partage. Zapier/Make reçoit un webhook.
+          dans une fenêtre de partage. TikTok et Instagram ouvrent l&apos;upload
+          avec la légende déjà copiée. Zapier/Make reçoit un webhook.
         </p>
       </div>
       <DiffusionAdminClient />

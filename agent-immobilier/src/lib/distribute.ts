@@ -104,16 +104,20 @@ export async function publishArticleShare(opts: {
     ? accounts.filter((a) => opts.platforms!.includes(a.platform))
     : accounts;
 
+  const caption = `${article.title}\n\n${article.excerpt}\n${url}`;
   const results: Array<{
     platform: string;
     status: string;
     shareUrl?: string;
+    caption?: string;
     error?: string;
   }> = [];
 
   for (const account of selected) {
     const shareUrl =
       links[account.platform as keyof typeof links] || undefined;
+    const needsCaption =
+      account.platform === "TIKTOK" || account.platform === "INSTAGRAM";
 
     try {
       if (account.platform === "WEBHOOK" && account.webhookUrl) {
@@ -165,6 +169,7 @@ export async function publishArticleShare(opts: {
           platform: account.platform,
           status: "READY",
           shareUrl,
+          caption: needsCaption ? caption : undefined,
         });
       }
     } catch (e) {
@@ -185,7 +190,7 @@ export async function publishArticleShare(opts: {
     }
   }
 
-  return { articleId: article.id, url, results };
+  return { articleId: article.id, url, caption, results };
 }
 
 export async function publishPropertyShare(opts: {
@@ -212,9 +217,17 @@ export async function publishPropertyShare(opts: {
     ? accounts.filter((a) => opts.platforms!.includes(a.platform))
     : accounts;
 
-  const results = [];
+  const caption = `${title}\n\n${body}`;
+  const results: Array<{
+    platform: string;
+    status: string;
+    shareUrl?: string;
+    caption?: string;
+  }> = [];
   for (const account of selected) {
     const shareUrl = links[account.platform as keyof typeof links];
+    const needsCaption =
+      account.platform === "TIKTOK" || account.platform === "INSTAGRAM";
     if (account.platform === "WEBHOOK" && account.webhookUrl) {
       const res = await fetch(account.webhookUrl, {
         method: "POST",
@@ -257,11 +270,16 @@ export async function publishPropertyShare(opts: {
           url: shareUrl || url,
         },
       });
-      results.push({ platform: account.platform, status: "READY", shareUrl });
+      results.push({
+        platform: account.platform,
+        status: "READY",
+        shareUrl,
+        caption: needsCaption ? caption : undefined,
+      });
     }
   }
 
-  return { propertyId: property.id, url, results };
+  return { propertyId: property.id, url, caption, results };
 }
 
 export { slugify };

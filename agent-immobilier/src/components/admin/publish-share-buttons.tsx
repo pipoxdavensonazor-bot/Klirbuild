@@ -3,6 +3,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
+type ShareLink = {
+  platform: string;
+  shareUrl?: string;
+  status: string;
+  caption?: string;
+};
+
+const PLATFORM_LABEL: Record<string, string> = {
+  FACEBOOK: "Facebook",
+  LINKEDIN: "LinkedIn",
+  X: "X",
+  WHATSAPP: "WhatsApp",
+  INSTAGRAM: "Instagram",
+  TIKTOK: "TikTok",
+  WEBHOOK: "Webhook",
+};
+
 export function PublishShareButtons({
   type,
   id,
@@ -13,9 +30,7 @@ export function PublishShareButtons({
   published?: boolean;
 }) {
   const [pending, setPending] = useState(false);
-  const [links, setLinks] = useState<
-    Array<{ platform: string; shareUrl?: string; status: string }>
-  >([]);
+  const [links, setLinks] = useState<ShareLink[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function publishAndShare() {
@@ -23,9 +38,7 @@ export function PublishShareButtons({
     setMsg(null);
     setLinks([]);
 
-    if (type === "article" && !published) {
-      // ensure published via social endpoint (it publishes)
-    }
+    void published;
 
     const res = await fetch("/api/social", {
       method: "POST",
@@ -46,6 +59,26 @@ export function PublishShareButtons({
     setMsg("Publié. Cliquez un réseau pour partager.");
   }
 
+  async function openShare(link: ShareLink) {
+    if (link.caption) {
+      try {
+        await navigator.clipboard.writeText(link.caption);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (link.shareUrl) {
+      window.open(link.shareUrl, "_blank", "noopener,noreferrer");
+    }
+    if (link.platform === "TIKTOK") {
+      setMsg("TikTok ouvert. Collez la légende (déjà copiée) et publiez votre vidéo.");
+    } else if (link.platform === "INSTAGRAM") {
+      setMsg("Instagram ouvert. Collez la légende (déjà copiée) dans votre publication.");
+    } else {
+      setMsg("Fenêtre de partage ouverte.");
+    }
+  }
+
   return (
     <div className="space-y-2 text-right">
       <Button
@@ -63,15 +96,14 @@ export function PublishShareButtons({
           {links
             .filter((l) => l.shareUrl)
             .map((l) => (
-              <a
+              <button
                 key={l.platform}
-                href={l.shareUrl}
-                target="_blank"
-                rel="noreferrer"
+                type="button"
+                onClick={() => openShare(l)}
                 className="border border-slate-300 px-2 py-1 text-xs hover:border-[#C9A227]"
               >
-                {l.platform}
-              </a>
+                {PLATFORM_LABEL[l.platform] || l.platform}
+              </button>
             ))}
         </div>
       ) : null}
