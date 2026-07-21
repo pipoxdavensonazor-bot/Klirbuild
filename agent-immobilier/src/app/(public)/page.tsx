@@ -59,27 +59,29 @@ export default async function HomePage() {
   return (
     <>
       <section className="relative min-h-[92vh] overflow-hidden bg-[#0B1220]">
-        {/* Fond unique plein écran */}
-        <div className="absolute inset-0">
-          <SiteImage
-            src={photoHero}
-            alt={`${name} — courtière immobilière`}
-            fill
-            priority
-            className="object-cover object-[62%_18%] sm:object-[68%_14%] lg:object-[72%_12%]"
-            sizes="100vw"
-          />
-          {/* Lecture du texte à gauche — un seul plan photo */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220]/95 via-[#0B1220]/55 to-[#0B1220]/15 sm:via-[#0B1220]/45 sm:to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/70 via-transparent to-[#0B1220]/25" />
+        {/* Fond unique plein écran — léger recul pour voir tête + épaules */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -inset-[18%] sm:-inset-[14%] lg:-inset-[12%]">
+            <SiteImage
+              src={photoHero}
+              alt={`${name} — courtière immobilière`}
+              fill
+              priority
+              className="object-cover object-[82%_22%] sm:object-[86%_20%] lg:object-[90%_18%]"
+              sizes="100vw"
+            />
+          </div>
+          {/* Zone texte à gauche : dégradé opaque pour ne jamais barrer le visage */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/92 via-[38%] to-transparent to-[68%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/65 via-transparent to-[#0B1220]/20" />
         </div>
 
         <div className="relative z-10 mx-auto flex min-h-[92vh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
-          <div className="max-w-xl py-24 text-white sm:py-28">
+          <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-xl">
             <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#C9A227]">
               Courtage immobilier · Laval · Laurentides · Lanaudière
             </p>
-            <h1 className="font-[family-name:var(--font-display)] text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="font-[family-name:var(--font-display)] text-4xl leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               {name}
             </h1>
             <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-300">
@@ -87,7 +89,7 @@ export default async function HomePage() {
             </p>
             <RichHtml
               html={slogan}
-              className="mt-8 max-w-lg text-lg text-slate-200 sm:text-xl [&_a]:text-[#C9A227] [&_p]:mb-2 [&_p:last-child]:mb-0"
+              className="mt-8 max-w-md text-lg text-slate-200 sm:text-xl [&_a]:text-[#C9A227] [&_p]:mb-2 [&_p:last-child]:mb-0"
             />
             <div className="mt-10 flex flex-wrap gap-4">
               <Button asChild variant="gold" size="lg">
