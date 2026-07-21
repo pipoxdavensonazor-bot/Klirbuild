@@ -66,23 +66,23 @@ export default async function HomePage() {
               "radial-gradient(ellipse 70% 55% at 72% 42%, rgba(201,162,39,0.1), transparent 58%), linear-gradient(115deg, #0B1220 0%, #0F172A 42%, #121a28 100%)",
           }}
         />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-full translate-x-[6%] sm:translate-x-[8%] lg:w-[62%] lg:translate-x-[14%]">
-          <div className="relative h-full w-full scale-[1.08]">
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-full translate-x-[2%] sm:translate-x-[3%] lg:w-[58%] lg:translate-x-[2%]">
+          <div className="relative h-full w-full scale-[1.05]">
             <SiteImage
               src={photoHero}
               alt={`${name} — courtière immobilière`}
               fill
               priority
-              className="object-cover object-[58%_14%] opacity-100"
-              sizes="(max-width:1024px) 100vw, 62vw"
+              className="object-cover object-[42%_12%] opacity-100"
+              sizes="(max-width:1024px) 100vw, 58vw"
             />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] via-[#0B1220]/25 to-transparent lg:via-[#0B1220]/15" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] via-[#0B1220]/40 to-transparent lg:via-[#0B1220]/20" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-[#0B1220]/25" />
         </div>
 
         <div className="relative z-10 mx-auto grid min-h-[92vh] max-w-7xl items-center px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
-          <div className="py-20 text-white lg:col-span-6 lg:py-28">
+          <div className="py-20 text-white lg:col-span-5 lg:py-28">
             <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#C9A227]">
               Courtage immobilier · Laval · Laurentides · Lanaudière
             </p>
@@ -120,9 +120,9 @@ export default async function HomePage() {
               </Button>
             </div>
           </div>
-          {/* Carte info à droite — descendue légèrement */}
-          <div className="relative flex items-end justify-end pb-8 lg:col-span-6 lg:min-h-[70vh] lg:pb-12">
-            <div className="w-full max-w-xs border border-[#C9A227]/35 bg-[#0B1220]/55 px-5 py-4 backdrop-blur-sm sm:ml-auto translate-y-10 sm:translate-y-16 lg:translate-y-28">
+          {/* Carte info à droite — collée près de la photo */}
+          <div className="relative flex items-end justify-end pb-8 lg:col-span-7 lg:min-h-[70vh] lg:pb-12">
+            <div className="w-full max-w-xs border border-[#C9A227]/35 bg-[#0B1220]/55 px-5 py-4 backdrop-blur-sm sm:ml-auto translate-y-6 sm:translate-y-10 lg:translate-y-16">
               <p className="font-[family-name:var(--font-display)] text-2xl text-[#C9A227]">20 ans</p>
               <p className="mt-1 text-sm text-slate-300">
                 d&apos;expertise immobilière — écoute, stratégie et résultats concrets.
@@ -173,13 +173,13 @@ export default async function HomePage() {
       </section>
 
       <section className="relative overflow-hidden bg-white py-24">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-20 lg:px-8">
+        <div className="mx-auto grid max-w-7xl items-center gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:gap-10 lg:px-8">
           <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
             <Image
               src={PORTRAIT_CAREER}
               alt={`${name} — 20 ans de carrière`}
               fill
-              className="object-cover object-top"
+              className="object-cover object-[center_12%]"
               sizes="45vw"
             />
           </div>
