@@ -25,12 +25,11 @@ export const metadata: Metadata = {
     "Léonne Bien-Aimé — courtière immobilière. Des conseils justes. Des résultats concrets.",
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "32x32" },
       { url: "/favicon.png", type: "image/png", sizes: "192x192" },
     ],
     apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
-    shortcut: "/favicon-32.png",
   },
 };
 
