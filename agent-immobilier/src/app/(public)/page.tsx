@@ -59,42 +59,35 @@ export default async function HomePage() {
   return (
     <>
       <section className="relative min-h-[92vh] overflow-hidden bg-[#0B1220]">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(ellipse 70% 55% at 72% 42%, rgba(201,162,39,0.1), transparent 58%), linear-gradient(115deg, #0B1220 0%, #0F172A 42%, #121a28 100%)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-full translate-x-[2%] sm:translate-x-[3%] lg:w-[58%] lg:translate-x-[2%]">
-          <div className="relative h-full w-full scale-[1.05]">
-            <SiteImage
-              src={photoHero}
-              alt={`${name} — courtière immobilière`}
-              fill
-              priority
-              className="object-cover object-[42%_12%] opacity-100"
-              sizes="(max-width:1024px) 100vw, 58vw"
-            />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] via-[#0B1220]/40 to-transparent lg:via-[#0B1220]/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-[#0B1220]/25" />
+        {/* Fond unique plein écran */}
+        <div className="absolute inset-0">
+          <SiteImage
+            src={photoHero}
+            alt={`${name} — courtière immobilière`}
+            fill
+            priority
+            className="object-cover object-[62%_18%] sm:object-[68%_14%] lg:object-[72%_12%]"
+            sizes="100vw"
+          />
+          {/* Lecture du texte à gauche — un seul plan photo */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220]/95 via-[#0B1220]/55 to-[#0B1220]/15 sm:via-[#0B1220]/45 sm:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/70 via-transparent to-[#0B1220]/25" />
         </div>
 
-        <div className="relative z-10 mx-auto grid min-h-[92vh] max-w-7xl items-center px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
-          <div className="py-20 text-white lg:col-span-5 lg:py-28">
+        <div className="relative z-10 mx-auto flex min-h-[92vh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+          <div className="max-w-xl py-24 text-white sm:py-28">
             <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#C9A227]">
               Courtage immobilier · Laval · Laurentides · Lanaudière
             </p>
             <h1 className="font-[family-name:var(--font-display)] text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               {name}
             </h1>
-            <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-400">
+            <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-300">
               {title}
             </p>
             <RichHtml
               html={slogan}
-              className="mt-8 max-w-lg text-lg text-slate-300 sm:text-xl [&_a]:text-[#C9A227] [&_p]:mb-2 [&_p:last-child]:mb-0"
+              className="mt-8 max-w-lg text-lg text-slate-200 sm:text-xl [&_a]:text-[#C9A227] [&_p]:mb-2 [&_p:last-child]:mb-0"
             />
             <div className="mt-10 flex flex-wrap gap-4">
               <Button asChild variant="gold" size="lg">
@@ -112,21 +105,12 @@ export default async function HomePage() {
                 asChild
                 variant="ghost"
                 size="lg"
-                className="text-slate-300 hover:bg-white/10 hover:text-white"
+                className="text-slate-200 hover:bg-white/10 hover:text-white"
               >
                 <a href={centrisListingsUrl()} target="_blank" rel="noopener noreferrer">
                   Annonces Centris
                 </a>
               </Button>
-            </div>
-          </div>
-          {/* Carte info à droite — collée près de la photo */}
-          <div className="relative flex items-end justify-end pb-8 lg:col-span-7 lg:min-h-[70vh] lg:pb-12">
-            <div className="w-full max-w-xs border border-[#C9A227]/35 bg-[#0B1220]/55 px-5 py-4 backdrop-blur-sm sm:ml-auto translate-y-6 sm:translate-y-10 lg:translate-y-16">
-              <p className="font-[family-name:var(--font-display)] text-2xl text-[#C9A227]">20 ans</p>
-              <p className="mt-1 text-sm text-slate-300">
-                d&apos;expertise immobilière — écoute, stratégie et résultats concrets.
-              </p>
             </div>
           </div>
         </div>
