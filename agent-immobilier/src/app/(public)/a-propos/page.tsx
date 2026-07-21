@@ -36,14 +36,14 @@ export default async function AboutPage() {
           <p className="mt-3 max-w-2xl text-slate-300">{profile.title}</p>
         </div>
       </section>
-      <section className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-5 lg:px-8">
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-16 sm:gap-8 sm:px-6 lg:grid-cols-5 lg:gap-10 lg:px-8">
         <div className="lg:col-span-2">
           <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
             <SiteImage
               src={photo}
               alt={`${profile.name} — 20 ans de carrière`}
               fill
-              className="object-cover object-top"
+              className="object-cover object-[center_12%]"
               sizes="40vw"
               priority
             />
