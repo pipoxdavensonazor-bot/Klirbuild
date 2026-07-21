@@ -1,37 +1,30 @@
 import { cookies } from "next/headers";
+import {
+  createSessionToken,
+  getAdminPassword,
+  getAdminSecretsError,
+  sessionTokenMatches,
+  verifyAdminPassword,
+} from "@/lib/admin-session";
+
+export {
+  createSessionToken,
+  getAdminPassword,
+  getAdminSecretsError,
+  verifyAdminPassword,
+} from "@/lib/admin-session";
 
 const COOKIE = "leonne_admin_session";
 
-function expectedToken() {
-  const password = process.env.ADMIN_PASSWORD || "LeonneAdmin2026";
-  const secret = process.env.ADMIN_SECRET || password;
-  return hash(`${password}::${secret}`);
-}
-
-function hash(input: string) {
-  let h = 0;
-  for (let i = 0; i < input.length; i++) {
-    h = (Math.imul(31, h) + input.charCodeAt(i)) | 0;
-  }
-  return `adm_${Math.abs(h).toString(16)}_${input.length}`;
-}
-
-export function getAdminPassword() {
-  return process.env.ADMIN_PASSWORD || "LeonneAdmin2026";
-}
-
-export function verifyAdminPassword(password: string) {
-  return password === getAdminPassword();
-}
-
-export function createSessionValue() {
-  return expectedToken();
+/** @deprecated use createSessionToken — kept as async alias */
+export async function createSessionValue() {
+  return createSessionToken();
 }
 
 export async function isAdminAuthenticated() {
   const jar = await cookies();
   const value = jar.get(COOKIE)?.value;
-  return Boolean(value && value === expectedToken());
+  return sessionTokenMatches(value);
 }
 
 export function sessionCookieOptions(value: string) {
