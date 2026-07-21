@@ -31,28 +31,43 @@ export function buildShareLinks(params: {
     LINKEDIN: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
     X: `https://twitter.com/intent/tweet?url=${u}&text=${t}`,
     WHATSAPP: `https://wa.me/?text=${text}%20${u}`,
+    // TikTok n'a pas de sharer web d'URL : on ouvre l'upload + légende à coller
+    TIKTOK: `https://www.tiktok.com/upload?lang=fr`,
+    INSTAGRAM: `https://www.instagram.com/`,
   } as const;
 }
 
-export async function ensureDefaultSocialAccounts() {
-  const count = await prisma.socialAccount.count();
-  if (count > 0) return;
+const DEFAULT_ACCOUNTS = [
+  { platform: "FACEBOOK", label: "Facebook", enabled: true },
+  { platform: "INSTAGRAM", label: "Instagram", enabled: true },
+  { platform: "TIKTOK", label: "TikTok", enabled: true },
+  { platform: "LINKEDIN", label: "LinkedIn", enabled: true },
+  { platform: "X", label: "X (Twitter)", enabled: true },
+  { platform: "WHATSAPP", label: "WhatsApp", enabled: true },
+  {
+    platform: "WEBHOOK",
+    label: "Zapier / Make (webhook)",
+    enabled: false,
+    webhookUrl: "",
+  },
+] as const;
 
-  await prisma.socialAccount.createMany({
-    data: [
-      { platform: "FACEBOOK", label: "Facebook", enabled: true },
-      { platform: "INSTAGRAM", label: "Instagram", enabled: true },
-      { platform: "LINKEDIN", label: "LinkedIn", enabled: true },
-      { platform: "X", label: "X (Twitter)", enabled: true },
-      { platform: "WHATSAPP", label: "WhatsApp", enabled: true },
-      {
-        platform: "WEBHOOK",
-        label: "Zapier / Make (webhook)",
-        enabled: false,
-        webhookUrl: "",
-      },
-    ],
-  });
+export async function ensureDefaultSocialAccounts() {
+  for (const account of DEFAULT_ACCOUNTS) {
+    const existing = await prisma.socialAccount.findFirst({
+      where: { platform: account.platform },
+    });
+    if (!existing) {
+      await prisma.socialAccount.create({
+        data: {
+          platform: account.platform,
+          label: account.label,
+          enabled: account.enabled,
+          webhookUrl: "webhookUrl" in account ? account.webhookUrl : null,
+        },
+      });
+    }
+  }
 }
 
 export async function publishArticleShare(opts: {
