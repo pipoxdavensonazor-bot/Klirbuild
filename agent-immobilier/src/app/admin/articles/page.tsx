@@ -4,12 +4,27 @@ import { ArticleAdminForm } from "@/components/admin/article-form";
 import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
 
 export const metadata = { title: "Articles · Admin" };
+export const dynamic = "force-dynamic";
 
 export default async function AdminArticlesPage() {
-  const articles = await prisma.article.findMany({
-    include: { category: true },
-    orderBy: { updatedAt: "desc" },
-  });
+  let articles: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string;
+    content: string;
+    coverUrl: string | null;
+    published: boolean;
+    category: { name: string; slug: string } | null;
+  }> = [];
+  try {
+    articles = await prisma.article.findMany({
+      include: { category: true },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch {
+    articles = [];
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">

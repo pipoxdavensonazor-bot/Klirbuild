@@ -2,32 +2,51 @@ import { PrismaClient } from "@prisma/client/wasm";
 import { PrismaD1 } from "@prisma/adapter-d1";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-/**
- * Cloudflare Workers: WASM client + D1 adapter (no Node fs).
- * Local dev: falls back to standard PrismaClient + SQLite.
- */
-function createPrismaClient() {
-  try {
-    const { env } = getCloudflareContext();
-    if (env?.DB) {
-      const adapter = new PrismaD1(env.DB);
-      return new PrismaClient({ adapter });
-    }
-  } catch {
-    // not on Cloudflare — use Node client below
-  }
+type Client = PrismaClient;
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaClient: NodePrisma } = require("@prisma/client") as {
-    PrismaClient: typeof PrismaClient;
-  };
-  const globalForPrisma = globalThis as unknown as { prisma?: InstanceType<typeof NodePrisma> };
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new NodePrisma({
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    });
+/**
+ * Per-request Prisma client on Cloudflare (D1 + WASM).
+ * Module-level singletons break on Workers because `getCloudflareContext()`
+ * is only valid inside a request.
+ */
+function createWorkerClient(): Client {
+  const { env } = getCloudflareContext();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (env as any)?.DB;
+  if (!db) {
+    throw new Error("Binding D1 manquant (env.DB)");
   }
-  return globalForPrisma.prisma;
+  const adapter = new PrismaD1(db);
+  return new PrismaClient({ adapter });
 }
 
-export const prisma = createPrismaClient();
+function createNodeClient(): Client {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PrismaClient: NodePrisma } = require("@prisma/client") as {
+    PrismaClient: new () => Client;
+  };
+  const g = globalThis as unknown as { __leonnePrisma?: Client };
+  if (!g.__leonnePrisma) {
+    g.__leonnePrisma = new NodePrisma();
+  }
+  return g.__leonnePrisma;
+}
+
+function getClient(): Client {
+  try {
+    return createWorkerClient();
+  } catch {
+    return createNodeClient();
+  }
+}
+
+export const prisma = new Proxy({} as Client, {
+  get(_target, prop, receiver) {
+    const client = getClient();
+    const value = Reflect.get(client as object, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
+  },
+});

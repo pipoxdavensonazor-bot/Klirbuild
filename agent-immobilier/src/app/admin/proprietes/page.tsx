@@ -4,13 +4,50 @@ import { formatPrice, propertyTypeLabel, statusLabel } from "@/lib/utils";
 import { PropertyAdminForm } from "@/components/admin/property-form";
 import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
 
+export const dynamic = "force-dynamic";
+
+type PropRow = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  address: string;
+  city: string;
+  price: number;
+  type: string;
+  bedrooms: number;
+  bathrooms: number;
+  areaSqft: number;
+  status: string;
+  featured: boolean;
+  openHouses: Array<{
+    startsAt: Date;
+    endsAt: Date;
+    published: boolean;
+  }>;
+};
+
 export default async function AdminPropertiesPage() {
-  const properties = await prisma.property.findMany({
-    include: {
-      openHouses: { orderBy: { startsAt: "desc" }, take: 1 },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  let properties: PropRow[] = [];
+
+  try {
+    const rows = await prisma.property.findMany({
+      include: {
+        openHouses: { orderBy: { startsAt: "desc" }, take: 1 },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    properties = rows;
+  } catch {
+    try {
+      const basic = await prisma.property.findMany({
+        orderBy: { updatedAt: "desc" },
+      });
+      properties = basic.map((p) => ({ ...p, openHouses: [] }));
+    } catch {
+      properties = [];
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">
@@ -29,6 +66,11 @@ export default async function AdminPropertiesPage() {
       <PropertyAdminForm />
 
       <div className="space-y-4">
+        {properties.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Aucune propriété pour le moment. Ajoutez-en une ci-dessus.
+          </p>
+        ) : null}
         {properties.map((p) => (
           <div key={p.id} className="border border-slate-200 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">

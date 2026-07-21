@@ -2,13 +2,22 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Admin" };
+export const dynamic = "force-dynamic";
+
+async function safeCount(fn: () => Promise<number>) {
+  try {
+    return await fn();
+  } catch {
+    return 0;
+  }
+}
 
 export default async function AdminDashboard() {
   const [properties, articles, published, openHouses] = await Promise.all([
-    prisma.property.count(),
-    prisma.article.count(),
-    prisma.article.count({ where: { published: true } }),
-    prisma.openHouse.count({ where: { published: true } }),
+    safeCount(() => prisma.property.count()),
+    safeCount(() => prisma.article.count()),
+    safeCount(() => prisma.article.count({ where: { published: true } })),
+    safeCount(() => prisma.openHouse.count({ where: { published: true } })),
   ]);
 
   return (
@@ -51,19 +60,6 @@ export default async function AdminDashboard() {
           title="Réseaux sociaux"
           desc="Activer Facebook, LinkedIn, WhatsApp, Zapier…"
         />
-      </div>
-
-      <div className="border border-[#C9A227]/40 bg-[#C9A227]/10 p-5 text-sm text-[#0F172A]">
-        <p className="font-medium">Connexion admin</p>
-        <p className="mt-1">
-          URL : <code className="bg-white/70 px-1">/admin/login</code>
-          <br />
-          Mot de passe par défaut :{" "}
-          <code className="bg-white/70 px-1">LeonneAdmin2026</code>
-          <br />
-          Changez-le via la variable <code className="bg-white/70 px-1">ADMIN_PASSWORD</code>{" "}
-          avant la mise en production.
-        </p>
       </div>
     </div>
   );
