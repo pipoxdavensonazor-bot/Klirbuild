@@ -58,25 +58,27 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="relative min-h-[92vh] overflow-hidden bg-[#0B1220]">
-        {/* Fond unique plein écran — léger recul pour voir tête + épaules */}
+      <section className="relative min-h-[100svh] overflow-hidden bg-[#0B1220]">
+        {/* Fond unique — fort recul (surtout en plein écran / grands écrans) */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -inset-[18%] sm:-inset-[14%] lg:-inset-[12%]">
+          <div
+            className="absolute -inset-[32%] sm:-inset-[36%] md:-inset-[40%] lg:-inset-[46%] xl:-inset-[52%] [@media(min-height:800px)]:-inset-[50%] [@media(min-height:1000px)]:-inset-[58%]"
+          >
             <SiteImage
               src={photoHero}
               alt={`${name} — courtière immobilière`}
               fill
               priority
-              className="object-cover object-[82%_22%] sm:object-[86%_20%] lg:object-[90%_18%]"
+              className="object-cover object-[80%_30%] sm:object-[84%_28%] lg:object-[88%_26%]"
               sizes="100vw"
             />
           </div>
-          {/* Zone texte à gauche : dégradé opaque pour ne jamais barrer le visage */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/92 via-[38%] to-transparent to-[68%]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/65 via-transparent to-[#0B1220]/20" />
+          {/* Zone texte à gauche : ne couvre jamais le visage */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/90 via-[36%] to-transparent to-[62%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/55 via-transparent to-[#0B1220]/15" />
         </div>
 
-        <div className="relative z-10 mx-auto flex min-h-[92vh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
           <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-xl">
             <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#C9A227]">
               Courtage immobilier · Laval · Laurentides · Lanaudière
