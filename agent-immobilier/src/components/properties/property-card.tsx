@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { SiteImage } from "@/components/ui/site-image";
 import { formatPrice, propertyTypeLabel } from "@/lib/utils";
 
 type Props = {
@@ -30,7 +30,7 @@ export function PropertyCard({
     <Link href={`/proprietes/${slug}`} className="group block">
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         {imageUrl ? (
-          <Image
+          <SiteImage
             src={imageUrl}
             alt={title}
             fill

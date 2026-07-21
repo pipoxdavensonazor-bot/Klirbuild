@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SiteImage } from "@/components/ui/site-image";
 import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -32,7 +32,7 @@ export function HomeFeed({ items }: { items: HomeFeedItem[] }) {
         >
           <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
             {item.imageUrl ? (
-              <Image
+              <SiteImage
                 src={item.imageUrl}
                 alt={item.title}
                 fill

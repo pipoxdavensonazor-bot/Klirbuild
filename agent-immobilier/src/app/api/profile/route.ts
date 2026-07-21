@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { sanitizeRichHtml } from "@/lib/rich-text";
+
+const RICH_KEYS = [
+  "slogan",
+  "bio",
+  "story",
+  "experience",
+  "mission",
+  "values",
+  "languages",
+] as const;
 
 export async function PUT(req: Request) {
   if (!(await isAdminAuthenticated())) {
@@ -13,18 +24,25 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
   }
 
+  const rich: Partial<Record<(typeof RICH_KEYS)[number], string>> = {};
+  for (const key of RICH_KEYS) {
+    if (body[key] !== undefined) {
+      rich[key] = sanitizeRichHtml(String(body[key] || ""));
+    }
+  }
+
   const updated = await prisma.profile.update({
     where: { id: profile.id },
     data: {
       name: body.name,
       title: body.title,
-      slogan: body.slogan,
-      bio: body.bio,
-      story: body.story,
-      experience: body.experience,
-      mission: body.mission,
-      values: body.values,
-      languages: body.languages,
+      slogan: rich.slogan ?? body.slogan,
+      bio: rich.bio ?? body.bio,
+      story: rich.story ?? body.story,
+      experience: rich.experience ?? body.experience,
+      mission: rich.mission ?? body.mission,
+      values: rich.values ?? body.values,
+      languages: rich.languages ?? body.languages,
       phone: body.phone,
       email: body.email,
       address: body.address,

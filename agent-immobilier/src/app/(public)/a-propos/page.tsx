@@ -1,5 +1,7 @@
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { SiteImage } from "@/components/ui/site-image";
+import { RichHtml } from "@/components/ui/rich-html";
+import { resolvePublicPhotoUrl, PORTRAIT_CAREER } from "@/lib/photos";
 
 export const metadata = { title: "À propos" };
 
@@ -12,6 +14,8 @@ export default async function AboutPage() {
       </div>
     );
   }
+
+  const photo = resolvePublicPhotoUrl(profile.photoUrl, PORTRAIT_CAREER);
 
   return (
     <div>
@@ -27,8 +31,8 @@ export default async function AboutPage() {
       <section className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-5 lg:px-8">
         <div className="lg:col-span-2">
           <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
-            <Image
-              src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=1200&q=80"
+            <SiteImage
+              src={photo}
               alt={`${profile.name} — 20 ans de carrière`}
               fill
               className="object-cover object-top"
@@ -38,18 +42,54 @@ export default async function AboutPage() {
           </div>
         </div>
         <div className="space-y-8 lg:col-span-3">
-          <p className="text-lg leading-relaxed text-slate-600">{profile.bio}</p>
+          <RichHtml
+            html={profile.bio}
+            className="text-lg text-slate-600 [&_a]:text-[#C9A227] [&_p]:mb-3"
+          />
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
               Mon histoire
             </h2>
-            <p className="mt-2 whitespace-pre-line text-slate-600">{profile.story}</p>
+            <RichHtml
+              html={profile.story}
+              className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_ul]:list-disc"
+            />
           </div>
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
               Mission
             </h2>
-            <p className="mt-2 text-slate-600">{profile.mission}</p>
+            <RichHtml
+              html={profile.mission}
+              className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_p]:mb-2"
+            />
+          </div>
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+              Expérience
+            </h2>
+            <RichHtml
+              html={profile.experience}
+              className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
+            />
+          </div>
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+              Valeurs
+            </h2>
+            <RichHtml
+              html={profile.values}
+              className="mt-2 text-slate-600 [&_a]:text-[#C9A227] [&_li]:ml-5 [&_p]:mb-2 [&_ul]:list-disc"
+            />
+          </div>
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+              Langues
+            </h2>
+            <RichHtml
+              html={profile.languages}
+              className="mt-2 text-slate-600 [&_p]:mb-2"
+            />
           </div>
         </div>
       </section>

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/properties/property-card";
 import { HomeFeed } from "@/components/home/home-feed";
+import { SiteImage } from "@/components/ui/site-image";
+import { RichHtml } from "@/components/ui/rich-html";
 import { prisma } from "@/lib/prisma";
 import { buildHomeFeed } from "@/lib/home-feed";
 import { whatsappLink, centrisListingsUrl } from "@/lib/utils";
@@ -66,7 +68,7 @@ export default async function HomePage() {
         />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-full translate-x-[6%] sm:translate-x-[8%] lg:w-[62%] lg:translate-x-[14%]">
           <div className="relative h-full w-full scale-[1.08]">
-            <Image
+            <SiteImage
               src={photoHero}
               alt={`${name} — courtière immobilière`}
               fill
@@ -90,9 +92,10 @@ export default async function HomePage() {
             <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-400">
               {title}
             </p>
-            <p className="mt-8 max-w-lg whitespace-pre-line text-lg leading-relaxed text-slate-300 sm:text-xl">
-              {slogan}
-            </p>
+            <RichHtml
+              html={slogan}
+              className="mt-8 max-w-lg text-lg text-slate-300 sm:text-xl [&_a]:text-[#C9A227] [&_p]:mb-2 [&_p:last-child]:mb-0"
+            />
             <div className="mt-10 flex flex-wrap gap-4">
               <Button asChild variant="gold" size="lg">
                 <Link href="/proprietes">Voir les propriétés</Link>
@@ -187,10 +190,13 @@ export default async function HomePage() {
               <br />
               Une approche humaine.
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-slate-600">
-              {profile?.bio ??
-                "Depuis 20 ans, Léonne Bien-Aimé guide ses clients avec clarté et chaleur."}
-            </p>
+            <RichHtml
+              html={
+                profile?.bio ??
+                "Depuis 20 ans, Léonne Bien-Aimé guide ses clients avec clarté et chaleur."
+              }
+              className="mt-6 text-lg text-slate-600 [&_a]:text-[#C9A227] [&_p]:mb-3 [&_p:last-child]:mb-0"
+            />
             <div className="mt-10">
               <Button asChild variant="outline">
                 <Link href="/a-propos">Découvrir mon parcours</Link>

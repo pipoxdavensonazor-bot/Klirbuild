@@ -16,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   }
 
-  return new NextResponse(media.bytes, {
+  return new NextResponse(new Uint8Array(media.bytes), {
     status: 200,
     headers: {
       "Content-Type": media.meta.contentType || "application/octet-stream",

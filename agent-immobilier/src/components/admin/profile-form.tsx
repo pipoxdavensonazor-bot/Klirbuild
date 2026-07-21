@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 
 type ProfileFields = {
   name: string;
@@ -23,6 +23,16 @@ type ProfileFields = {
   city: string;
   photoUrl: string;
 };
+
+const RICH_FIELDS = [
+  ["slogan", "Slogan"],
+  ["bio", "Bio (accueil)"],
+  ["story", "Histoire"],
+  ["experience", "Expérience"],
+  ["mission", "Mission"],
+  ["values", "Valeurs"],
+  ["languages", "Langues"],
+] as const;
 
 export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
   const [pending, setPending] = useState(false);
@@ -70,22 +80,23 @@ export function ProfileAdminForm({ initial }: { initial: ProfileFields }) {
         defaultValue={initial.photoUrl}
       />
 
-      {(
-        [
-          ["slogan", "Slogan"],
-          ["bio", "Bio (accueil)"],
-          ["story", "Histoire"],
-          ["experience", "Expérience"],
-          ["mission", "Mission"],
-          ["values", "Valeurs"],
-          ["languages", "Langues"],
-        ] as const
-      ).map(([key, label]) => (
-        <div key={key}>
-          <Label htmlFor={key}>{label}</Label>
-          <Textarea id={key} name={key} defaultValue={initial[key]} rows={3} required />
+      <div className="border-t border-slate-100 pt-4">
+        <p className="mb-4 text-sm font-medium text-[#0F172A]">
+          Textes enrichis (mise en forme type Word)
+        </p>
+        <div className="space-y-6">
+          {RICH_FIELDS.map(([key, label]) => (
+            <RichTextEditor
+              key={key}
+              name={key}
+              label={label}
+              defaultValue={initial[key]}
+              placeholder={`Rédigez le texte « ${label} »…`}
+            />
+          ))}
         </div>
-      ))}
+      </div>
+
       <Button type="submit" variant="gold" disabled={pending}>
         {pending ? "Enregistrement…" : "Enregistrer les textes"}
       </Button>

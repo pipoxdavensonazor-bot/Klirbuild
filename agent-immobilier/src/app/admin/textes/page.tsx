@@ -21,7 +21,8 @@ export default async function AdminTextsPage() {
           Modifier les textes
         </h1>
         <p className="mt-2 text-slate-500">
-          Ces textes apparaissent sur l&apos;accueil, À propos et Contact.
+          Modifiez les infos, la photo, et mettez en forme chaque texte comme
+          dans Word (gras, listes, titres, liens…).
         </p>
       </div>
       <ProfileAdminForm
