@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 type SeminarInput = {
   id?: string;
@@ -98,16 +98,13 @@ export function SeminarAdminForm({
           />
         </div>
       </div>
-      <div>
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          name="description"
-          rows={5}
-          required
-          defaultValue={initial?.description || ""}
-        />
-      </div>
+      <RichTextEditor
+        name="description"
+        label="Description de l'événement"
+        defaultValue={initial?.description || ""}
+        placeholder="Décrivez l'événement… Ajoutez photos et vidéos."
+        enableMedia
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <Label htmlFor="startsAt">Date et heure</Label>
@@ -144,7 +141,7 @@ export function SeminarAdminForm({
       </div>
       <ImageUploadField
         name="imageUrl"
-        label="Image de l'événement"
+        label="Image de couverture"
         defaultValue={initial?.imageUrl || ""}
       />
       <label className="flex items-center gap-2 text-sm">

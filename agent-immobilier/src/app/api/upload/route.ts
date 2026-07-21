@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
-  ALLOWED_IMAGE_TYPES,
-  MAX_UPLOAD_BYTES,
+  isAllowedMediaType,
+  maxBytesForType,
   saveMediaObject,
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
 } from "@/lib/media";
 
 export async function POST(req: Request) {
@@ -21,17 +23,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const contentType = file.type || "application/octet-stream";
-    if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+    const contentType = (file.type || "application/octet-stream").toLowerCase();
+    if (!isAllowedMediaType(contentType)) {
       return NextResponse.json(
-        { error: "Format non supporté. Utilisez JPG, PNG, WEBP ou GIF." },
+        {
+          error:
+            "Format non supporté. Photos : JPG, PNG, WEBP, GIF. Vidéos : MP4, WEBM, MOV (max 20 Mo).",
+        },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_UPLOAD_BYTES) {
+    const maxBytes = maxBytesForType(contentType);
+    if (file.size > maxBytes) {
+      const label = ALLOWED_VIDEO_TYPES.has(contentType) ? "20 Mo" : "8 Mo";
       return NextResponse.json(
-        { error: "Fichier trop volumineux (max 8 Mo). Compressez l'image." },
+        { error: `Fichier trop volumineux (max ${label}).` },
         { status: 400 }
       );
     }
@@ -44,12 +51,15 @@ export async function POST(req: Request) {
       source: "upload",
     });
 
+    const kind = ALLOWED_IMAGE_TYPES.has(contentType) ? "image" : "video";
+
     return NextResponse.json({
       ok: true,
       url: saved.url,
       key: saved.key,
       contentType: saved.meta.contentType,
       size: saved.meta.size,
+      kind,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erreur d'upload";

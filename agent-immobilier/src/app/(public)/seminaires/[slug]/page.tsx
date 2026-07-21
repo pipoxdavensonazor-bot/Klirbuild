@@ -1,8 +1,9 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
+import { SiteImage } from "@/components/ui/site-image";
+import { RichHtml } from "@/components/ui/rich-html";
 
 export default async function SeminarDetailPage({
   params,
@@ -24,18 +25,20 @@ export default async function SeminarDetailPage({
       <p className="mt-2 text-slate-500">{seminar.location}</p>
       {seminar.imageUrl ? (
         <div className="relative mt-8 aspect-[16/9] overflow-hidden bg-slate-100">
-          <Image
+          <SiteImage
             src={seminar.imageUrl}
             alt={seminar.title}
             fill
             className="object-cover"
             sizes="100vw"
+            priority
           />
         </div>
       ) : null}
-      <p className="mt-8 whitespace-pre-line leading-relaxed text-slate-600">
-        {seminar.description}
-      </p>
+      <RichHtml
+        html={seminar.description}
+        className="rich-html mt-8 text-slate-600 [&_a]:text-[#C9A227] [&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-3 [&_ul]:list-disc"
+      />
     </div>
   );
 }

@@ -1,29 +1,46 @@
-/** Allow a safe subset of HTML from the TipTap editor. */
+/** Allow a safe subset of HTML from the TipTap editor (text + images + videos). */
+
+function safeUrl(raw: string): string | null {
+  const href = raw.trim();
+  if (
+    href.startsWith("http://") ||
+    href.startsWith("https://") ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:") ||
+    href.startsWith("/api/media/") ||
+    href.startsWith("/") ||
+    href.startsWith("#")
+  ) {
+    return href.replace(/"/g, "");
+  }
+  return null;
+}
+
 export function sanitizeRichHtml(input: string): string {
   if (!input) return "";
   let html = input;
 
-  // Remove scripts/styles/iframes and event handlers
-  html = html.replace(/<\/?(script|style|iframe|object|embed|link|meta)[^>]*>/gi, "");
+  // Remove dangerous tags (keep video/source/img)
+  html = html.replace(
+    /<\/?(script|style|iframe|object|embed|link|meta|form)[^>]*>/gi,
+    ""
+  );
   html = html.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   html = html.replace(/javascript:/gi, "");
 
-  // Only keep http(s), mailto, tel, relative links in href
   html = html.replace(
     /href\s*=\s*("([^"]*)"|'([^']*)')/gi,
     (_m, _q, d1, d2) => {
-      const href = (d1 ?? d2 ?? "").trim();
-      if (
-        href.startsWith("http://") ||
-        href.startsWith("https://") ||
-        href.startsWith("mailto:") ||
-        href.startsWith("tel:") ||
-        href.startsWith("/") ||
-        href.startsWith("#")
-      ) {
-        return `href="${href.replace(/"/g, "")}"`;
-      }
-      return 'href="#"';
+      const ok = safeUrl(d1 ?? d2 ?? "");
+      return ok ? `href="${ok}"` : 'href="#"';
+    }
+  );
+
+  html = html.replace(
+    /src\s*=\s*("([^"]*)"|'([^']*)')/gi,
+    (_m, _q, d1, d2) => {
+      const ok = safeUrl(d1 ?? d2 ?? "");
+      return ok ? `src="${ok}"` : 'src=""';
     }
   );
 
@@ -39,7 +56,6 @@ export function isRichHtml(value: string | null | undefined): boolean {
 export function toDisplayHtml(value: string | null | undefined): string {
   if (!value) return "";
   if (isRichHtml(value)) return sanitizeRichHtml(value);
-  // Escape + preserve line breaks for legacy plain text
   const escaped = value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

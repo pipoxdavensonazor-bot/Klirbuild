@@ -49,7 +49,7 @@ export async function saveMediaObject(opts: {
 
   const key =
     opts.key ||
-    `img_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    `media_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
   const body =
     opts.bytes instanceof Uint8Array
@@ -131,11 +131,15 @@ export async function fetchGoogleDriveFile(fileId: string) {
         lastError = "Fichier Drive vide ou inaccessible";
         continue;
       }
+      const normalizedType = contentType.split(";")[0].trim().toLowerCase();
+      const safeType =
+        normalizedType.startsWith("image/") ||
+        normalizedType.startsWith("video/")
+          ? normalizedType
+          : "application/octet-stream";
       return {
         bytes,
-        contentType: contentType.startsWith("image/")
-          ? contentType
-          : "image/jpeg",
+        contentType: safeType,
         fileName: `drive-${fileId}`,
       };
     } catch (e) {
@@ -153,4 +157,26 @@ export const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
 ]);
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 Mo
+export const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime", // .mov
+  "video/x-m4v",
+]);
+
+export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 Mo
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20 Mo (limite KV ~25 Mo)
+/** @deprecated use MAX_IMAGE_BYTES */
+export const MAX_UPLOAD_BYTES = MAX_IMAGE_BYTES;
+
+export function isAllowedMediaType(contentType: string) {
+  return (
+    ALLOWED_IMAGE_TYPES.has(contentType) || ALLOWED_VIDEO_TYPES.has(contentType)
+  );
+}
+
+export function maxBytesForType(contentType: string) {
+  return ALLOWED_VIDEO_TYPES.has(contentType)
+    ? MAX_VIDEO_BYTES
+    : MAX_IMAGE_BYTES;
+}

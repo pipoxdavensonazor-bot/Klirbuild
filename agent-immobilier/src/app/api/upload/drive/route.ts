@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
   extractGoogleDriveFileId,
   fetchGoogleDriveFile,
-  MAX_UPLOAD_BYTES,
+  isAllowedMediaType,
+  maxBytesForType,
   saveMediaObject,
 } from "@/lib/media";
 
@@ -27,19 +30,40 @@ export async function POST(req: Request) {
     }
 
     const file = await fetchGoogleDriveFile(fileId);
-    if (file.bytes.byteLength > MAX_UPLOAD_BYTES) {
+    const contentType = file.contentType.toLowerCase();
+
+    // If Drive returned octet-stream, try to infer from request preference
+    let finalType = contentType;
+    if (finalType === "application/octet-stream") {
+      finalType = "image/jpeg";
+    }
+
+    if (!isAllowedMediaType(finalType)) {
       return NextResponse.json(
-        { error: "Fichier Drive trop volumineux (max 8 Mo)." },
+        {
+          error:
+            "Ce fichier Drive n'est pas une photo/vidéo supportée (JPG, PNG, WEBP, GIF, MP4, WEBM, MOV).",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (file.bytes.byteLength > maxBytesForType(finalType)) {
+      const label = ALLOWED_VIDEO_TYPES.has(finalType) ? "20 Mo" : "8 Mo";
+      return NextResponse.json(
+        { error: `Fichier Drive trop volumineux (max ${label}).` },
         { status: 400 }
       );
     }
 
     const saved = await saveMediaObject({
       bytes: file.bytes,
-      contentType: file.contentType,
+      contentType: finalType,
       fileName: file.fileName,
       source: "drive",
     });
+
+    const kind = ALLOWED_IMAGE_TYPES.has(finalType) ? "image" : "video";
 
     return NextResponse.json({
       ok: true,
@@ -47,6 +71,7 @@ export async function POST(req: Request) {
       key: saved.key,
       contentType: saved.meta.contentType,
       size: saved.meta.size,
+      kind,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Import Drive impossible";

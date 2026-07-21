@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -141,16 +142,13 @@ export function ArticleAdminForm({
           required
         />
       </div>
-      <div>
-        <Label htmlFor="content">Contenu</Label>
-        <Textarea
-          id="content"
-          name="content"
-          defaultValue={initial?.content}
-          rows={10}
-          required
-        />
-      </div>
+      <RichTextEditor
+        name="content"
+        label="Contenu de l'article"
+        defaultValue={initial?.content || ""}
+        placeholder="Rédigez l'article… Ajoutez photos et vidéos ci-dessous."
+        enableMedia
+      />
       <div className="flex flex-wrap gap-6">
         <label className="flex items-center gap-2 text-sm">
           <input

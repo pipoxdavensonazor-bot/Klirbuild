@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { slugify } from "@/lib/distribute";
+import { sanitizeRichHtml } from "@/lib/rich-text";
 
 export async function GET() {
   if (!(await isAdminAuthenticated())) {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     data: {
       title,
       slug,
-      description: String(body.description || ""),
+      description: sanitizeRichHtml(String(body.description || "")),
       imageUrl: body.imageUrl ? String(body.imageUrl) : null,
       startsAt,
       location: String(body.location || ""),
@@ -76,7 +77,10 @@ export async function PUT(req: Request) {
     data: {
       title: body.title ?? existing.title,
       slug: slugify(String(body.slug || body.title || existing.slug)),
-      description: body.description ?? existing.description,
+      description:
+        body.description !== undefined
+          ? sanitizeRichHtml(String(body.description || ""))
+          : existing.description,
       imageUrl:
         body.imageUrl === undefined
           ? existing.imageUrl
