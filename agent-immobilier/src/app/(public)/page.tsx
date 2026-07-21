@@ -59,25 +59,21 @@ export default async function HomePage() {
   return (
     <>
       <section className="relative min-h-[100svh] overflow-hidden bg-[#0B1220]">
-        {/* Photo à 60 % — maximum de recul, ancrée à droite */}
+        {/* Photo réduite à 60 % — recul max (image entière visible) */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-end">
-          <div className="relative h-[100%] w-[60%] max-w-[60%]">
+          <div className="relative h-[60%] w-[60%]">
             <SiteImage
               src={photoHero}
               alt={`${name} — courtière immobilière`}
               fill
               priority
-              className="object-cover object-[50%_18%] sm:object-[48%_16%] lg:object-[45%_14%]"
+              className="object-contain object-right object-center"
               sizes="60vw"
             />
-            {/* Fondu vers le fond à gauche pour coller au texte */}
-            <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-[#0B1220] to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#0B1220] to-transparent" />
-            <div className="absolute inset-x-0 top-0 h-1/6 bg-gradient-to-b from-[#0B1220]/40 to-transparent" />
           </div>
         </div>
         {/* Zone texte lisible à gauche */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/85 via-[42%] to-transparent to-[70%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/80 via-[40%] to-transparent to-[72%]" />
 
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
           <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-xl">
