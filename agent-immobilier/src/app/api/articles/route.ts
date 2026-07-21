@@ -97,6 +97,14 @@ export async function DELETE(req: Request) {
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
+
+  const existing = await prisma.article.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Introuvable" }, { status: 404 });
+  }
+
+  // SocialPost.articleId n'a pas de relation Prisma — nettoyer à la main
+  await prisma.socialPost.deleteMany({ where: { articleId: id } });
   await prisma.article.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

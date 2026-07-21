@@ -13,12 +13,14 @@ async function safeCount(fn: () => Promise<number>) {
 }
 
 export default async function AdminDashboard() {
-  const [properties, articles, published, openHouses] = await Promise.all([
-    safeCount(() => prisma.property.count()),
-    safeCount(() => prisma.article.count()),
-    safeCount(() => prisma.article.count({ where: { published: true } })),
-    safeCount(() => prisma.openHouse.count({ where: { published: true } })),
-  ]);
+  const [properties, articles, published, seminars, openHouses] =
+    await Promise.all([
+      safeCount(() => prisma.property.count()),
+      safeCount(() => prisma.article.count()),
+      safeCount(() => prisma.article.count({ where: { published: true } })),
+      safeCount(() => prisma.seminar.count()),
+      safeCount(() => prisma.openHouse.count({ where: { published: true } })),
+    ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">
@@ -28,22 +30,29 @@ export default async function AdminDashboard() {
           Tableau de bord
         </h1>
         <p className="mt-2 text-slate-500">
-          Gérez textes, articles, maisons et partages réseaux.
+          Gérez textes, articles, conseils, événements, maisons et partages
+          réseaux.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Maisons" value={properties} href="/admin/proprietes" />
         <Stat label="Articles" value={articles} href="/admin/articles" />
         <Stat label="Publiés" value={published} href="/admin/articles" />
+        <Stat label="Événements" value={seminars} href="/admin/evenements" />
         <Stat label="Visites libres" value={openHouses} href="/admin/proprietes" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card
           href="/admin/articles"
-          title="Ajouter un article"
-          desc="Conseils, actualités — publier sur le site et partager."
+          title="Articles & conseils"
+          desc="Créer, publier, partager ou supprimer un article / conseil."
+        />
+        <Card
+          href="/admin/evenements"
+          title="Événements"
+          desc="Créer, modifier ou supprimer un séminaire / événement."
         />
         <Card
           href="/admin/proprietes"
@@ -58,7 +67,7 @@ export default async function AdminDashboard() {
         <Card
           href="/admin/diffusion"
           title="Réseaux sociaux"
-          desc="Activer Facebook, LinkedIn, WhatsApp, Zapier…"
+          desc="Activer Facebook, LinkedIn, WhatsApp, TikTok, Zapier…"
         />
       </div>
     </div>

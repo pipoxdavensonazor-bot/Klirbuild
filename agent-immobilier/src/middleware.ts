@@ -23,6 +23,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/properties") ||
     pathname.startsWith("/api/profile") ||
     pathname.startsWith("/api/articles") ||
+    pathname.startsWith("/api/seminars") ||
     pathname.startsWith("/api/social") ||
     pathname.startsWith("/api/admin");
 
@@ -60,6 +61,7 @@ export const config = {
     "/api/properties/:path*",
     "/api/profile/:path*",
     "/api/articles/:path*",
+    "/api/seminars/:path*",
     "/api/social/:path*",
     "/api/admin/:path*",
   ],

@@ -34,6 +34,9 @@ export default async function AdminLayout({
               <Link href="/admin/articles" className="hover:text-[#C9A227]">
                 Articles
               </Link>
+              <Link href="/admin/evenements" className="hover:text-[#C9A227]">
+                Événements
+              </Link>
               <Link href="/admin/proprietes" className="hover:text-[#C9A227]">
                 Maisons
               </Link>
