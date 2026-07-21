@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, propertyTypeLabel, statusLabel } from "@/lib/utils";
 import { PropertyAdminForm } from "@/components/admin/property-form";
+import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
 
 export default async function AdminPropertiesPage() {
   const properties = await prisma.property.findMany({
@@ -46,12 +47,15 @@ export default async function AdminPropertiesPage() {
                   </p>
                 ) : null}
               </div>
-              <Link
-                href={`/proprietes/${p.slug}`}
-                className="text-sm text-[#C9A227] hover:underline"
-              >
-                Voir
-              </Link>
+              <div className="flex flex-col items-end gap-2">
+                <Link
+                  href={`/proprietes/${p.slug}`}
+                  className="text-sm text-[#C9A227] hover:underline"
+                >
+                  Voir
+                </Link>
+                <PublishShareButtons type="property" id={p.id} published />
+              </div>
             </div>
             <div className="mt-4">
               <PropertyAdminForm

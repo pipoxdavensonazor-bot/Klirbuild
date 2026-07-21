@@ -22,6 +22,8 @@ export function middleware(request: NextRequest) {
   const isAdminApi =
     pathname.startsWith("/api/properties") ||
     pathname.startsWith("/api/profile") ||
+    pathname.startsWith("/api/articles") ||
+    pathname.startsWith("/api/social") ||
     pathname.startsWith("/api/admin");
 
   if (!isAdminPage && !isAdminApi) {
@@ -53,5 +55,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/properties/:path*", "/api/profile/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/api/properties/:path*",
+    "/api/profile/:path*",
+    "/api/articles/:path*",
+    "/api/social/:path*",
+    "/api/admin/:path*",
+  ],
 };

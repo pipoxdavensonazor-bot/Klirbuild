@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "Admin" };
 
 export default async function AdminDashboard() {
-  const [properties, articles, openHouses] = await Promise.all([
+  const [properties, articles, published, openHouses] = await Promise.all([
     prisma.property.count(),
+    prisma.article.count(),
     prisma.article.count({ where: { published: true } }),
     prisma.openHouse.count({ where: { published: true } }),
   ]);
@@ -18,39 +19,51 @@ export default async function AdminDashboard() {
           Tableau de bord
         </h1>
         <p className="mt-2 text-slate-500">
-          Modifiez les textes du site et ajoutez vos maisons / visites libres.
+          Gérez textes, articles, maisons et partages réseaux.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Maisons" value={properties} href="/admin/proprietes" />
-        <Stat label="Articles publiés" value={articles} href="/admin/textes" />
+        <Stat label="Articles" value={articles} href="/admin/articles" />
+        <Stat label="Publiés" value={published} href="/admin/articles" />
         <Stat label="Visites libres" value={openHouses} href="/admin/proprietes" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Link
-          href="/admin/textes"
-          className="border border-slate-200 bg-white p-6 transition-colors hover:border-[#C9A227]"
-        >
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
-            Modifier les textes
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Slogan, bio, mission, téléphone, courriel, adresse…
-          </p>
-        </Link>
-        <Link
+        <Card
+          href="/admin/articles"
+          title="Ajouter un article"
+          desc="Conseils, actualités — publier sur le site et partager."
+        />
+        <Card
           href="/admin/proprietes"
-          className="border border-slate-200 bg-white p-6 transition-colors hover:border-[#C9A227]"
-        >
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
-            Ajouter une maison
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Créer une annonce, prix, photos et visite libre.
-          </p>
-        </Link>
+          title="Ajouter une maison"
+          desc="Créer une annonce, visite libre, puis partager."
+        />
+        <Card
+          href="/admin/textes"
+          title="Modifier les textes"
+          desc="Slogan, bio, téléphone, courriel…"
+        />
+        <Card
+          href="/admin/diffusion"
+          title="Réseaux sociaux"
+          desc="Activer Facebook, LinkedIn, WhatsApp, Zapier…"
+        />
+      </div>
+
+      <div className="border border-[#C9A227]/40 bg-[#C9A227]/10 p-5 text-sm text-[#0F172A]">
+        <p className="font-medium">Connexion admin</p>
+        <p className="mt-1">
+          URL : <code className="bg-white/70 px-1">/admin/login</code>
+          <br />
+          Mot de passe par défaut :{" "}
+          <code className="bg-white/70 px-1">LeonneAdmin2026</code>
+          <br />
+          Changez-le via la variable <code className="bg-white/70 px-1">ADMIN_PASSWORD</code>{" "}
+          avant la mise en production.
+        </p>
       </div>
     </div>
   );
@@ -71,6 +84,28 @@ function Stat({
       <p className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[#0F172A]">
         {value}
       </p>
+    </Link>
+  );
+}
+
+function Card({
+  href,
+  title,
+  desc,
+}: {
+  href: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="border border-slate-200 bg-white p-6 transition-colors hover:border-[#C9A227]"
+    >
+      <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#0F172A]">
+        {title}
+      </h2>
+      <p className="mt-2 text-sm text-slate-500">{desc}</p>
     </Link>
   );
 }
