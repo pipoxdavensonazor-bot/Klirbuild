@@ -158,20 +158,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-white py-24">
+      <section className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24">
         <div
-          className={`mx-auto grid max-w-7xl items-center gap-6 px-4 sm:px-6 lg:gap-10 lg:px-8 ${
-            careerPhoto ? "lg:grid-cols-2" : ""
+          className={`mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:gap-12 lg:px-8 ${
+            careerPhoto ? "lg:grid-cols-[1.4fr_1fr]" : ""
           }`}
         >
           {careerPhoto ? (
-            <div className="relative aspect-[4/5] overflow-hidden bg-[#0B1220]">
+            <div className="relative min-h-[520px] overflow-hidden bg-[#0B1220] sm:min-h-[600px] lg:min-h-[720px]">
               <SiteImage
                 src={careerPhoto}
                 alt={`${name} — 20 ans de carrière`}
                 fill
-                className="object-cover object-[center_12%]"
-                sizes="45vw"
+                className="object-cover object-[center_20%] sm:object-[center_18%]"
+                sizes="(max-width:1024px) 100vw, 58vw"
               />
             </div>
           ) : null}
