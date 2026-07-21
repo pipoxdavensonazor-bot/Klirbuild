@@ -59,24 +59,25 @@ export default async function HomePage() {
   return (
     <>
       <section className="relative min-h-[100svh] overflow-hidden bg-[#0B1220]">
-        {/* Fond unique — fort recul (surtout en plein écran / grands écrans) */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -inset-[32%] sm:-inset-[36%] md:-inset-[40%] lg:-inset-[46%] xl:-inset-[52%] [@media(min-height:800px)]:-inset-[50%] [@media(min-height:1000px)]:-inset-[58%]"
-          >
+        {/* Photo à 60 % — maximum de recul, ancrée à droite */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-end">
+          <div className="relative h-[100%] w-[60%] max-w-[60%]">
             <SiteImage
               src={photoHero}
               alt={`${name} — courtière immobilière`}
               fill
               priority
-              className="object-cover object-[80%_30%] sm:object-[84%_28%] lg:object-[88%_26%]"
-              sizes="100vw"
+              className="object-cover object-[50%_18%] sm:object-[48%_16%] lg:object-[45%_14%]"
+              sizes="60vw"
             />
+            {/* Fondu vers le fond à gauche pour coller au texte */}
+            <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-[#0B1220] to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#0B1220] to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-1/6 bg-gradient-to-b from-[#0B1220]/40 to-transparent" />
           </div>
-          {/* Zone texte à gauche : ne couvre jamais le visage */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/90 via-[36%] to-transparent to-[62%]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/55 via-transparent to-[#0B1220]/15" />
         </div>
+        {/* Zone texte lisible à gauche */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1220] from-0% via-[#0B1220]/85 via-[42%] to-transparent to-[70%]" />
 
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl items-center px-4 sm:px-6 lg:px-8">
           <div className="w-full max-w-md py-24 text-white sm:max-w-lg sm:py-28 lg:max-w-xl">
