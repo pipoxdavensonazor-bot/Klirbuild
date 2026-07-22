@@ -28,6 +28,7 @@
     ".open-next",
     ".wrangler",
     "workers",
+    "apps",
     "types/cloudflare-env.d.ts",
     "types/cloudflare-env.augment.d.ts"
   ]

@@ -23,7 +23,7 @@ Ordre d’importance pour le métier construction :
    Secrets : `OPENROUTER_API_KEY` (+ `OPENROUTER_MODEL`) **ou** `GEMINI_API_KEY`  
    Chaîne code : OpenAI → OpenRouter → Gemini → mock local
 3. **Visio** → **Jitsi** automatique si pas de Daily  
-   Option premium : `DAILY_API_KEY` + `NEXT_PUBLIC_DAILY_DOMAIN`
+   Option premium : `DAILY_API_KEY` + `NEXT_PUBLIC_DAILY_DOMAIN` — guide [`DAILY.md`](DAILY.md)
 4. **Google login** → Google Cloud OAuth (gratuit)  
    Secrets : `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 5. **Paiements** → Stripe (pas de vrai free forever pour SaaS) — garder pour la facturation clients

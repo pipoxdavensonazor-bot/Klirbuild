@@ -43,6 +43,7 @@ type Overview = {
     last30DaysAdRevenueCad: number;
     bookedBudgetCad: number;
   };
+  stack?: Record<string, { ok: boolean; label: string; provider?: string }>;
   companies: CompanyRow[];
 };
 
@@ -222,6 +223,42 @@ export function PlatformConsole() {
           </p>
         </CardContent>
       </Card>
+
+      {overview.stack ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">État de la stack</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(overview.stack).map(([key, item]) => (
+                <li
+                  key={key}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                >
+                  <span
+                    className={
+                      item.ok
+                        ? "h-2 w-2 rounded-full bg-emerald-500"
+                        : "h-2 w-2 rounded-full bg-amber-500"
+                    }
+                  />
+                  <span className="capitalize text-muted-foreground">{key}</span>
+                  <span className="ml-auto font-medium">{item.label}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Visio : Jitsi est déjà live. Pour Daily.co natif, suivez{" "}
+              <a className="underline" href="https://dashboard.daily.co/signup" target="_blank" rel="noreferrer">
+                dashboard.daily.co
+              </a>{" "}
+              puis collez la clé (hors chat) — doc{" "}
+              <code>DAILY.md</code>.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="mb-4 flex gap-2">
         <Button
