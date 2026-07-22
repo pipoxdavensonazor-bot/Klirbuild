@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KlirBuild",
+  "version": "0.1.0",
+  "identifier": "app.klirline.klirbuild",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "https://klirline.app"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "KlirBuild",
+        "width": 1360,
+        "height": 860,
+        "resizable": true,
+        "fullscreen": false,
+        "url": "https://klirline.app/login"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/icon.png"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "shortDescription": "KlirBuild — Construction OS",
+    "longDescription": "KlirBuild by Klirline — desktop shell for https://klirline.app"
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

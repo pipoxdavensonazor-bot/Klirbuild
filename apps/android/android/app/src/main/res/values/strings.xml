@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KlirBuild</string>
+    <string name="title_activity_main">KlirBuild</string>
+    <string name="package_name">app.klirline.klirbuild</string>
+    <string name="custom_url_scheme">app.klirline.klirbuild</string>
+</resources>

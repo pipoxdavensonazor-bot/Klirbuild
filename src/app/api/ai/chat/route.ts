@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
 import { appendAiChatMessages, getAiChatThread } from "@/lib/ai/ai-chat-service";
 import { buildBusinessContext, buildConstructionContext } from "@/lib/ai/context";
+import {
+  chatWithFallback,
+  hasLiveAiProvider,
+} from "@/lib/ai/chat-provider";
 import { mockKeywordReply } from "@/lib/ai/mock-replies";
-import { openAiChat, type ChatTurn } from "@/lib/ai/openai-client";
+import type { ChatTurn } from "@/lib/ai/openai-client";
 import { constructionSystemPrompt, generalSystemPrompt } from "@/lib/ai/prompts";
 import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
   const { companyId, email } = await resolveSession();
   const denied = await requireCompanyPlanFeature(companyId, "ai");
   if (denied) return denied;
-  const hasOpenAi = Boolean(process.env.OPENAI_API_KEY);
+  const hasLiveAi = hasLiveAiProvider();
 
   let reply: string;
   let tool: string;
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
   let hint: string | undefined;
   let errorNote: string | undefined;
 
-  if (hasOpenAi) {
+  if (hasLiveAi) {
     try {
       const context =
         mode === "construction"
@@ -77,29 +81,30 @@ export async function POST(request: Request) {
           : generalSystemPrompt(market, context);
 
       const messages: ChatTurn[] = [...history, { role: "user", content: message }];
-      const result = await openAiChat({ system, messages });
+      const result = await chatWithFallback({ system, messages });
 
       reply = result.content;
       tool = mode === "construction" ? "constructionCopilot" : "klirAiCopilot";
-      provider = "openai";
+      provider = result.provider;
       model = result.model;
     } catch (err) {
-      console.error("[ai/chat] OpenAI error:", err);
+      console.error("[ai/chat] provider error:", err);
       const fallback = mockKeywordReply(message, regionId);
       reply = fallback.reply;
       tool = fallback.tool;
       provider = "mock";
       errorNote =
         err instanceof Error
-          ? "OpenAI indisponible — réponse locale de secours."
-          : "OpenAI indisponible.";
+          ? "IA cloud indisponible — réponse locale de secours."
+          : "IA cloud indisponible.";
     }
   } else {
     const mock = mockKeywordReply(message, regionId);
     reply = mock.reply;
     tool = mock.tool;
     provider = "mock";
-    hint = "Ajoutez OPENAI_API_KEY sur Vercel pour activer Klir AI en direct.";
+    hint =
+      "Ajoutez OPENROUTER_API_KEY (gratuit) ou GEMINI_API_KEY / OPENAI_API_KEY pour activer Klir AI.";
   }
 
   await appendAiChatMessages({

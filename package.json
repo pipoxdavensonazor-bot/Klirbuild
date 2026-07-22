@@ -28,8 +28,13 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "security:check": "node scripts/security-check.mjs",
-    "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
+    "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1",
+    "desktop:dev": "npm --prefix apps/desktop run dev",
+    "desktop:build": "npm --prefix apps/desktop run build",
+    "android:sync": "npm --prefix apps/android run sync",
+    "android:open": "npm --prefix apps/android run open"
   },
+
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@opennextjs/cloudflare": "^1.20.2",
