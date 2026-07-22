@@ -59,5 +59,10 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  // Paid Workers : augmente la limite CPU (Free = 10ms → Error 1102).
+  // Si le deploy échoue (compte Free), retire ce bloc et passe au plan Workers Paid.
+  "limits": {
+    "cpu_ms": 30000
   }
 }

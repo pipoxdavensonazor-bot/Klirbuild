@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { getStripe, isStripeConfigured, priceIdForPlan } from "@/lib/stripe";
+import { isStripeConfigured, priceIdForPlan } from "@/lib/stripe";
 
+/**
+ * Statut Stripe léger — pas d'appel réseau Stripe (balance.retrieve)
+ * qui timeout / brûle le CPU Worker (Error 1102).
+ */
 export async function GET() {
   const plans = ["starter", "growth", "business"] as const;
   const cycles = ["monthly", "yearly"] as const;
@@ -12,40 +16,15 @@ export async function GET() {
   }
 
   const key = process.env.STRIPE_SECRET_KEY?.trim() || "";
-  let connected = false;
-  let connectionError: string | null = null;
-
-  if (isStripeConfigured()) {
-    try {
-      const stripe = getStripe();
-      await stripe.balance.retrieve();
-      connected = true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Connexion Stripe échouée";
-      if (msg.includes("LIVE détectée")) {
-        connectionError =
-          "Clé LIVE bloquée en local. Utilisez sk_test_… ou rk_test_… (mode Test dans Stripe).";
-      } else if (msg.includes("Invalid API Key") || msg.includes("api_key")) {
-        connectionError =
-          "Clé Stripe invalide ou révoquée. Créez une nouvelle clé TEST dans le Dashboard.";
-      } else if (msg.includes("permissions") || msg.includes("permission")) {
-        connectionError =
-          "Clé restreinte (rk_…) sans permissions. Autorisez Checkout, Customers, Prices — ou utilisez sk_test_….";
-      } else {
-        connectionError = msg;
-      }
-    }
-  } else {
-    connectionError =
-      "STRIPE_SECRET_KEY manquante — ajoutez-la via wrangler secret (prod) ou .env.local (dev).";
-  }
-
+  const configured = isStripeConfigured();
   const pricesReady = Object.values(prices).filter(Boolean).length;
 
   return NextResponse.json({
-    configured: isStripeConfigured(),
-    connected,
-    connectionError,
+    configured,
+    connected: configured,
+    connectionError: configured
+      ? null
+      : "STRIPE_SECRET_KEY manquante — ajoutez-la via wrangler secret (prod) ou .env.local (dev).",
     publishableKeySet: Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY),
     webhookSecretSet: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     prices,

@@ -134,6 +134,49 @@ function mapChannel(channel: {
   };
 }
 
+/** Aperçu léger pour le widget dashboard (évite Error 1102 CPU Worker). */
+export async function listTeamChatPreview(
+  companyId: string,
+  email: string,
+  senderName: string,
+  limit = 4
+) {
+  if (!hasDatabase()) return emptyChat(email, senderName);
+
+  const channel = await ensureCompanyChannel(companyId);
+  const rows = await prisma.teamChatMessage.findMany({
+    where: { channelId: channel.id },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 20),
+    select: {
+      id: true,
+      senderId: true,
+      senderName: true,
+      body: true,
+      encrypted: true,
+      createdAt: true,
+    },
+  });
+
+  return {
+    channelId: channel.id,
+    channelName: channel.name,
+    channels: [],
+    messages: rows.reverse().map((row) => ({
+      id: row.id,
+      channelId: channel.id,
+      senderId: row.senderId,
+      senderName: row.senderName,
+      body: row.body,
+      encrypted: row.encrypted,
+      at: row.createdAt.toISOString(),
+      attachments: [] as ChatAttachmentDto[],
+    })),
+    me: { email, name: senderName },
+    users: [],
+  };
+}
+
 export async function listTeamChat(
   companyId: string,
   email: string,
@@ -145,19 +188,21 @@ export async function listTeamChat(
   const channel = await ensureCompanyChannel(companyId);
   const rows = await prisma.teamChatMessage.findMany({
     where: { channelId: channel.id },
-    orderBy: { createdAt: "asc" },
-    take: 200,
+    orderBy: { createdAt: "desc" },
+    take: 80,
     include: { attachments: true },
   });
   const allChannels = await prisma.teamChannel.findMany({
     where: { companyId },
     include: { members: true },
     orderBy: { name: "asc" },
+    take: 50,
   });
   const users = await prisma.user.findMany({
     where: { companyId },
     select: { id: true, name: true, email: true, role: true },
     orderBy: { name: "asc" },
+    take: 100,
   });
   const visibleChannels = allChannels
     .filter((c) => userCanAccessChannel(c, email, role))
@@ -167,7 +212,7 @@ export async function listTeamChat(
     channelId: channel.id,
     channelName: channel.name,
     channels: visibleChannels.map(mapChannel),
-    messages: rows.map(mapRow),
+    messages: rows.reverse().map(mapRow),
     me: { email, name: senderName },
     users,
   };
@@ -241,11 +286,11 @@ export async function listChannelMessages(
   }
   const rows = await prisma.teamChatMessage.findMany({
     where: { channelId },
-    orderBy: { createdAt: "asc" },
-    take: 300,
+    orderBy: { createdAt: "desc" },
+    take: 80,
     include: { attachments: true },
   });
-  return { messages: rows.map(mapRow), channel };
+  return { messages: rows.reverse().map(mapRow), channel };
 }
 
 export async function createTeamChannel(input: {
