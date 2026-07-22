@@ -53,7 +53,8 @@
   },
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://klirline.app",
-    "UPLOADS_KV_ENABLED": "true"
+    "UPLOADS_KV_ENABLED": "true",
+    "STRIPE_ALLOW_LIVE": "true"
   },
   "observability": {
     "enabled": true,
