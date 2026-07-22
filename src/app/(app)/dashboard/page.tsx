@@ -33,6 +33,7 @@ import { useSessionStore } from "@/lib/workforce/session";
 import { TimeclockDashboardWidget } from "@/components/dashboard/timeclock-dashboard-widget";
 import { TeamChatDashboardWidget } from "@/components/dashboard/team-chat-dashboard-widget";
 import { GettingStartedChecklist } from "@/components/help/getting-started-checklist";
+import { SponsoredAdSlot } from "@/components/sponsored-ads/sponsored-ad-slot";
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -87,6 +88,10 @@ export default function DashboardPage() {
           </>
         }
       />
+
+      <div className="mb-6">
+        <SponsoredAdSlot surface="dashboard" />
+      </div>
 
       <Card className="mb-6 border-brand-200 bg-gradient-to-r from-brand-50/80 to-accent-50/40 dark:from-brand-950/40 dark:to-brand-900/20">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">

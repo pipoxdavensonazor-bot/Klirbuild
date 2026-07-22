@@ -15,6 +15,10 @@ export type DemoSession = {
   companyId: string;
   role: Role;
   exp: number;
+  /** Admin Klirline — accès multi-entreprises */
+  isPlatformAdmin?: boolean;
+  /** Entreprise d'origine quand on « entre » dans un tenant */
+  homeCompanyId?: string;
 };
 
 export type Pending2fa = {
@@ -22,6 +26,7 @@ export type Pending2fa = {
   companyId: string;
   role: Role;
   exp: number;
+  isPlatformAdmin?: boolean;
 };
 
 function fallbackDevSecret() {
@@ -139,13 +144,19 @@ async function verifyPayload<T extends { exp: number }>(
 export async function createDemoSession(
   email: string,
   role: DemoSession["role"] = "COMPANY_ADMIN",
-  companyId: string
+  companyId: string,
+  extras?: {
+    isPlatformAdmin?: boolean;
+    homeCompanyId?: string;
+  }
 ) {
   const payload: DemoSession = {
     email,
     companyId: companyId || DEMO_COMPANY_ID,
     role,
     exp: Date.now() + MAX_AGE * 1000,
+    ...(extras?.isPlatformAdmin ? { isPlatformAdmin: true } : {}),
+    ...(extras?.homeCompanyId ? { homeCompanyId: extras.homeCompanyId } : {}),
   };
   return { token: await signPayload(payload), session: payload, maxAge: MAX_AGE };
 }
@@ -184,9 +195,13 @@ export async function createPending2faToken(profile: {
   email: string;
   companyId: string;
   role: Role;
+  isPlatformAdmin?: boolean;
 }) {
   const payload: Pending2fa = {
-    ...profile,
+    email: profile.email,
+    companyId: profile.companyId,
+    role: profile.role,
+    ...(profile.isPlatformAdmin ? { isPlatformAdmin: true } : {}),
     exp: Date.now() + PENDING_2FA_MAX_AGE * 1000,
   };
   return {

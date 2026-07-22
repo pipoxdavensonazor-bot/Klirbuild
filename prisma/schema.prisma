@@ -101,6 +101,9 @@ model Company {
   feedPosts          FeedPost[]
   deleteRequests     DeleteRequest[]
   companyBackups     CompanyBackup[]
+  /// Suspendue par l'admin plateforme (login entreprise bloqué sauf platform admin)
+  suspended          Boolean            @default(false)
+  sponsoredAds       SponsoredAdCampaign[]
 }
 
 model User {
@@ -112,6 +115,8 @@ model User {
   emailVerified DateTime?
   passwordHash String?
   role         Role      @default(EMPLOYEE)
+  /// Admin Klirline Inc. — voit toutes les entreprises (tableau de bord plateforme)
+  isPlatformAdmin Boolean @default(false)
   image        String?
   // TOTP 2FA (secret chiffré au repos)
   totpSecret   String?
@@ -122,6 +127,64 @@ model User {
   accounts     Account[]
 
   @@index([companyId])
+  @@index([isPlatformAdmin])
+}
+
+enum SponsoredAdStatus {
+  draft
+  pending_review
+  active
+  paused
+  rejected
+  completed
+}
+
+/// Pub sponsorisée in-app — inventaire KlirBuild (génère du revenu plateforme)
+model SponsoredAdCampaign {
+  id                  String            @id @default(cuid())
+  advertiserCompanyId String
+  advertiserCompany   Company           @relation(fields: [advertiserCompanyId], references: [id], onDelete: Cascade)
+  title               String
+  headline            String
+  body                String
+  ctaLabel            String            @default("En savoir plus")
+  ctaUrl              String
+  imageUrl            String?
+  surface             String            @default("dashboard")
+  status              SponsoredAdStatus @default(draft)
+  dailyBudgetCad      Decimal           @default(25) @db.Decimal(12, 2)
+  totalBudgetCad      Decimal           @default(250) @db.Decimal(12, 2)
+  spentCad            Decimal           @default(0) @db.Decimal(12, 2)
+  bidCpmCad           Decimal           @default(8) @db.Decimal(12, 2)
+  bidCpcCad           Decimal           @default(1.5) @db.Decimal(12, 2)
+  impressions         Int               @default(0)
+  clicks              Int               @default(0)
+  /// Part KlirBuild sur le spend (100 = inventaire 100% revenu plateforme)
+  platformFeePct      Decimal           @default(100) @db.Decimal(5, 2)
+  startAt             DateTime?
+  endAt               DateTime?
+  reviewedByEmail     String?
+  reviewNote          String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  events              SponsoredAdEvent[]
+
+  @@index([status, surface])
+  @@index([advertiserCompanyId])
+}
+
+model SponsoredAdEvent {
+  id              String              @id @default(cuid())
+  campaignId      String
+  campaign        SponsoredAdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  viewerCompanyId String?
+  viewerEmail     String?
+  type            String
+  chargedCad      Decimal             @default(0) @db.Decimal(12, 4)
+  createdAt       DateTime            @default(now())
+
+  @@index([campaignId, type])
+  @@index([createdAt])
 }
 
 model Session {

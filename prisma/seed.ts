@@ -16,6 +16,11 @@ import { defaultWorkspace } from "../src/lib/construction/workspace-types";
 
 const scryptAsync = promisify(scrypt);
 const DEMO_COMPANY_ID = "demo_klirbuild";
+const PLATFORM_COMPANY_ID = "klirline_platform";
+const PLATFORM_ADMIN_EMAIL =
+  process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || "admin@klirline.ca";
+const PLATFORM_ADMIN_PASSWORD =
+  process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "KlirAdmin!2026";
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -524,7 +529,77 @@ async function main() {
     }
   }
 
+  const platformCompany = await prisma.company.upsert({
+    where: { id: PLATFORM_COMPANY_ID },
+    create: {
+      id: PLATFORM_COMPANY_ID,
+      name: "Klirline Inc.",
+      email: "billing@klirline.ca",
+      plan: "business",
+      subscriptionStatus: "active",
+      enabledModules: ["construction-os", "crm", "payroll", "social_ads"],
+      marketRegion: "CA-QC",
+    },
+    update: {
+      name: "Klirline Inc.",
+      subscriptionStatus: "active",
+      plan: "business",
+    },
+  });
+
+  const adminPasswordHash = await hashPassword(PLATFORM_ADMIN_PASSWORD);
+  await prisma.user.upsert({
+    where: { email: PLATFORM_ADMIN_EMAIL },
+    create: {
+      name: "Admin KlirBuild",
+      email: PLATFORM_ADMIN_EMAIL,
+      passwordHash: adminPasswordHash,
+      role: "SUPER_ADMIN",
+      isPlatformAdmin: true,
+      companyId: platformCompany.id,
+    },
+    update: {
+      passwordHash: adminPasswordHash,
+      role: "SUPER_ADMIN",
+      isPlatformAdmin: true,
+      companyId: platformCompany.id,
+      name: "Admin KlirBuild",
+    },
+  });
+
+  // Campagne démo active pour montrer le revenu pubs
+  const existingAd = await prisma.sponsoredAdCampaign.findFirst({
+    where: { advertiserCompanyId: platformCompany.id, title: "KlirBuild Ads — Démo" },
+  });
+  if (!existingAd) {
+    await prisma.sponsoredAdCampaign.create({
+      data: {
+        advertiserCompanyId: platformCompany.id,
+        title: "KlirBuild Ads — Démo",
+        headline: "Équipez vos chantiers plus vite",
+        body: "Matériaux, sous-traitance et logiciels construction — offres partenaires dans KlirBuild.",
+        ctaLabel: "Voir l'offre",
+        ctaUrl: "https://klirline.app/billing",
+        surface: "dashboard",
+        status: "active",
+        dailyBudgetCad: 40,
+        totalBudgetCad: 400,
+        bidCpmCad: 8,
+        bidCpcCad: 1.5,
+        platformFeePct: 100,
+        startAt: new Date(),
+      },
+    });
+  }
+
   console.log("Seed OK:", company.name, "— alex@klirline.demo / password");
+  console.log(
+    "Platform admin:",
+    PLATFORM_ADMIN_EMAIL,
+    "/",
+    PLATFORM_ADMIN_PASSWORD,
+    "→ /platform"
+  );
 }
 
 main()

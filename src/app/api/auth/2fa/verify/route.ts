@@ -79,6 +79,7 @@ export async function POST(request: Request) {
     email: pending.email,
     companyId: pending.companyId,
     role: pending.role,
+    isPlatformAdmin: Boolean(pending.isPlatformAdmin),
   });
   res.cookies.set(PENDING_2FA_COOKIE, "", { path: "/", maxAge: 0 });
   return res;

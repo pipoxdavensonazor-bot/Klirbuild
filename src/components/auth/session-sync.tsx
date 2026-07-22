@@ -22,6 +22,8 @@ export function SessionSync() {
           name?: string;
           email?: string;
           enabledModules?: string[];
+          isPlatformAdmin?: boolean;
+          companyName?: string;
         }) => {
           if (!data.authenticated) return;
           useSessionStore.getState().syncProfile({
@@ -33,6 +35,8 @@ export function SessionSync() {
             subscriptionStatus: data.subscriptionStatus,
             marketRegion: data.marketRegion,
             enabledModules: data.enabledModules,
+            isPlatformAdmin: Boolean(data.isPlatformAdmin),
+            companyName: data.companyName,
           });
         }
       )

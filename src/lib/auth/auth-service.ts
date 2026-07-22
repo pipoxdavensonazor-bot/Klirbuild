@@ -32,18 +32,28 @@ export async function authenticateUser(email: string, password: string) {
       companyId: DEMO_COMPANY_ID,
       role: "COMPANY_ADMIN" as const,
       totpEnabled: false,
+      isPlatformAdmin: false,
     };
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { company: { select: { suspended: true } } },
+  });
   if (!user?.passwordHash) return null;
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return null;
+  const isPlatformAdmin =
+    Boolean(user.isPlatformAdmin) || user.role === "SUPER_ADMIN";
+  if (user.company?.suspended && !isPlatformAdmin) {
+    return null;
+  }
   return {
     email: user.email,
     companyId: user.companyId,
     role: user.role,
     totpEnabled: Boolean(user.totpEnabled),
+    isPlatformAdmin,
   };
 }
 
@@ -104,39 +114,57 @@ export async function getRequestSession(): Promise<DemoSession | null> {
 }
 
 export async function sessionResponse(
-  profile: { email: string; companyId: string; role: DemoSession["role"] },
+  profile: {
+    email: string;
+    companyId: string;
+    role: DemoSession["role"];
+    isPlatformAdmin?: boolean;
+    homeCompanyId?: string;
+  },
   maxAge?: number
 ) {
   const { token, session, maxAge: age } = await createDemoSession(
     profile.email,
     profile.role,
-    profile.companyId
+    profile.companyId,
+    {
+      isPlatformAdmin: profile.isPlatformAdmin,
+      homeCompanyId: profile.homeCompanyId,
+    }
   );
   const res = NextResponse.json({
     ok: true,
     email: session.email,
     role: session.role,
     companyId: session.companyId,
+    isPlatformAdmin: Boolean(session.isPlatformAdmin),
   });
   res.cookies.set(COOKIE, token, sessionCookieOptions(maxAge ?? age));
   return res;
 }
 
-/** Sessions anciennes peuvent manquer companyId — résout depuis la DB. */
+/** Sessions anciennes peuvent manquer companyId / isPlatformAdmin — résout depuis la DB. */
 export async function enrichSession(session: DemoSession): Promise<DemoSession> {
-  if (session.companyId?.trim()) return session;
+  let next = { ...session };
 
-  if (hasDatabase()) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.email },
-      select: { companyId: true },
-    });
-    if (user?.companyId) {
-      return { ...session, companyId: user.companyId };
+  if (!next.companyId?.trim() || next.isPlatformAdmin === undefined) {
+    if (hasDatabase()) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.email },
+        select: { companyId: true, isPlatformAdmin: true, role: true },
+      });
+      if (user) {
+        if (!next.companyId?.trim()) next.companyId = user.companyId;
+        if (next.isPlatformAdmin === undefined) {
+          next.isPlatformAdmin =
+            Boolean(user.isPlatformAdmin) || user.role === "SUPER_ADMIN";
+        }
+      }
     }
   }
 
-  return { ...session, companyId: DEMO_COMPANY_ID };
+  if (!next.companyId?.trim()) next.companyId = DEMO_COMPANY_ID;
+  return next;
 }
 
 export async function requireSession(): Promise<DemoSession | NextResponse> {

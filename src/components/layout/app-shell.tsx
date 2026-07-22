@@ -7,6 +7,7 @@ import { SessionSync } from "@/components/auth/session-sync";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Topbar } from "@/components/layout/topbar";
+import { PlatformViewingBanner } from "@/components/platform/platform-viewing-banner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setMobileOpen(true)} />
+        <PlatformViewingBanner />
         <main className={cn("mx-auto w-full max-w-[1400px] flex-1 p-4 md:p-6")}>
           {children}
         </main>

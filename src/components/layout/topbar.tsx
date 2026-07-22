@@ -30,6 +30,8 @@ const commands = [
   { label: "Paiements chantier", href: "/construction/payments" },
   { label: "Marketing PME", href: "/construction/marketing" },
   { label: "Pubs réseaux sociaux", href: "/social-ads" },
+  { label: "Pubs sponsorisées", href: "/ads/sponsor" },
+  { label: "Console plateforme", href: "/platform" },
   { label: "Rapports T4", href: "/reports/t4" },
   { label: "IA Chantier", href: "/construction/ai" },
   { label: "Pointage GPS", href: "/timeclock" },
