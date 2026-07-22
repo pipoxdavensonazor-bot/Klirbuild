@@ -24,16 +24,23 @@ export function TeamChatDashboardWidget() {
   const [channelName, setChannelName] = useState("Équipe entreprise");
 
   const load = useCallback(async () => {
-    const res = await fetch(apiUrl("/api/team-chat"), { credentials: "include" });
-    if (!res.ok) return;
-    const data = await res.json();
-    setMessages((data.messages ?? []).slice(-4));
-    if (data.channelName) setChannelName(data.channelName);
+    try {
+      const res = await fetch(apiUrl("/api/team-chat?preview=1&limit=4"), {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+      if (data.channelName) setChannelName(data.channelName);
+    } catch {
+      /* ignore — widget non bloquant */
+    }
   }, []);
 
   useEffect(() => {
     void load();
-    const id = window.setInterval(() => void load(), 15000);
+    // Polling léger : 15s brûlait le CPU Worker (Error 1102)
+    const id = window.setInterval(() => void load(), 60000);
     return () => window.clearInterval(id);
   }, [load]);
 

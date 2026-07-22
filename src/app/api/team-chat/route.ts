@@ -4,6 +4,7 @@ import { canApp } from "@/lib/workforce/types";
 import {
   createTeamChannel,
   listTeamChat,
+  listTeamChatPreview,
   sendTeamChatMessage,
 } from "@/lib/chat/team-chat-service";
 import type { Role } from "@/types";
@@ -21,6 +22,18 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const channelId = url.searchParams.get("channelId") ?? undefined;
+  const preview = url.searchParams.get("preview") === "1";
+  const limit = Number(url.searchParams.get("limit") || "4");
+
+  if (preview && !channelId) {
+    const data = await listTeamChatPreview(
+      enriched.companyId,
+      enriched.email,
+      enriched.email.split("@")[0],
+      Number.isFinite(limit) ? limit : 4
+    );
+    return NextResponse.json(data);
+  }
 
   const data = await listTeamChat(
     enriched.companyId,
