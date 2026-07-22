@@ -43,6 +43,16 @@ npm run deploy
 
 Produits : Starter `prod_Uvz4wAUxfYj7xY` · Growth `prod_Uvz4nt9inEcemC` · Business `prod_Uvz4oNzfg5567m`
 
+### Payment Links (mensuel live — déjà créés)
+
+| Plan | Lien |
+|------|------|
+| Starter 79 CAD/mois | https://buy.stripe.com/8x24gz8LX6Dd0ci2kb7Zu04 |
+| Growth 149 CAD/mois | https://buy.stripe.com/6oU6oHaU50ePf7c5wn7Zu06 |
+| Business 299 CAD/mois | https://buy.stripe.com/8x214n7HT9Pp3ou2kb7Zu05 |
+
+Redirect après paiement : `https://klirline.app/billing?success=1`
+
 ## Google
 
 Redirect URI exacte : `https://klirline.app/api/auth/google/callback`
