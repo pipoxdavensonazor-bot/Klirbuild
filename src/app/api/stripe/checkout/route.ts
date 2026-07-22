@@ -18,10 +18,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Stripe n'est pas configuré. Ajoutez STRIPE_SECRET_KEY dans .env.local (utilisez une clé TEST).",
+            "Stripe n'est pas configuré. Ajoutez STRIPE_SECRET_KEY via wrangler secret (prod) ou .env.local (dev).",
           demo: true,
         },
-        { status: 503 }
+        { status: 400 }
       );
     }
 

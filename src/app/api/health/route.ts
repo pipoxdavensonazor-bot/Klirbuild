@@ -211,6 +211,10 @@ export async function GET(request: Request) {
 
   const status = !coreOk ? "unavailable" : coreOk && billingOk ? "ready" : "degraded";
 
+  // HTTP 503 seulement si le core est cassé. Billing manquant = "degraded" en 200
+  // (évite que les moniteurs / navigateurs affichent "Internal Server Error").
+  const httpStatus = coreOk ? 200 : 503;
+
   return NextResponse.json(
     {
       status,
@@ -224,6 +228,6 @@ export async function GET(request: Request) {
       checks,
       timestamp: new Date().toISOString(),
     },
-    { status: coreOk && billingOk ? 200 : 503 }
+    { status: httpStatus }
   );
 }
