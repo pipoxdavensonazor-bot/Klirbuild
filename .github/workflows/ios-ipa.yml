@@ -10,25 +10,142 @@ on:
 jobs:
   prepare:
     runs-on: macos-latest
+    outputs:
+      can_sign: ${{ steps.secrets.outputs.can_sign }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/ios/package-lock.json
-      - name: Install & add iOS platform
+
+      - name: Install Capacitor & sync iOS
         working-directory: apps/ios
         run: |
-          npm ci || npm install
-          npx cap add ios || true
+          npm ci
           npx cap sync ios
+
+      - name: CocoaPods
+        working-directory: apps/ios/ios/App
+        run: |
+          pod install --repo-update
+
       - name: Upload Xcode project
         uses: actions/upload-artifact@v4
         with:
           name: klirbuild-ios-xcode
-          path: apps/ios/ios
-      - name: Note
+          path: |
+            apps/ios/ios
+            !apps/ios/ios/App/Pods/**/Headers
+          if-no-files-found: error
+
+      - name: Check Apple signing secrets
+        id: secrets
         run: |
-          echo "Pour un .ipa signé, ajoutez les secrets Apple listés dans apps/ios/README.md"
-          echo "puis Archive via Xcode ou fastlane."
+          if [ -n "${{ secrets.IOS_CERTIFICATE_BASE64 }}" ] && \
+             [ -n "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" ] && \
+             [ -n "${{ secrets.IOS_CERTIFICATE_PASSWORD }}" ]; then
+            echo "can_sign=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_sign=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Pas de secrets Apple — artefact Xcode uploadé. Ajoutez les secrets listés dans apps/ios/README.md pour un .ipa signé."
+          fi
+
+  build-ipa:
+    needs: prepare
+    if: needs.prepare.outputs.can_sign == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ios/package-lock.json
+
+      - name: Install Capacitor & sync iOS
+        working-directory: apps/ios
+        run: |
+          npm ci
+          npx cap sync ios
+
+      - name: CocoaPods
+        working-directory: apps/ios/ios/App
+        run: pod install --repo-update
+
+      - name: Import signing certificate
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/build.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+
+      - name: Archive & export IPA
+        working-directory: apps/ios/ios/App
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          ARCHIVE_PATH="$RUNNER_TEMP/KlirBuild.xcarchive"
+          EXPORT_PATH="$RUNNER_TEMP/ipa"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>app.klirline.klirbuild</key>
+              <string>${PROFILE_UUID}</string>
+            </dict>
+            <key>teamID</key>
+            <string>${TEAM_ID}</string>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath "$ARCHIVE_PATH" \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cp "$EXPORT_PATH"/*.ipa "$GITHUB_WORKSPACE/artifacts/KlirBuild.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: KlirBuild.ipa
+          path: artifacts/KlirBuild.ipa
+          if-no-files-found: error

@@ -2,29 +2,50 @@
 
 Shell Capacitor 7 → `https://klirline.app`.
 
-## Prérequis (macOS)
+Bundle ID: `app.klirline.klirbuild`
+
+## Prérequis (macOS local)
 
 - Xcode 16+
 - CocoaPods
-- Compte Apple Developer (pour signer / TestFlight / App Store)
+- Compte Apple Developer (signature / TestFlight / App Store)
 
 ```bash
 cd apps/ios
 npm install
-npx cap add ios   # une fois
 npx cap sync ios
+cd ios/App && pod install && cd ../..
 npx cap open ios
 # Xcode → Product → Archive → Distribute App → IPA
 ```
 
-## CI
+## CI (GitHub Actions)
 
-Workflow `.github/workflows/ios-ipa.yml` (macos-latest) produit un `.ipa` si les secrets Apple sont définis :
+Workflow `.github/workflows/ios-ipa.yml` :
+
+1. **Toujours** : prépare le projet Xcode + CocoaPods → artefact `klirbuild-ios-xcode`
+2. **Avec secrets Apple** : archive + export → artefact `KlirBuild.ipa`
+
+Secrets requis pour un `.ipa` signé :
+
+| Secret | Description |
+|---|---|
+| `IOS_CERTIFICATE_BASE64` | Certificat `.p12` en base64 |
+| `IOS_CERTIFICATE_PASSWORD` | Mot de passe du `.p12` |
+| `IOS_PROVISION_PROFILE_BASE64` | Profil `.mobileprovision` en base64 |
+| `APPLE_TEAM_ID` | Team ID Apple Developer |
+
+Optionnel App Store Connect (distribution TestFlight) :
 
 - `APP_STORE_CONNECT_API_KEY_ID`
 - `APP_STORE_CONNECT_ISSUER_ID`
-- `APP_STORE_CONNECT_API_KEY_P8` (contenu .p8)
-- `IOS_CERTIFICATE_BASE64` + `IOS_CERTIFICATE_PASSWORD`
-- `IOS_PROVISION_PROFILE_BASE64`
+- `APP_STORE_CONNECT_API_KEY_P8`
 
-Sans secrets : le job prépare le projet Xcode (pas de signature).
+Encoder un fichier :
+
+```bash
+base64 -i Certificates.p12 | pbcopy
+base64 -i profile.mobileprovision | pbcopy
+```
+
+Sans secrets Apple, ce cloud agent Linux **ne peut pas** produire un `.ipa` signé — il faut macOS + certificat.

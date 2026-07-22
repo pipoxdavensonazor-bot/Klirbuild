@@ -11,12 +11,19 @@ Health core OK. Billing reste `degraded` tant que Stripe n’est pas branché.
 
 ## Stripe (seul vrai bloqueur business)
 
+**État agent :** ni secrets Worker, ni connexion Zapier Stripe, ni Stripe MCP auth.
+« Stripe connecté » côté dashboard ne suffit pas — il faut les clés dans l’environnement agent / Worker.
+
 1. [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys) → `sk_test_` + `pk_test_`
-2. Coller dans `.env.local` (jamais dans le chat)
-3. `npm run stripe:setup`
-4. Pousser les secrets Worker (voir `GO_LIVE_1_TO_10.md` §1)
-5. Webhook → `https://klirline.app/api/stripe/webhook`
-6. `npm run deploy`
+2. Coller dans `.env.local` **ou** secrets Cursor Cloud (jamais dans le chat)
+3. `npm run stripe:provision` (produits + 6 prices CAD + `wrangler secret put`)
+4. Webhook → `https://klirline.app/api/stripe/webhook` → `STRIPE_WEBHOOK_SECRET`
+5. `npm run deploy`
+6. Vérifier `https://klirline.app/api/health` → `summary.billing: true`
+
+Alt. Zapier MCP : connecter Stripe via
+`https://mcp.zapier.com/api/v1/connect-auth/StripeCLIAPI?accountId=27053541`
+puis demander à l’agent de créer les produits.
 
 ## Google
 
