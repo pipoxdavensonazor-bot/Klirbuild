@@ -1,0 +1,12 @@
+# Copy to `.dev.vars` for local `next dev` / `wrangler` previews.
+# Never commit real secrets.
+
+NEXTJS_ENV=development
+UPLOADS_KV_ENABLED=true
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# DATABASE_URL=postgresql://...
+# CRON_SECRET=dev-cron-secret
+# BETTER_AUTH_SECRET=dev-auth-secret-min-32-chars-long
+# STRIPE_SECRET_KEY=
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=

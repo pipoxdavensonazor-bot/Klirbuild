@@ -1,12 +1,8 @@
-import { getStore } from "@netlify/blobs";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import type { Role } from "@/types";
 import { isAdminDeleter } from "@/lib/admin/delete-governance-service";
-
-function backupsStore() {
-  return getStore({ name: "klirbuild-backups", consistency: "strong" });
-}
+import { getBackupsKv } from "@/lib/storage/kv";
 
 export async function createCompanyBackup(input: {
   companyId: string;
@@ -91,12 +87,25 @@ export async function createCompanyBackup(input: {
   const label = `Backup ${stamp.slice(0, 16)} (${input.trigger})`;
 
   try {
-    const store = backupsStore();
-    await store.set(storageKey, json, {
-      metadata: { companyId: input.companyId, trigger: input.trigger },
-    });
+    const kv = await getBackupsKv();
+    if (kv) {
+      // Workers KV max value ≈ 25 MiB
+      if (sizeBytes > 24 * 1024 * 1024) {
+        console.warn("[backup] Payload too large for KV — metadata only");
+      } else {
+        await kv.put(storageKey, json, {
+          metadata: {
+            companyId: input.companyId,
+            trigger: input.trigger,
+            contentType: "application/json",
+          },
+        });
+      }
+    } else {
+      console.warn("[backup] BACKUPS_KV binding unavailable — metadata only");
+    }
   } catch (e) {
-    console.warn("[backup] Blobs unavailable, storing metadata only", e);
+    console.warn("[backup] KV unavailable, storing metadata only", e);
   }
 
   const row = await prisma.companyBackup.create({
@@ -143,16 +152,19 @@ export async function getBackupDownload(input: {
   if (!row?.storageKey) return { error: "Sauvegarde introuvable." as const };
 
   try {
-    const store = backupsStore();
-    const data = await store.get(row.storageKey, { type: "text" });
-    if (!data) return { error: "Fichier backup absent du stockage." as const };
+    const kv = await getBackupsKv();
+    if (!kv) return { error: "Stockage KV indisponible." as const };
+    const data = await kv.get(row.storageKey, { type: "text" });
+    if (!data || typeof data !== "string") {
+      return { error: "Fichier backup absent du stockage." as const };
+    }
     return {
       filename: `${row.label.replace(/[^\w.-]+/g, "_")}.json`,
       body: data,
       contentType: "application/json",
     };
   } catch {
-    return { error: "Stockage Blobs indisponible." as const };
+    return { error: "Stockage KV indisponible." as const };
   }
 }
 

@@ -1,6 +1,9 @@
 # Phase 1 — Mise en production KlirBuild
 
-Guide pas à pas pour déployer KlirBuild sur Netlify en production.
+> **Hébergement actif : Cloudflare Workers.** Voir [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md).
+> Ce document conserve l’historique Netlify pour référence.
+
+Guide pas à pas pour déployer KlirBuild (historique Netlify / checklist produit).
 
 ---
 

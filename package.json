@@ -4,7 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/netlify-build.mjs",
+    "build": "node scripts/cloudflare-build.mjs",
+    "build:netlify": "node scripts/netlify-build.mjs",
+    "cf:copy-prisma-wasm": "node scripts/copy-prisma-wasm.mjs",
+    "preview": "opennextjs-cloudflare build && npm run cf:copy-prisma-wasm && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && npm run cf:copy-prisma-wasm && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && npm run cf:copy-prisma-wasm && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv types/cloudflare-env.d.ts --include-runtime false",
+    "cf:provision": "node scripts/cloudflare-provision.mjs",
+    "cf:secrets": "node scripts/cloudflare-secrets.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
@@ -20,13 +28,18 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "security:check": "node scripts/security-check.mjs",
-    "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1"
+    "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1",
+    "desktop:dev": "npm --prefix apps/desktop run dev",
+    "desktop:build": "npm --prefix apps/desktop run build",
+    "android:sync": "npm --prefix apps/android run sync",
+    "android:open": "npm --prefix apps/android run open"
   },
+
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
-    "@netlify/blobs": "^10.7.9",
-    "@netlify/database": "^1.1.0",
-    "@prisma/client": "5.22.0",
+    "@opennextjs/cloudflare": "^1.20.2",
+    "@prisma/adapter-pg": "^6.19.3",
+    "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.101.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -34,6 +47,7 @@
     "lucide-react": "^1.24.0",
     "next": "^15.5.20",
     "next-themes": "^0.4.6",
+    "pg": "^8.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.81.0",
@@ -44,19 +58,21 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.15.8",
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "@playwright/test": "^1.54.2",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.3",
-    "@playwright/test": "^1.54.2",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.20",
     "postcss": "^8.5.19",
-    "prisma": "5.22.0",
+    "prisma": "^6.19.3",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.1",
     "typescript": "5.9.3",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "wrangler": "^4.113.0"
   }
 }

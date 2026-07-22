@@ -1,0 +1,62 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "klirbuild",
+  "main": "workers/app.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Prisma workerd loader: import('./query_compiler_bg.wasm')
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true }
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "klirbuild"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  // Workers KV — no R2 paid subscription required (value limit ≈ 25 MiB)
+  "kv_namespaces": [
+    {
+      "binding": "UPLOADS_KV",
+      "id": "fb21bdacd86f49ce9a9ea2c5d6344e09"
+    },
+    {
+      "binding": "BACKUPS_KV",
+      "id": "f59052423c0d49cfb65a2d7fb18a5521"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "74dc80ec7629448bac677d745101df05"
+    }
+  ],
+  // Create with: npx wrangler hyperdrive create klirbuild-db --connection-string="$DATABASE_URL"
+  // then set "id" below and uncomment.
+  // "hyperdrive": [
+  //   {
+  //     "binding": "HYPERDRIVE",
+  //     "id": "REPLACE_WITH_HYPERDRIVE_ID"
+  //   }
+  // ],
+  "triggers": {
+    "crons": [
+      "0 13 * * *",
+      "15 * * * *",
+      "0 7 * * *"
+    ]
+  },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://klirline.app",
+    "UPLOADS_KV_ENABLED": "true"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

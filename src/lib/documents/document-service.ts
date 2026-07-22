@@ -62,7 +62,7 @@ export async function uploadDocument(
   if (!uploadsEnabled()) {
     return {
       error:
-        "Stockage fichiers disponible sur Netlify uniquement (Netlify Blobs)." as const,
+        "Stockage fichiers indisponible (Workers KV non configuré)." as const,
     };
   }
 

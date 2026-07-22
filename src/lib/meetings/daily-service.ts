@@ -86,9 +86,13 @@ export async function createDailyRoom(input: {
   const domain = dailyDomain();
 
   if (!isDailyConfigured()) {
+    // Free fallback (free-for.dev → meet.jit.si) when Daily is not configured.
+    const jitsiHost =
+      process.env.NEXT_PUBLIC_JITSI_HOST?.trim().replace(/\/$/, "") ||
+      "meet.jit.si";
     return {
       name,
-      url: `https://${domain}/${name}`,
+      url: `https://${jitsiHost}/KlirBuild-${name}`,
       simulated: true,
     };
   }

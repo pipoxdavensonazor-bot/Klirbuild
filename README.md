@@ -59,9 +59,17 @@ Sign in is **required** by default. Without a database, use the demo account `al
 | Command | Purpose |
 |---------|---------|
 | `npm run dev` | Local development |
-| `npm run build` | Production build |
+| `npm run build` | Prisma generate + Next production build (OpenNext) |
+| `npm run preview` | OpenNext build + local Workers preview |
+| `npm run deploy` | OpenNext build + deploy to Cloudflare |
+| `npm run cf:provision` | Create Workers KV + Hyperdrive |
 | `npm run db:generate` | Prisma client |
 | `npm run db:push` | Push schema |
+
+## Production host
+
+**Cloudflare Workers (OpenNext)** — see [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md).
+Legacy Netlify notes remain in [`DEPLOY.md`](DEPLOY.md).
 
 ## Bolt prompts
 

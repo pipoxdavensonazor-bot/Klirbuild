@@ -13,7 +13,7 @@ type HealthPayload = {
   checks?: Record<string, { ok: boolean; detail?: string; tier?: string }>;
 };
 
-const NETLIFY_VARS: { key: string; hint: string; tier: "billing" | "optional" }[] = [
+const CLOUDFLARE_VARS: { key: string; hint: string; tier: "billing" | "optional" }[] = [
   { key: "STRIPE_SECRET_KEY", hint: "sk_test_ ou sk_live_", tier: "billing" },
   { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", hint: "pk_test_ ou pk_live_", tier: "billing" },
   { key: "STRIPE_WEBHOOK_SECRET", hint: "whsec_ depuis Stripe Dashboard", tier: "billing" },
@@ -78,7 +78,7 @@ export function ProductionSetupChecklist() {
             {health?.status === "ready"
               ? "Prêt — core + facturation OK"
               : health?.status === "degraded"
-                ? "Dégradé — ajoutez Stripe sur Netlify"
+                ? "Dégradé — ajoutez Stripe sur Cloudflare"
                 : health?.status === "unavailable"
                   ? "Indisponible — base de données ou auth"
                   : "Chargement…"}
@@ -123,9 +123,9 @@ export function ProductionSetupChecklist() {
 
       {billingMissing.length > 0 ? (
         <div className="rounded-lg border border-dashed border-border p-4">
-          <p className="mb-2 text-sm font-medium">Variables Netlify — facturation (Phase 1)</p>
+          <p className="mb-2 text-sm font-medium">Variables Cloudflare — facturation (Phase 1)</p>
           <ul className="space-y-1 text-xs text-muted-foreground">
-            {NETLIFY_VARS.filter((v) => v.tier === "billing").map((v) => (
+            {CLOUDFLARE_VARS.filter((v) => v.tier === "billing").map((v) => (
               <li key={v.key}>
                 <code className="rounded bg-muted px-1">{v.key}</code> — {v.hint}
               </li>
@@ -146,7 +146,7 @@ export function ProductionSetupChecklist() {
             Intégrations optionnelles ({optionalMissing.length} manquante(s))
           </summary>
           <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-            {NETLIFY_VARS.filter((v) => v.tier === "optional").map((v) => (
+            {CLOUDFLARE_VARS.filter((v) => v.tier === "optional").map((v) => (
               <li key={v.key}>
                 <code className="rounded bg-muted px-1">{v.key}</code> — {v.hint}
               </li>

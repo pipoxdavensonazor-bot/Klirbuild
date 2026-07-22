@@ -108,11 +108,13 @@ Copiez `whsec_…` dans `.env.local` :
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-### Production
+### Production (Cloudflare Workers)
 
-Voir le guide complet : **`DEPLOY.md`** (variables Netlify, URL webhook, checklist go-live).
+URL webhook : `https://klirline.app/api/stripe/webhook`
 
 Événements à activer : `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.
+
+Puis pousser les secrets Worker (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, les 6 `STRIPE_PRICE_*`, `STRIPE_WEBHOOK_SECRET`) — détails dans [`GO_LIVE_1_TO_10.md`](GO_LIVE_1_TO_10.md).
 
 ---
 

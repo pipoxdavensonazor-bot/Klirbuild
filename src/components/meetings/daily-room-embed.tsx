@@ -18,7 +18,8 @@ export function DailyRoomEmbed({
   const src = token
     ? `${roomUrl}${roomUrl.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}`
     : roomUrl;
-  const showHint = Boolean(token?.startsWith("sim_"));
+  const isJitsi = /jit\.si|jitsi/i.test(roomUrl);
+  const showHint = Boolean(token?.startsWith("sim_")) || isJitsi;
 
   return (
     <div
@@ -28,7 +29,16 @@ export function DailyRoomEmbed({
     >
       {showHint ? (
         <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
-          Mode démo Daily (ajoutez <code>DAILY_API_KEY</code> pour la vraie visio).
+          {isJitsi ? (
+            <>
+              Visio Jitsi (gratuit). Ajoutez <code>DAILY_API_KEY</code> pour Daily.co
+              natif.{" "}
+            </>
+          ) : (
+            <>
+              Mode démo Daily (ajoutez <code>DAILY_API_KEY</code> pour la vraie visio).{" "}
+            </>
+          )}
           Lien salle :{" "}
           <a
             href={roomUrl}

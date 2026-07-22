@@ -8,6 +8,10 @@ import {
   stripePriceIdsStatus,
 } from "@/lib/stripe";
 import { isZernioEnabled } from "@/lib/social-ads/zernio-service";
+import {
+  aiProviderStatusDetail,
+  hasLiveAiProvider,
+} from "@/lib/ai/chat-provider";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -120,10 +124,15 @@ export async function GET(request: Request) {
       tier: "optional",
     },
     openai: {
-      ok: Boolean(process.env.OPENAI_API_KEY?.trim()),
-      detail: process.env.OPENAI_API_KEY?.trim()
-        ? undefined
-        : "OPENAI_API_KEY manquant — réponses locales limitées",
+      ok: hasLiveAiProvider(),
+      detail: aiProviderStatusDetail(),
+      tier: "optional",
+    },
+    dailyOrJitsi: {
+      ok: true,
+      detail: process.env.DAILY_API_KEY?.trim()
+        ? `Daily.co (${process.env.NEXT_PUBLIC_DAILY_DOMAIN?.trim() || "klirbuild.daily.co"})`
+        : "Jitsi Meet (gratuit) — DAILY_API_KEY optionnel",
       tier: "optional",
     },
     resend: {

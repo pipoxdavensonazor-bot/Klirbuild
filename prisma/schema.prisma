@@ -1,6 +1,8 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client-js"
+  // Rust-free client engine — required on Cloudflare Workers.
+  // Do NOT set a custom `output` path: OpenNext must patch the generated client.
+  engineType = "client"
 }
 
 datasource db {

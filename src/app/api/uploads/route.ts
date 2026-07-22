@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Upload disponible sur Netlify uniquement. Collez une URL d'image en alternative.",
+          "Upload indisponible (binding Workers KV manquant). Collez une URL d'image en alternative.",
       },
       { status: 503 }
     );

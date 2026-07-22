@@ -16,6 +16,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/klirbuild-logo.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/klirbuild-logo.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
     ],
