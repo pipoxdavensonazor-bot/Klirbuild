@@ -28,26 +28,49 @@ export async function GET() {
         },
       },
     });
+    const viewCompanyId = enriched.companyId || user?.companyId;
+    const viewCompany =
+      viewCompanyId && viewCompanyId !== user?.companyId
+        ? await prisma.company.findUnique({
+            where: { id: viewCompanyId },
+            select: {
+              id: true,
+              name: true,
+              plan: true,
+              subscriptionStatus: true,
+              marketRegion: true,
+              enabledModules: true,
+            },
+          })
+        : null;
+    const company = viewCompany || user?.company;
     const employee = await prisma.employeeProfile.findFirst({
-      where: { companyId: enriched.companyId, email: enriched.email },
+      where: { companyId: viewCompanyId || enriched.companyId, email: enriched.email },
       select: { id: true },
     });
-    if (user?.company) {
+    if (user && company) {
+      const isPlatformAdmin =
+        Boolean(user.isPlatformAdmin) ||
+        user.role === "SUPER_ADMIN" ||
+        Boolean(enriched.isPlatformAdmin);
       return NextResponse.json({
         authenticated: true,
         email: user.email,
         name: user.name,
-        role: user.role,
-        companyId: user.companyId,
-        companyName: user.company.name,
-        plan: user.company.plan,
-        subscriptionStatus: user.company.subscriptionStatus,
-        marketRegion: (user.company.marketRegion || "CA-QC") as MarketRegionId,
+        role: isPlatformAdmin ? user.role : user.role,
+        companyId: company.id,
+        companyName: company.name,
+        plan: company.plan,
+        subscriptionStatus: company.subscriptionStatus,
+        marketRegion: (company.marketRegion || "CA-QC") as MarketRegionId,
         employeeId: employee?.id ?? null,
-        enabledModules: user.company.enabledModules?.length
-          ? user.company.enabledModules
+        enabledModules: company.enabledModules?.length
+          ? company.enabledModules
           : ["construction-os", "crm"],
         zernioEnabled: isZernioEnabled(),
+        isPlatformAdmin,
+        homeCompanyId: enriched.homeCompanyId || user.companyId,
+        viewingCompanyId: company.id,
       });
     }
   }
@@ -61,5 +84,6 @@ export async function GET() {
     marketRegion: "CA-QC" as MarketRegionId,
     employeeId: null,
     zernioEnabled: isZernioEnabled(),
+    isPlatformAdmin: Boolean(enriched.isPlatformAdmin),
   });
 }

@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       email: profile.email,
       companyId: profile.companyId,
       role: profile.role,
+      isPlatformAdmin: profile.isPlatformAdmin,
     });
     const res = NextResponse.json({
       ok: true,

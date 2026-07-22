@@ -88,6 +88,8 @@ const coreNav: NavDef[] = [
   { href: "/accounting", label: "Comptabilité", icon: Calculator, permission: "accounting:read", planFeature: "accounting" },
   { href: "/reports/t4", label: "Rapports T4", icon: FileText, permission: "payroll:read", planFeature: "t4" },
   { href: "/social-ads", label: "Pubs réseaux", icon: Megaphone, permission: "crm:write", planFeature: "social_ads" },
+  { href: "/ads/sponsor", label: "Pubs sponsorisées", icon: Megaphone, permission: ["crm:write", "billing:manage", "company:manage"] },
+  { href: "/platform", label: "Console plateforme", icon: Shield },
   { href: "/team-chat", label: "Chat sécurisé", icon: MessageSquareLock, permission: "chat:use", planFeature: "team_chat" },
   { href: "/meetings", label: "Réunions", icon: Video, permission: "meetings:join", planFeature: "meetings" },
   { href: "/feed", label: "Feed & live", icon: Radio, permission: "meetings:join", planFeature: "meetings" },
@@ -118,15 +120,20 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
   const planId = useSessionStore((s) => s.plan);
   const locale = useSessionStore((s) => s.locale);
   const enabledModules = useSessionStore((s) => s.enabledModules);
+  const isPlatformAdmin = useSessionStore((s) => s.isPlatformAdmin);
   const plan = getPlan(planId);
   const moduleNav = getEnabledModuleNav(
     enabledModules.length ? enabledModules : ["construction-os"]
   );
   const [showLocked, setShowLocked] = useState(false);
-  const isCentralAdmin = role === "SUPER_ADMIN" || role === "COMPANY_ADMIN";
+  const isCentralAdmin =
+    role === "SUPER_ADMIN" || role === "COMPANY_ADMIN" || isPlatformAdmin;
 
   const { visibleNav, lockedNav } = useMemo(() => {
-    const byRole = coreNav.filter((item) => roleAllowed(role, item.permission));
+    const byRole = coreNav.filter((item) => {
+      if (item.href === "/platform") return isPlatformAdmin;
+      return roleAllowed(role, item.permission);
+    });
     const visible = byRole.filter(
       (item) => !item.planFeature || routeAllowedForPlan(planId, item.href)
     );
@@ -134,7 +141,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
       (item) => item.planFeature && !routeAllowedForPlan(planId, item.href)
     );
     return { visibleNav: visible, lockedNav: locked };
-  }, [role, planId]);
+  }, [role, planId, isPlatformAdmin]);
 
   return (
     <aside

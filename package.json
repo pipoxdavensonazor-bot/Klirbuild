@@ -21,6 +21,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-admin": "tsx scripts/seed-platform-admin.ts",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
     "stripe:verify": "tsx scripts/stripe-verify.ts",
     "production:verify": "tsx scripts/production-verify.ts",

@@ -27,6 +27,8 @@ type SessionState = {
   locale: LocaleCode;
   autoPilot: boolean;
   enabledModules: string[];
+  isPlatformAdmin: boolean;
+  companyName: string;
   setRole: (role: Role) => void;
   setEmployeeId: (id: string | null) => void;
   setPlan: (plan: SubscriptionPlanId) => void;
@@ -48,6 +50,8 @@ type SessionState = {
     subscriptionStatus?: SubscriptionStatus;
     marketRegion?: MarketRegionId;
     enabledModules?: string[];
+    isPlatformAdmin?: boolean;
+    companyName?: string;
   }) => void;
   setMarketRegion: (id: MarketRegionId) => void;
   setCurrency: (c: CurrencyCode) => void;
@@ -71,6 +75,8 @@ export const useSessionStore = create<SessionState>()(
       locale: "fr",
       autoPilot: true,
       enabledModules: ["construction-os", "crm"],
+      isPlatformAdmin: false,
+      companyName: "",
       setRole: (role) => set({ role }),
       setEmployeeId: (employeeId) => set({ employeeId }),
       setPlan: (plan) => set({ plan }),
@@ -95,6 +101,11 @@ export const useSessionStore = create<SessionState>()(
           subscriptionStatus: data.subscriptionStatus ?? s.subscriptionStatus,
           marketRegion: data.marketRegion ?? s.marketRegion,
           enabledModules: data.enabledModules?.length ? data.enabledModules : s.enabledModules,
+          isPlatformAdmin:
+            data.isPlatformAdmin !== undefined
+              ? data.isPlatformAdmin
+              : s.isPlatformAdmin,
+          companyName: data.companyName ?? s.companyName,
         })),
       setMarketRegion: (marketRegion) => {
         const m = getMarket(marketRegion);
