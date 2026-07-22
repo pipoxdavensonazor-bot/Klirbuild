@@ -6,15 +6,15 @@ Health : `curl -sS https://klirline.app/api/health | jq .`
 | # | Item | Statut | Action restante |
 |---|------|--------|-----------------|
 | 1 | Stripe (clés, 6 prices, webhook) | ⛔ bloqué | Coller `sk_test_` + `pk_test_` (hors chat) → `npm run stripe:setup` → secrets Worker + webhook prod |
-| 2 | Resend domaine + inbound | ⚠️ envoi OK / MX inbound à corriger | DNS MX `inbox.klirline.ca` → `inbound-smtp.us-east-1.amazonaws.com` (prio 10) |
-| 3 | Google OAuth | ⛔ bloqué | Créer client OAuth → `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
+| 2 | Resend domaine + inbound | ⚠️ envoi OK | Webhook OK ; inbound via Cloudflare Email Routing (free) ou MX SES (Resend receiving) |
+| 3 | Google OAuth | ⛔ bloqué | `GOOGLE_CLIENT_ID` / `SECRET` + redirect `/api/auth/google/callback` |
 | 4 | Daily.co | ⏭️ optionnel | Jitsi déjà actif ; `DAILY_API_KEY` seulement si Daily natif voulu |
 | 5 | Zernio | ⛔ bloqué | `ZERNIO_API_KEY` pour pubs réseaux |
 | 6 | Hyperdrive | ⛔ token CF insuffisant | Token avec **Hyperdrive Write** → `npm run cf:provision` |
 | 7 | Rotation clés exposées | 📝 à faire côté compte | Voir [SECURITY-ROTATION.md](SECURITY-ROTATION.md) |
 | 8 | Windows `.exe` | ✅ exe + setup NSIS | Artifacts `KlirBuild.exe` + `KlirBuild_0.1.0_x64-setup.exe` |
 | 9 | Android release | ✅ APK + AAB | Artifacts `KlirBuild-release.apk` / `.aab` |
-| 10 | Merge PR | 🔄 | PR Cloudflare hosting |
+| 10 | Merge PR | ✅ | #17 hosting, #19 admin/ads, #20 stack health |
 
 ## 1 — Stripe (prod Cloudflare)
 
@@ -47,26 +47,28 @@ printf '%s' "$STRIPE_PRICE_BUSINESS_YEARLY" | npx wrangler secret put STRIPE_PRI
 
 6. Redeploy si `NEXT_PUBLIC_*` doit être baked au build : `npm run deploy`
 
-## 2 — Resend inbound MX
+## 2 — Resend inbound
 
-Envoi (`klirline.ca`) déjà OK. Pour la réception (`INBOUND_EMAIL_DOMAIN=inbox.klirline.ca`) :
+**Chemin free (recommandé)** — déjà documenté dans `.env.example` :
 
-Dans Cloudflare DNS (`klirline.ca`), sur **`inbox`** :
+1. Cloudflare Email Routing sur `inbox.klirline.ca` (catch-all)
+2. Forward vers l’adresse Resend managée (`RESEND_MANAGED_INBOUND_ADDRESS`)
+3. Webhook Resend → `https://klirline.app/api/resend/webhook` (`RESEND_WEBHOOK_SECRET`)
+
+**Chemin Resend Receiving (domaine custom)** — si vous activez la réception native Resend :
 
 | Type | Name | Content | Priority |
 |------|------|---------|----------|
 | MX | inbox | `inbound-smtp.us-east-1.amazonaws.com` | 10 |
 
-Retirer / désactiver les MX Cloudflare Email Routing sur `inbox` s’ils entrent en conflit.  
-Token agent actuel : zone list OK, **écriture DNS records = 403** → à faire dans le dashboard ou avec un token **Zone → DNS → Edit**.
+Ne pas mixer les deux sur le même sous-domaine.
 
 ## 3 — Google OAuth
 
 Console Google Cloud → OAuth client (Web) :
 
 - Authorized JS origins : `https://klirline.app`
-- Redirect URI : `https://klirline.app/api/auth/callback/google`  
-  (ajuster si Better Auth utilise un autre path — vérifier `/api/auth`)
+- Redirect URI : `https://klirline.app/api/auth/google/callback`
 
 ```bash
 printf '%s' "$GOOGLE_CLIENT_ID" | npx wrangler secret put GOOGLE_CLIENT_ID

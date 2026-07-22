@@ -37,7 +37,7 @@ export async function GET() {
     }
   } else {
     connectionError =
-      "STRIPE_SECRET_KEY manquante dans .env.local à la racine du projet.";
+      "STRIPE_SECRET_KEY manquante — ajoutez-la via wrangler secret (prod) ou .env.local (dev).";
   }
 
   const pricesReady = Object.values(prices).filter(Boolean).length;

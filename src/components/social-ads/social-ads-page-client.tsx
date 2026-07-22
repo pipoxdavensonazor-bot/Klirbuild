@@ -323,7 +323,7 @@ export function SocialAdsPageClient() {
     <div>
       <PageHeader
         title="Marketing et promotion"
-        description="Tableau de bord style Metricool — connexions, planification et annonces via Zernio."
+        description="Connexions, planification et annonces — Zernio si configuré, sinon mode Klirline + pubs sponsorisées in-app."
         actions={
           canLaunch ? (
             <div className="flex gap-2">
@@ -342,7 +342,7 @@ export function SocialAdsPageClient() {
         }
       />
 
-      {message || provider !== "zernio" ? (
+      {message ? (
         <MarketingSetupChecklist
           error={message || undefined}
           provider={provider}
@@ -351,6 +351,16 @@ export function SocialAdsPageClient() {
             void load();
           }}
         />
+      ) : null}
+
+      {provider !== "zernio" && !message ? (
+        <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
+          Mode sans Zernio — utilisez{" "}
+          <a href="/ads/sponsor" className="font-medium underline">
+            Pubs sponsorisées
+          </a>{" "}
+          (inventaire KlirBuild) ou branchez <code>ZERNIO_API_KEY</code> pour les réseaux sociaux.
+        </div>
       ) : null}
 
       {message && provider === "zernio" ? (
@@ -367,7 +377,11 @@ export function SocialAdsPageClient() {
           setSelectedPlatform(id);
           if (id) setTab("connections");
         }}
-        connectedCount={connections.filter((c) => c.status === "connected").length}
+        connectedCount={
+          provider === "zernio"
+            ? connections.filter((c) => c.status === "connected").length
+            : connectedAccounts.length
+        }
       >
         {tab === "summary" ? (
           <div className="space-y-4">
