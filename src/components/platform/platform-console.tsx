@@ -309,6 +309,7 @@ export function PlatformConsole() {
                       <option value="starter">starter</option>
                       <option value="growth">growth</option>
                       <option value="business">business</option>
+                      <option value="enterprise">enterprise</option>
                     </select>
                   </td>
                   <td className="px-3 py-2">

@@ -51,7 +51,10 @@ export async function GET(request: Request) {
   const appUrl = resolveAppUrl(request);
   const prices = stripePriceIdsStatus();
 
-  const checks: Record<string, { ok: boolean; detail?: string; tier?: "core" | "billing" | "optional" }> = {
+  const checks: Record<
+    string,
+    { ok: boolean; detail?: string; tier?: "core" | "billing" | "optional" | "premium" }
+  > = {
     app: { ok: true, tier: "core" },
     database: { ok: false, detail: "DATABASE_URL manquant", tier: "core" },
     schema: { ok: false, detail: "DATABASE_URL manquant", tier: "core" },
@@ -111,17 +114,20 @@ export async function GET(request: Request) {
         : "CRON_SECRET manquant — automations cron non sécurisées",
       tier: "optional",
     },
+    // Premium / nice-to-have — n'entrent PAS dans summary.optional
     zernio: {
-      ok: isZernioEnabled(),
-      detail: isZernioEnabled() ? undefined : "ZERNIO_API_KEY manquant",
-      tier: "optional",
+      ok: true,
+      detail: isZernioEnabled()
+        ? "Zernio actif"
+        : "ZERNIO_API_KEY optionnel — pubs réseaux en mode Klirline",
+      tier: "premium",
     },
     googleOAuth: {
-      ok: isGoogleOAuthConfigured(),
+      ok: true,
       detail: isGoogleOAuthConfigured()
-        ? undefined
-        : "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET manquants",
-      tier: "optional",
+        ? "Google OAuth actif"
+        : "GOOGLE_CLIENT_ID / SECRET optionnels — login email/mot de passe OK",
+      tier: "premium",
     },
     openai: {
       ok: hasLiveAiProvider(),
@@ -143,11 +149,11 @@ export async function GET(request: Request) {
       tier: "optional",
     },
     daily: {
-      ok: Boolean(process.env.DAILY_API_KEY?.trim()),
+      ok: true,
       detail: process.env.DAILY_API_KEY?.trim()
         ? `domaine: ${process.env.NEXT_PUBLIC_DAILY_DOMAIN?.trim() || "klirbuild.daily.co"}`
-        : "DAILY_API_KEY manquant — visio en mode démo",
-      tier: "optional",
+        : "Daily non configuré — Jitsi actif (voir dailyOrJitsi)",
+      tier: "premium",
     },
     resendInbound: {
       ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),

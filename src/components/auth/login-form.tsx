@@ -156,23 +156,19 @@ export function LoginForm() {
             </form>
             {!requires2fa ? (
               <>
-                <Button
-                  variant="outline"
-                  className="mt-3 w-full"
-                  type="button"
-                  disabled={!googleEnabled}
-                  onClick={() => {
-                    window.location.href = apiUrl(
-                      `/api/auth/google?next=${encodeURIComponent(next)}`
-                    );
-                  }}
-                >
-                  Continuer avec Google
-                </Button>
-                {!googleEnabled ? (
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
-                    Connexion Google bientôt disponible — utilisez email et mot de passe.
-                  </p>
+                {googleEnabled ? (
+                  <Button
+                    variant="outline"
+                    className="mt-3 w-full"
+                    type="button"
+                    onClick={() => {
+                      window.location.href = apiUrl(
+                        `/api/auth/google?next=${encodeURIComponent(next)}`
+                      );
+                    }}
+                  >
+                    Continuer avec Google
+                  </Button>
                 ) : null}
                 <div className="mt-3 flex justify-between text-xs text-muted-foreground">
                   <Link href="/forgot-password" className="hover:underline">

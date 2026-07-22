@@ -43,43 +43,44 @@ export function MarketingSetupChecklist({ error, provider, onRetry }: Props) {
       id: "db",
       label: "Base de données (DATABASE_URL)",
       ok: checks?.database?.ok,
-      detail: checks?.database?.detail ?? "Ajoutez DATABASE_URL sur Netlify",
-      fix: "npx prisma db push",
+      detail: checks?.database?.detail ?? "Ajoutez DATABASE_URL (Worker secret)",
+      fix: "npx prisma migrate deploy",
     },
     {
       id: "schema",
       label: "Tables marketing (Prisma)",
       ok: checks?.schema?.ok,
-      detail: checks?.schema?.detail ?? "Tables marketing — npm run db:push",
-      fix: "npx prisma db push",
+      detail: checks?.schema?.detail ?? "Tables marketing — migrate deploy",
+      fix: "npx prisma migrate deploy",
     },
     {
       id: "seed",
       label: "Données initiales (seed)",
       ok: checks?.seed?.ok,
-      detail: checks?.seed?.detail ?? "Exécutez npm run db:seed sur Neon",
+      detail: checks?.seed?.detail ?? "Exécutez npm run db:seed",
       fix: "npm run db:seed",
     },
     {
       id: "zernio",
-      label: "Zernio API (ZERNIO_API_KEY)",
-      ok: provider === "zernio" || checks?.zernio?.ok,
+      label: "Zernio API (optionnel)",
+      ok: true,
       detail:
         provider === "zernio"
           ? "Actif"
-          : checks?.zernio?.detail ?? "Ajoutez ZERNIO_API_KEY sur Netlify puis redéployez",
-      fix: "Variables Netlify → Trigger deploy",
+          : "Optionnel — sans clé, mode Klirline / inventaire pubs in-app",
+      fix: "wrangler secret put ZERNIO_API_KEY",
+      optional: true,
     },
     {
       id: "url",
       label: "URL production (NEXT_PUBLIC_APP_URL)",
       ok: checks?.appUrl?.ok,
-      detail: checks?.appUrl?.detail ?? "https://www.klirline.app",
-      fix: "Netlify → Environment variables",
+      detail: checks?.appUrl?.detail ?? "https://klirline.app",
+      fix: "wrangler.jsonc vars / secrets",
     },
   ];
 
-  const allOk = items.every((i) => i.ok);
+  const allOk = items.filter((i) => !i.optional).every((i) => i.ok);
 
   if (!error && allOk && !loading) return null;
 
