@@ -17,6 +17,20 @@ function resolveEnvDatabaseUrl() {
   );
 }
 
+function isCloudflareWorkerRuntime() {
+  // Secrets/vars are injected into process.env on Workers; native Prisma engine is forbidden.
+  if (process.env.UPLOADS_KV_ENABLED === "true") return true;
+  if (process.env.NEXT_RUNTIME_EDGE === "cloudflare") return true;
+  try {
+    const ua = (globalThis as { navigator?: { userAgent?: string } }).navigator
+      ?.userAgent;
+    if (ua === "Cloudflare-Workers") return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 function createPrismaClient(connectionString: string, useAdapter: boolean) {
   const log =
     process.env.NODE_ENV === "development"
@@ -30,6 +44,11 @@ function createPrismaClient(connectionString: string, useAdapter: boolean) {
       maxUses: 1,
       idleTimeoutMillis: 0,
       connectionTimeoutMillis: 10_000,
+      ssl:
+        connectionString.includes("sslmode=require") ||
+        connectionString.includes("supabase.co")
+          ? { rejectUnauthorized: false }
+          : undefined,
     } as ConstructorParameters<typeof Pool>[0]);
     const adapter = new PrismaPg(pool);
     return new PrismaClient({ adapter, log: [...log] });
@@ -43,9 +62,11 @@ function createPrismaClient(connectionString: string, useAdapter: boolean) {
 
 /**
  * Prefer Hyperdrive on Cloudflare Workers; fall back to DATABASE_URL.
- * React `cache` scopes one client per request (required with Hyperdrive maxUses: 1).
+ * On Workers always use the pg driver adapter (native query engine is blocked).
  */
 export const getPrisma = cache(() => {
+  const onWorker = isCloudflareWorkerRuntime();
+
   try {
     const { env } = getCloudflareContext();
     const cf = env as KlirCloudflareEnv;
@@ -67,6 +88,10 @@ export const getPrisma = cache(() => {
         log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
       })
     );
+  }
+
+  if (onWorker) {
+    return createPrismaClient(url, true);
   }
 
   if (process.env.NODE_ENV !== "production") {
