@@ -1,0 +1,22 @@
+{
+  "name": "klirbuild-ios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KlirBuild iOS shell (Capacitor) → https://klirline.app — build .ipa on macOS",
+  "scripts": {
+    "sync": "npx cap sync ios",
+    "open": "npx cap open ios",
+    "add:ios": "npx cap add ios",
+    "build:ipa": "echo 'Build IPA on macOS: see README.md / GitHub Action ios-ipa.yml'"
+  },
+  "dependencies": {
+    "@capacitor/app": "^7.0.1",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0",
+    "@capacitor/splash-screen": "^7.0.1",
+    "@capacitor/status-bar": "^7.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.2.0"
+  }
+}

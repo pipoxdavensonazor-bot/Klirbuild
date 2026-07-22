@@ -1,0 +1,28 @@
+{
+  "appId": "app.klirline.klirbuild",
+  "appName": "KlirBuild",
+  "webDir": "www",
+  "server": {
+    "url": "https://klirline.app",
+    "cleartext": false,
+    "allowNavigation": [
+      "klirline.app",
+      "*.klirline.app",
+      "*.workers.dev",
+      "*.daily.co",
+      "meet.jit.si",
+      "*.jit.si"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#004F6E",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#004F6E"
+    }
+  }
+}
