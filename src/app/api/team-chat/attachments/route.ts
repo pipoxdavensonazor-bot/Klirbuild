@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (!uploadsEnabled()) {
     return NextResponse.json(
-      { error: "Upload disponible sur Netlify uniquement." },
+      { error: "Upload indisponible (Workers KV non configuré)." },
       { status: 503 }
     );
   }

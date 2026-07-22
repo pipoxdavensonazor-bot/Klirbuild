@@ -1,5 +1,6 @@
 /**
- * Provision Cloudflare resources for KlirBuild.
+ * Provision Cloudflare resources for KlirBuild (KV + Hyperdrive).
+ * R2 is intentionally avoided (subscription / billing gate on some accounts).
  *
  * Requires: `npx wrangler login` (or CLOUDFLARE_API_TOKEN) and DATABASE_URL for Hyperdrive.
  *
@@ -8,9 +9,9 @@
  */
 import { execSync } from "node:child_process";
 
-function run(command, opts = {}) {
+function run(command) {
   console.log(`\n> ${command}`);
-  return execSync(command, { stdio: "inherit", encoding: "utf8", ...opts });
+  return execSync(command, { stdio: "inherit", encoding: "utf8" });
 }
 
 function tryRun(command) {
@@ -24,17 +25,14 @@ function tryRun(command) {
   }
 }
 
-const buckets = ["klirbuild-uploads", "klirbuild-backups", "klirbuild-next-cache"];
+const namespaces = ["klirbuild-uploads", "klirbuild-backups", "klirbuild-next-cache"];
 
-console.log("=== KlirBuild Cloudflare provision ===");
+console.log("=== KlirBuild Cloudflare provision (Workers KV) ===");
+console.log("Existing KV ids are already wired in wrangler.jsonc.");
+console.log("Creating namespaces is idempotent only by title — skip if already listed.\n");
 
-for (const name of buckets) {
-  const ok = tryRun(`npx wrangler r2 bucket create ${name}`);
-  if (!ok) {
-    console.warn(
-      `Could not create R2 bucket "${name}". If you see "Please enable R2", open https://dash.cloudflare.com/?to=/:account/r2 and accept the R2 terms, then re-run.`
-    );
-  }
+for (const title of namespaces) {
+  tryRun(`npx wrangler kv namespace create ${title}`);
 }
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -51,7 +49,8 @@ if (!databaseUrl) {
       { encoding: "utf8" }
     );
     console.log(out);
-    const idMatch = out.match(/id\s*[:=]\s*([a-f0-9-]{36})/i) || out.match(/([a-f0-9]{32,36})/);
+    const idMatch =
+      out.match(/id\s*[:=]\s*([a-f0-9-]{36})/i) || out.match(/([a-f0-9]{32,36})/);
     if (idMatch) {
       console.log(
         `\nHyperdrive created. Set wrangler.jsonc:\n` +
@@ -59,10 +58,11 @@ if (!databaseUrl) {
       );
     }
   } catch (error) {
-    console.warn("[cf:provision] Hyperdrive create failed:", error instanceof Error ? error.message : error);
+    console.warn(
+      "[cf:provision] Hyperdrive create failed:",
+      error instanceof Error ? error.message : error
+    );
   }
 }
 
-console.log(
-  "\nNext: put secrets (see DEPLOY-CLOUDFLARE.md), then:\n  npm run deploy\n"
-);
+console.log("\nNext: put secrets (see DEPLOY-CLOUDFLARE.md), then:\n  npm run deploy\n");

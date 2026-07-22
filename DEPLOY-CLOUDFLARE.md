@@ -1,32 +1,33 @@
 # Déployer KlirBuild sur Cloudflare Workers (OpenNext)
 
 Host compute on **Cloudflare Workers** via [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare/get-started).
-Postgres stays on the existing provider behind **Hyperdrive**. Files use **R2**. Crons use Worker **Cron Triggers**.
+Postgres stays behind **Hyperdrive**. Fichiers + cache Next utilisent **Workers KV** (pas de R2 / pas d’abonnement objet storage).
 
-## Avant le premier deploy (obligatoire)
+## Pourquoi KV et pas R2
 
-1. `npx wrangler login` (ou secrets CI `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`)
-2. **Activer R2** une fois : [R2 Overview](https://dash.cloudflare.com/?to=/:account/r2) — accepter les conditions (sinon erreur API `10042`)
-3. Avoir `DATABASE_URL` Postgres (`?sslmode=require`)
+Sur certains comptes Cloudflare, R2 exige une souscription / moyen de paiement (`10042`).  
+Workers KV est disponible et déjà provisionné pour KlirBuild :
 
-Sans ces 3 points, `npm run deploy` / `npm run cf:provision` échoueront.
+| Binding | KV title | Usage |
+|---------|----------|--------|
+| `UPLOADS_KV` | `klirbuild-uploads` | Images / pièces jointes (max app 5 Mo ; limite KV ≈ 25 Mo) |
+| `BACKUPS_KV` | `klirbuild-backups` | JSON backups entreprise |
+| `NEXT_INC_CACHE_KV` | `klirbuild-next-cache` | Cache incremental OpenNext |
 
-## 1. Provisionner R2 + Hyperdrive
+## Avant le premier deploy
+
+1. `npx wrangler login` **ou** `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
+2. `DATABASE_URL` Postgres (`?sslmode=require`) pour Hyperdrive / Prisma
+
+## 1. Provision (KV déjà créés)
+
+Les ids KV sont dans [`wrangler.jsonc`](wrangler.jsonc). Pour Hyperdrive :
 
 ```bash
 DATABASE_URL="postgresql://…" npm run cf:provision
 ```
 
-Cela crée :
-
-| Ressource | Nom |
-|-----------|-----|
-| R2 | `klirbuild-uploads` |
-| R2 | `klirbuild-backups` |
-| R2 | `klirbuild-next-cache` |
-| Hyperdrive | `klirbuild-db` |
-
-Collez l'`id` Hyperdrive dans [`wrangler.jsonc`](wrangler.jsonc) :
+Collez l’`id` Hyperdrive :
 
 ```jsonc
 "hyperdrive": [
@@ -37,37 +38,29 @@ Collez l'`id` Hyperdrive dans [`wrangler.jsonc`](wrangler.jsonc) :
 ## 2. Secrets
 
 ```bash
-node scripts/cloudflare-secrets.mjs   # liste les commandes
+npm run cf:secrets
 printf '%s' "$DATABASE_URL" | npx wrangler secret put DATABASE_URL
 printf '%s' "$CRON_SECRET" | npx wrangler secret put CRON_SECRET
 # … Stripe, Resend, auth, Daily, Zernio, etc.
 ```
 
-Vars déjà dans `wrangler.jsonc` :
+Vars dans `wrangler.jsonc` : `NEXT_PUBLIC_APP_URL`, `UPLOADS_KV_ENABLED=true`.
 
-- `NEXT_PUBLIC_APP_URL=https://klirline.app`
-- `UPLOADS_R2_ENABLED=true`
-
-Ajoutez aussi `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` et `NEXT_PUBLIC_DAILY_DOMAIN` (dashboard Workers → Settings → Variables, ou `wrangler.jsonc` `vars`).
-
-## 3. Build & deploy
+## 3. Deploy
 
 ```bash
 npm run deploy
 ```
 
-URL initiale : `https://klirbuild.<account>.workers.dev`
+→ `https://klirbuild.<account>.workers.dev`
 
-CI optionnelle : [`.github/workflows/cloudflare-deploy.yml`](.github/workflows/cloudflare-deploy.yml) (`workflow_dispatch` + push `master`) avec secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABASE_URL`.
+CI : [`.github/workflows/cloudflare-deploy.yml`](.github/workflows/cloudflare-deploy.yml).
 
-## 4. Domaine custom `klirline.app`
+## 4. Domaine `klirline.app`
 
-1. Ajoutez la zone `klirline.app` dans Cloudflare DNS (ou transférez les nameservers)
-2. Workers → `klirbuild` → **Custom Domains** → `klirline.app` (+ `www` si besoin)
-3. Mettez à jour Stripe / OAuth / Resend webhooks vers `https://klirline.app/...`
-4. CI : `SMOKE_BASE_URL=https://klirline.app`
+Workers → Custom Domains → `klirline.app`, puis maj webhooks Stripe/OAuth/Resend + `SMOKE_BASE_URL`.
 
-## 5. Crons (déjà dans wrangler.jsonc)
+## 5. Crons
 
 | Cron (UTC) | Route |
 |------------|--------|
@@ -75,47 +68,31 @@ CI optionnelle : [`.github/workflows/cloudflare-deploy.yml`](.github/workflows/c
 | `15 * * * *` | `/api/cron/recurring-invoices` |
 | `0 7 * * *` | `/api/cron/backups` |
 
-Le Worker custom [`workers/app.ts`](workers/app.ts) appelle ces routes en `POST` avec `Authorization: Bearer $CRON_SECRET`.
+Auth : `Authorization: Bearer $CRON_SECRET` via [`workers/app.ts`](workers/app.ts).
 
 ## 6. Smoke
 
 ```bash
 curl -sS https://klirbuild.<account>.workers.dev/api/health | jq .
-# après DNS :
-curl -sS https://klirline.app/api/health | jq .
-```
-
-Login, upload document, déclencher un cron manuellement :
-
-```bash
 curl -X POST https://klirline.app/api/cron/automations \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-## Scripts npm
+## Limites KV
 
-| Script | Rôle |
-|--------|------|
-| `npm run build` | `prisma generate` (+ optionnel db push) + `next build` |
-| `npm run preview` | OpenNext build + preview local Workers |
-| `npm run deploy` | OpenNext build + deploy |
-| `npm run cf-typegen` | Régénère `types/cloudflare-env.d.ts` |
-| `npm run cf:provision` | Buckets R2 + Hyperdrive |
+- Valeur max ≈ **25 MiB** (uploads app déjà limités à 5 Mo)
+- Cohérence éventuelle (OK pour assets ; OpenNext déconseille KV pour ISR très strict — acceptable ici)
 
-`CLOUDFLARE_DB_PUSH=1` active `prisma db push` pendant le build (équivalent Netlify).
+## Migration Netlify
 
-## Migration depuis Netlify
-
-- Blobs historiques **ne sont pas** migrés automatiquement — re-upload si besoin
-- `netlify.toml` est conservé en archive ; le flux actif est Cloudflare
-- Déployer d’abord sur `workers.dev`, puis basculer le DNS pour limiter le downtime
+- Anciens Netlify Blobs non migrés automatiquement
+- `netlify.toml` archivé ; flux actif = Cloudflare
 
 ## Dépannage
 
 | Symptôme | Action |
 |----------|--------|
-| R2 create 10042 | Activer R2 dans le dashboard |
-| Prisma / DB timeout | Vérifier Hyperdrive + `nodejs_compat` |
-| Cron 401 | `CRON_SECRET` secret manquant / mismatch |
-| Uploads 503 | Binding `UPLOADS_BUCKET` ou `UPLOADS_R2_ENABLED` |
-| OAuth wrangler timeout | Relancer `npx wrangler login` (navigateur requis) |
+| Upload 503 | Binding `UPLOADS_KV` / `UPLOADS_KV_ENABLED` |
+| Cron 401 | Secret `CRON_SECRET` |
+| DB timeout | Hyperdrive + `nodejs_compat` |
+| Wrangler OAuth timeout | Utiliser `CLOUDFLARE_API_TOKEN` |

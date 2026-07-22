@@ -2,7 +2,7 @@
 # Never commit real secrets.
 
 NEXTJS_ENV=development
-UPLOADS_R2_ENABLED=true
+UPLOADS_KV_ENABLED=true
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # DATABASE_URL=postgresql://...

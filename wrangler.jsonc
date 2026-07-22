@@ -17,18 +17,19 @@
   "images": {
     "binding": "IMAGES"
   },
-  "r2_buckets": [
+  // Workers KV — no R2 paid subscription required (value limit ≈ 25 MiB)
+  "kv_namespaces": [
     {
-      "binding": "UPLOADS_BUCKET",
-      "bucket_name": "klirbuild-uploads"
+      "binding": "UPLOADS_KV",
+      "id": "fb21bdacd86f49ce9a9ea2c5d6344e09"
     },
     {
-      "binding": "BACKUPS_BUCKET",
-      "bucket_name": "klirbuild-backups"
+      "binding": "BACKUPS_KV",
+      "id": "f59052423c0d49cfb65a2d7fb18a5521"
     },
     {
-      "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "klirbuild-next-cache"
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "74dc80ec7629448bac677d745101df05"
     }
   ],
   // Create with: npx wrangler hyperdrive create klirbuild-db --connection-string="$DATABASE_URL"
@@ -48,7 +49,7 @@
   },
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://klirline.app",
-    "UPLOADS_R2_ENABLED": "true"
+    "UPLOADS_KV_ENABLED": "true"
   },
   "observability": {
     "enabled": true,

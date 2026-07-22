@@ -1,33 +1,40 @@
 /**
  * Minimal Cloudflare binding shapes for Next.js server code.
  * Full Worker runtime types live in types/cloudflare-env.d.ts (excluded from Next tsc).
+ *
+ * Storage uses Workers KV (no R2 subscription required).
+ * KV value limit ≈ 25 MiB — app upload routes already cap at 5 Mo.
  */
-export type KlirR2Object = {
-  arrayBuffer(): Promise<ArrayBuffer>;
-  text(): Promise<string>;
-  httpMetadata?: { contentType?: string };
-  customMetadata?: Record<string, string>;
-};
-
-export type KlirR2Bucket = {
+export type KlirKvNamespace = {
   put(
     key: string,
-    value: ArrayBuffer | string | ReadableStream | Blob | null,
+    value: string | ArrayBuffer | ArrayBufferView | ReadableStream | null,
     options?: {
-      httpMetadata?: { contentType?: string };
-      customMetadata?: Record<string, string>;
+      expirationTtl?: number;
+      metadata?: Record<string, unknown>;
     }
-  ): Promise<unknown>;
-  get(key: string): Promise<KlirR2Object | null>;
-  head(key: string): Promise<KlirR2Object | null>;
+  ): Promise<void>;
+  get(
+    key: string,
+    options?: { type?: "arrayBuffer" | "text" | "json" | "stream" }
+  ): Promise<ArrayBuffer | string | null>;
+  getWithMetadata(
+    key: string,
+    options?: { type?: "arrayBuffer" | "text" | "json" | "stream" }
+  ): Promise<{
+    value: ArrayBuffer | string | null;
+    metadata: Record<string, unknown> | null;
+  }>;
+  delete(key: string): Promise<void>;
 };
 
 export type KlirCloudflareEnv = {
-  UPLOADS_BUCKET?: KlirR2Bucket;
-  BACKUPS_BUCKET?: KlirR2Bucket;
+  UPLOADS_KV?: KlirKvNamespace;
+  BACKUPS_KV?: KlirKvNamespace;
+  NEXT_INC_CACHE_KV?: KlirKvNamespace;
   HYPERDRIVE?: { connectionString: string };
   DATABASE_URL?: string;
   CRON_SECRET?: string;
   NEXT_PUBLIC_APP_URL?: string;
-  UPLOADS_R2_ENABLED?: string;
+  UPLOADS_KV_ENABLED?: string;
 };

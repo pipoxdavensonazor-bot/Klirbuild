@@ -33,7 +33,7 @@ const PUBLIC_VARS = [
   "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=…",
   "NEXT_PUBLIC_DAILY_DOMAIN=klirbuild.daily.co",
   "DEMO_AUTH_BYPASS=false",
-  "UPLOADS_R2_ENABLED=true",
+  "UPLOADS_KV_ENABLED=true",
 ];
 
 console.log("# Cloudflare Worker secrets for klirbuild\n");

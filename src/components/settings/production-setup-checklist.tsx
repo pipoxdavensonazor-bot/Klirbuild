@@ -78,7 +78,7 @@ export function ProductionSetupChecklist() {
             {health?.status === "ready"
               ? "Prêt — core + facturation OK"
               : health?.status === "degraded"
-                ? "Dégradé — ajoutez Stripe sur Netlify"
+                ? "Dégradé — ajoutez Stripe sur Cloudflare"
                 : health?.status === "unavailable"
                   ? "Indisponible — base de données ou auth"
                   : "Chargement…"}
