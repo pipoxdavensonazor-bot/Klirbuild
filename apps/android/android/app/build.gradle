@@ -16,10 +16,30 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            def keystorePropsFile = rootProject.file("keystore.properties")
+            def keystoreProps = new Properties()
+            if (keystorePropsFile.exists()) {
+                keystoreProps.load(new FileInputStream(keystorePropsFile))
+            }
+            def storePath = keystoreProps.getProperty("storeFile") ?: "../../klirbuild-release.keystore"
+            def storeFileRef = file(storePath)
+            if (storeFileRef.exists()) {
+                storeFile storeFileRef
+                storePassword keystoreProps.getProperty("storePassword") ?: System.getenv("KLIRBUILD_KEYSTORE_PASSWORD") ?: ""
+                keyAlias keystoreProps.getProperty("keyAlias") ?: "klirbuild"
+                keyPassword keystoreProps.getProperty("keyPassword") ?: System.getenv("KLIRBUILD_KEYSTORE_PASSWORD") ?: ""
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

@@ -61,6 +61,15 @@ npm run build
 # artefacts : src-tauri/target/release/bundle/nsis/*.exe
 ```
 
+Cross-compile depuis Linux (experimental) :
+
+```bash
+rustup target add x86_64-pc-windows-msvc
+cargo install cargo-xwin
+cd apps/desktop && npm run build:windows:cross
+# binaire : src-tauri/target/x86_64-pc-windows-msvc/release/klirbuild.exe
+```
+
 ### Android
 
 Prérequis : Android Studio / SDK, JDK 17+.

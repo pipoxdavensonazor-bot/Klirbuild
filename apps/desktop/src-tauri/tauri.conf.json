@@ -24,17 +24,24 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
-      "icons/icon.png"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
     ],
     "windows": {
       "nsis": {
         "installMode": "currentUser"
       }
     },
-    "shortDescription": "KlirBuild — Construction OS",
-    "longDescription": "KlirBuild by Klirline — desktop shell for https://klirline.app"
+    "shortDescription": "KlirBuild \u2014 Construction OS",
+    "longDescription": "KlirBuild by Klirline \u2014 desktop shell for https://klirline.app"
   },
   "plugins": {
     "shell": {
