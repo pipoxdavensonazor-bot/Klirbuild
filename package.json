@@ -33,9 +33,10 @@
     "desktop:dev": "npm --prefix apps/desktop run dev",
     "desktop:build": "npm --prefix apps/desktop run build",
     "android:sync": "npm --prefix apps/android run sync",
-    "android:open": "npm --prefix apps/android run open"
+    "android:open": "npm --prefix apps/android run open",
+    "stripe:provision": "node scripts/stripe-provision-prod.mjs",
+    "ios:sync": "npm --prefix apps/ios run sync"
   },
-
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@opennextjs/cloudflare": "^1.20.2",

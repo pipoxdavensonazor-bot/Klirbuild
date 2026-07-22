@@ -1,0 +1,34 @@
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-ipa.yml"
+
+jobs:
+  prepare:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ios/package-lock.json
+      - name: Install & add iOS platform
+        working-directory: apps/ios
+        run: |
+          npm ci || npm install
+          npx cap add ios || true
+          npx cap sync ios
+      - name: Upload Xcode project
+        uses: actions/upload-artifact@v4
+        with:
+          name: klirbuild-ios-xcode
+          path: apps/ios/ios
+      - name: Note
+        run: |
+          echo "Pour un .ipa signé, ajoutez les secrets Apple listés dans apps/ios/README.md"
+          echo "puis Archive via Xcode ou fastlane."

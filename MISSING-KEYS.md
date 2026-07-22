@@ -21,3 +21,13 @@ Health core OK. Billing reste `degraded` tant que Stripe n’est pas branché.
 ## Google
 
 Redirect URI exacte : `https://klirline.app/api/auth/google/callback`
+
+## Provision automatique (dès que `sk_test_` est dispo)
+
+```bash
+export STRIPE_SECRET_KEY='sk_test_…'
+export NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY='pk_test_…'
+npm run stripe:provision
+# crée produits + 6 prices CAD + secrets Worker
+npm run deploy
+```

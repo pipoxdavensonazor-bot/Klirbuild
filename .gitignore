@@ -87,3 +87,12 @@ amplifytools.xcconfig
 .dev.vars
 
 apps/desktop/src-tauri/gen/
+
+# Stripe provision output
+.stripe-prices.generated.json
+
+# iOS
+apps/ios/ios/App/Pods/
+apps/ios/ios/DerivedData/
+*.ipa
+apps/ios/node_modules/
