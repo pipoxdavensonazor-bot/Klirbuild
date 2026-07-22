@@ -286,11 +286,11 @@ export async function listChannelMessages(
   }
   const rows = await prisma.teamChatMessage.findMany({
     where: { channelId },
-    orderBy: { createdAt: "asc" },
-    take: 300,
+    orderBy: { createdAt: "desc" },
+    take: 80,
     include: { attachments: true },
   });
-  return { messages: rows.map(mapRow), channel };
+  return { messages: rows.reverse().map(mapRow), channel };
 }
 
 export async function createTeamChannel(input: {
