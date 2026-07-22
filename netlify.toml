@@ -1,5 +1,10 @@
+# ═══════════════════════════════════════════════════════════════════
+# ARCHIVE — déploiement actif = Cloudflare Workers (voir DEPLOY-CLOUDFLARE.md)
+# Conservé pour référence des anciens crons / headers Netlify.
+# ═══════════════════════════════════════════════════════════════════
+
 [build]
-  command = "npm run build"
+  command = "npm run build:netlify"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

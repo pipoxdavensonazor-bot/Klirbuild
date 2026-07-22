@@ -1,12 +1,8 @@
-import { getStore } from "@netlify/blobs";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import type { Role } from "@/types";
 import { isAdminDeleter } from "@/lib/admin/delete-governance-service";
-
-function backupsStore() {
-  return getStore({ name: "klirbuild-backups", consistency: "strong" });
-}
+import { getBackupsBucket } from "@/lib/storage/r2";
 
 export async function createCompanyBackup(input: {
   companyId: string;
@@ -91,12 +87,20 @@ export async function createCompanyBackup(input: {
   const label = `Backup ${stamp.slice(0, 16)} (${input.trigger})`;
 
   try {
-    const store = backupsStore();
-    await store.set(storageKey, json, {
-      metadata: { companyId: input.companyId, trigger: input.trigger },
-    });
+    const bucket = await getBackupsBucket();
+    if (bucket) {
+      await bucket.put(storageKey, json, {
+        httpMetadata: { contentType: "application/json" },
+        customMetadata: {
+          companyId: input.companyId,
+          trigger: input.trigger,
+        },
+      });
+    } else {
+      console.warn("[backup] BACKUPS_BUCKET R2 binding unavailable — metadata only");
+    }
   } catch (e) {
-    console.warn("[backup] Blobs unavailable, storing metadata only", e);
+    console.warn("[backup] R2 unavailable, storing metadata only", e);
   }
 
   const row = await prisma.companyBackup.create({
@@ -143,16 +147,18 @@ export async function getBackupDownload(input: {
   if (!row?.storageKey) return { error: "Sauvegarde introuvable." as const };
 
   try {
-    const store = backupsStore();
-    const data = await store.get(row.storageKey, { type: "text" });
-    if (!data) return { error: "Fichier backup absent du stockage." as const };
+    const bucket = await getBackupsBucket();
+    if (!bucket) return { error: "Stockage R2 indisponible." as const };
+    const obj = await bucket.get(row.storageKey);
+    if (!obj) return { error: "Fichier backup absent du stockage." as const };
+    const data = await obj.text();
     return {
       filename: `${row.label.replace(/[^\w.-]+/g, "_")}.json`,
       body: data,
       contentType: "application/json",
     };
   } catch {
-    return { error: "Stockage Blobs indisponible." as const };
+    return { error: "Stockage R2 indisponible." as const };
   }
 }
 

@@ -61,3 +61,8 @@ amplifytools.xcconfig
 
 .smoke-ci-creds.json
 
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars
+

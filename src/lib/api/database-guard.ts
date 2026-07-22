@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { KlirCloudflareEnv } from "@/lib/cloudflare-bindings";
 
 export const DATABASE_REQUIRED_MESSAGE =
-  "DATABASE_URL requis. Configurez Postgres sur Netlify." as const;
+  "DATABASE_URL requis. Configurez Postgres (Hyperdrive / DATABASE_URL) sur Cloudflare." as const;
 
 export function hasDatabaseUrl() {
-  return Boolean(
-    process.env.DATABASE_URL?.trim() || process.env.NETLIFY_DB_URL?.trim(),
-  );
+  if (
+    process.env.DATABASE_URL?.trim() ||
+    process.env.NETLIFY_DB_URL?.trim()
+  ) {
+    return true;
+  }
+  try {
+    const { env } = getCloudflareContext();
+    const cf = env as KlirCloudflareEnv;
+    return Boolean(cf.HYPERDRIVE?.connectionString || cf.DATABASE_URL?.trim());
+  } catch {
+    return false;
+  }
 }
 
 /** Routes API accessibles sans Postgres (auth, stripe, santé, cron). */

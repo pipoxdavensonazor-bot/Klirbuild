@@ -1,6 +1,8 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  // native = local; debian = CF/OpenNext Linux builds; rhel = legacy Netlify
+  binaryTargets   = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
