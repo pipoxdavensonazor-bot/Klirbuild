@@ -17,7 +17,25 @@ Workers KV est disponible et déjà provisionné pour KlirBuild :
 ## Avant le premier deploy
 
 1. `npx wrangler login` **ou** `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
-2. `DATABASE_URL` Postgres (`?sslmode=require`) pour Hyperdrive / Prisma
+2. `DATABASE_URL` Postgres pour Hyperdrive / Prisma
+
+### Prisma sur Workers (obligatoire)
+
+- `engineType = "client"` dans `prisma/schema.prisma` (pas de moteur Rust/WASM Node)
+- Import `@prisma/client/wasm` dans `src/lib/db.ts`
+- `serverExternalPackages`: `@prisma/client` **et** `.prisma/client`
+- Après `opennextjs-cloudflare build`, `npm run cf:copy-prisma-wasm` copie `query_compiler_bg.wasm`
+
+### Supabase sans Hyperdrive
+
+Sur Workers, **ne pas** mettre `?sslmode=require` dans le secret `DATABASE_URL` (sinon `Connection terminated unexpectedly` avec `node-postgres`).
+Utiliser le pooler **session** (port `5432`) et le bon host (`aws-0` **ou** `aws-1`… — celui du dashboard), user `role.projectref` :
+
+```text
+postgresql://klirbuild.<project-ref>:<password>@aws-1-<region>.pooler.supabase.com:5432/postgres
+```
+
+Hyperdrive reste recommandé en prod (token avec permission Hyperdrive Write).
 
 ## 1. Provision (KV déjà créés)
 

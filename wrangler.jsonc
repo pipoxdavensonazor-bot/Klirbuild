@@ -4,6 +4,10 @@
   "main": "workers/app.ts",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Prisma workerd loader: import('./query_compiler_bg.wasm')
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

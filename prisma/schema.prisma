@@ -1,8 +1,8 @@
 generator client {
-  provider        = "prisma-client-js"
-  // native = local; debian = CF/OpenNext Linux builds; rhel = legacy Netlify
-  binaryTargets   = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
-  previewFeatures = ["driverAdapters"]
+  provider   = "prisma-client-js"
+  // Rust-free client engine — required on Cloudflare Workers.
+  // Do NOT set a custom `output` path: OpenNext must patch the generated client.
+  engineType = "client"
 }
 
 datasource db {

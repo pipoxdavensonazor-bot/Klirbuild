@@ -1,7 +1,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
+// Force the workerd/wasm entry — `@prisma/client` resolves to the Node
+// fs.readFileSync engine which Workers reject. See OpenNext DB howto.
+import { PrismaClient } from "@prisma/client/wasm";
 import { cache } from "react";
 import type { KlirCloudflareEnv } from "@/lib/cloudflare-bindings";
 
@@ -17,89 +18,59 @@ function resolveEnvDatabaseUrl() {
   );
 }
 
-function isCloudflareWorkerRuntime() {
-  // Secrets/vars are injected into process.env on Workers; native Prisma engine is forbidden.
-  if (process.env.UPLOADS_KV_ENABLED === "true") return true;
-  if (process.env.NEXT_RUNTIME_EDGE === "cloudflare") return true;
+function resolveConnectionString(): string | undefined {
   try {
-    const ua = (globalThis as { navigator?: { userAgent?: string } }).navigator
-      ?.userAgent;
-    if (ua === "Cloudflare-Workers") return true;
+    const { env } = getCloudflareContext();
+    const cf = env as KlirCloudflareEnv;
+    if (cf.HYPERDRIVE?.connectionString) return cf.HYPERDRIVE.connectionString;
+    if (cf.DATABASE_URL?.trim()) return cf.DATABASE_URL.trim();
   } catch {
-    /* ignore */
+    // Not running inside a Cloudflare request / wrangler proxy
   }
-  return false;
+  return resolveEnvDatabaseUrl();
 }
 
-function createPrismaClient(connectionString: string, useAdapter: boolean) {
+function createPrismaClient(connectionString: string) {
   const log =
     process.env.NODE_ENV === "development"
       ? (["error", "warn"] as const)
       : (["error"] as const);
 
-  if (useAdapter) {
-    const pool = new Pool({
-      connectionString,
-      max: 1,
-      maxUses: 1,
-      idleTimeoutMillis: 0,
-      connectionTimeoutMillis: 10_000,
-      ssl:
-        connectionString.includes("sslmode=require") ||
-        connectionString.includes("supabase.co")
-          ? { rejectUnauthorized: false }
-          : undefined,
-    } as ConstructorParameters<typeof Pool>[0]);
-    const adapter = new PrismaPg(pool);
-    return new PrismaClient({ adapter, log: [...log] });
-  }
-
-  return new PrismaClient({
-    datasourceUrl: connectionString,
-    log: [...log],
+  // engineType=client requires a driver adapter (no Rust/WASM query engine).
+  // On Cloudflare Workers, do NOT pass an explicit `ssl` object to node-postgres —
+  // it often causes "Connection terminated unexpectedly" with Supabase.
+  // Prefer Hyperdrive when available (binding below); otherwise rely on URL sslmode.
+  // See https://github.com/brianc/node-postgres/issues/3144
+  const adapter = new PrismaPg({
+    connectionString,
+    max: 1,
+    maxUses: 1,
+    connectionTimeoutMillis: 15_000,
+    idleTimeoutMillis: 0,
+    allowExitOnIdle: true,
   });
+
+  return new PrismaClient({ adapter, log: [...log] });
 }
 
 /**
  * Prefer Hyperdrive on Cloudflare Workers; fall back to DATABASE_URL.
- * On Workers always use the pg driver adapter (native query engine is blocked).
+ * Always use @prisma/adapter-pg (engineType=client — no native/WASM engine).
  */
 export const getPrisma = cache(() => {
-  const onWorker = isCloudflareWorkerRuntime();
-
-  try {
-    const { env } = getCloudflareContext();
-    const cf = env as KlirCloudflareEnv;
-    if (cf.HYPERDRIVE?.connectionString) {
-      return createPrismaClient(cf.HYPERDRIVE.connectionString, true);
-    }
-    if (cf.DATABASE_URL?.trim()) {
-      return createPrismaClient(cf.DATABASE_URL.trim(), true);
-    }
-  } catch {
-    // Not running inside a Cloudflare request / wrangler proxy
-  }
-
-  const url = resolveEnvDatabaseUrl();
+  const url = resolveConnectionString();
   if (!url) {
-    return (
-      globalForPrisma.prisma ??
-      new PrismaClient({
-        log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-      })
+    throw new Error(
+      "DATABASE_URL manquant — configurez Postgres (Hyperdrive / secret DATABASE_URL)."
     );
   }
 
-  if (onWorker) {
-    return createPrismaClient(url, true);
-  }
-
   if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma ??= createPrismaClient(url, false);
+    globalForPrisma.prisma ??= createPrismaClient(url);
     return globalForPrisma.prisma;
   }
 
-  return createPrismaClient(url, false);
+  return createPrismaClient(url);
 });
 
 /** Back-compat proxy — existing `import { prisma }` call sites keep working. */
