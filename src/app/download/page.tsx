@@ -128,7 +128,7 @@ export default function DownloadPage() {
           </p>
           <a
             className="inline-flex h-10 items-center justify-center rounded-md bg-[#004F6E] px-4 text-sm font-medium text-white"
-            href="/docs/KlirBuild-inventaire-applications.pdf"
+            href="/downloads/KlirBuild-inventaire-applications.pdf"
             download="KlirBuild-inventaire-applications.pdf"
           >
             Télécharger l’inventaire PDF

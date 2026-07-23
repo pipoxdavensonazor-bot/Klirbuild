@@ -10,6 +10,7 @@ from fpdf import FPDF
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_PDF = ROOT / "public" / "docs" / "KlirBuild-inventaire-applications.pdf"
+OUT_PDF_DL = ROOT / "public" / "downloads" / "KlirBuild-inventaire-applications.pdf"
 OUT_MD = ROOT / "docs" / "INVENTAIRE-APPLICATIONS.md"
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -546,7 +547,10 @@ def build_pdf() -> None:
 
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     pdf.output(str(OUT_PDF))
+    OUT_PDF_DL.parent.mkdir(parents=True, exist_ok=True)
+    OUT_PDF_DL.write_bytes(OUT_PDF.read_bytes())
     print(f"PDF → {OUT_PDF} ({OUT_PDF.stat().st_size} bytes)")
+    print(f"PDF → {OUT_PDF_DL}")
 
 
 def main() -> None:

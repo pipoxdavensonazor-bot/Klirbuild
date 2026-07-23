@@ -38,7 +38,8 @@
     "play:upload": "node scripts/play-upload.mjs",
     "play:publish": "npm run android:release && PLAY_AAB_PATH=apps/android/android/app/build/outputs/bundle/release/app-release.aab npm run play:upload",
     "stripe:provision": "node scripts/stripe-provision-prod.mjs",
-    "ios:sync": "npm --prefix apps/ios run sync"
+    "ios:sync": "npm --prefix apps/ios run sync",
+    "docs:inventory": "python3 scripts/generate-inventory-pdf.py"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
