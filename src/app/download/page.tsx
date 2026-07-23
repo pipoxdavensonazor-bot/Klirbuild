@@ -92,17 +92,31 @@ export default function DownloadPage() {
                 rel="noreferrer"
               >
                 Google Play Console
+              </a>{" "}
+              (compte déjà connecté)
+            </li>
+            <li>App « KlirBuild » — package <code>app.klirline.klirbuild</code></li>
+            <li>
+              Uploadez{" "}
+              <a className="underline" href="/downloads/KlirBuild-release.aab">
+                KlirBuild-release.aab
               </a>
             </li>
-            <li>Créez l’application « KlirBuild » (package `app.klirline.klirbuild`)</li>
             <li>
-              Uploadez le fichier <strong>KlirBuild-release.aab</strong>
+              Icône 512 :{" "}
+              <a className="underline" href="/downloads/play/icon-512.png">
+                icon-512.png
+              </a>
+              {" · "}
+              Bannière :{" "}
+              <a className="underline" href="/downloads/play/feature-graphic.png">
+                feature-graphic.png
+              </a>
             </li>
-            <li>Remplissez la fiche store, puis publiez (test interne → production)</li>
+            <li>Publiez en test interne, puis production</li>
           </ol>
           <p className="text-xs text-slate-500">
-            En attendant la publication Play Store, installez l’
-            <strong>APK</strong> directement sur le téléphone.
+            En attendant la validation Play, installez l’APK directement.
           </p>
         </section>
 
