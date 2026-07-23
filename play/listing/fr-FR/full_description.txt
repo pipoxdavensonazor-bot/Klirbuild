@@ -1,0 +1,12 @@
+KlirBuild est l’application construction de Klirline Inc.
+
+Gérez vos chantiers, équipes, devis, factures, paie et suivi — au même endroit.
+
+• Connexion sécurisée à votre espace KlirBuild
+• CRM et clients
+• Devis et facturation
+• Projets et tâches chantier
+• Réunions et collaboration
+• Compatible Windows et Android
+
+Ouvre directement votre compte sur https://klirline.app
