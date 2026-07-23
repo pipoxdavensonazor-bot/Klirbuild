@@ -5,21 +5,9 @@
   Cache-Control: no-store
 
 /downloads/*
-  X-Content-Type-Options: nosniff
   Cache-Control: public, max-age=3600
   Content-Disposition: attachment
-
-/downloads/*.exe
-  Content-Type: application/octet-stream
-  Content-Disposition: attachment
-
-/downloads/*.apk
-  Content-Type: application/vnd.android.package-archive
-  Content-Disposition: attachment
-
-/downloads/*.aab
-  Content-Type: application/octet-stream
-  Content-Disposition: attachment
+  X-Content-Type-Options: nosniff
 
 /*
   X-Frame-Options: DENY
