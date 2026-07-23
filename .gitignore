@@ -99,3 +99,4 @@ apps/ios/ios/App/Pods/
 apps/ios/ios/DerivedData/
 *.ipa
 apps/ios/node_modules/
+play-sa.json

@@ -1,38 +1,56 @@
-# Google Play Console — KlirBuild
+# Google Play — publication automatique
 
-Package : `app.klirline.klirbuild`  
-Fichiers prêts :
+Package : `app.klirline.klirbuild`
 
-| Asset | Chemin |
-|---|---|
-| AAB (upload store) | `public/downloads/KlirBuild-release.aab` ou https://klirline.app/downloads/KlirBuild-release.aab |
-| APK (test direct) | https://klirline.app/downloads/KlirBuild-release.apk |
-| Icône 512 | `apps/android/play-assets/icon-512.png` |
-| Feature graphic 1024×500 | `apps/android/play-assets/feature-graphic.png` |
+## Une seule fois (obligatoire)
 
-## Upload manuel (compte déjà connecté)
+Google Play **n’accepte l’API** que via un **compte de service** :
 
-1. Ouvrez [Play Console](https://play.google.com/console)
-2. Créez l’app **KlirBuild** (ou ouvrez-la) — package `app.klirline.klirbuild`
-3. **Production** ou **Tests internes** → Créer une version
-4. Uploadez `KlirBuild-release.aab`
-5. Fiche store :
-   - Titre : KlirBuild
-   - Icône : `play-assets/icon-512.png`
-   - Bannière : `play-assets/feature-graphic.png`
-   - Description courte : OS construction pour PME — chantiers, équipe, facturation.
-6. Contenu de l’app / questionnaire → Publier
+1. [Google Cloud Console](https://console.cloud.google.com/) → projet lié à Play  
+2. **IAM** → Compte de service → Créer → Télécharger la clé **JSON**  
+3. Activer [Google Play Android Developer API](https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com)  
+4. [Play Console](https://play.google.com/console) → **Utilisateurs et autorisations** → Inviter l’email `...@....iam.gserviceaccount.com` avec droit **Admin** (ou Release apps)  
+5. Créer l’app **KlirBuild** une fois (si elle n’existe pas) avec le package `app.klirline.klirbuild`
 
-## Upload API (optionnel)
+## Lancer l’upload auto
 
-1. Google Cloud → créer un compte de service + clé JSON  
-2. Play Console → Utilisateurs et autorisations → inviter le compte de service (Admin)  
-3. Activer **Google Play Android Developer API**  
-4. Lancer :
+### En local / agent
 
 ```bash
-npm install googleapis
-GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=./play-sa.json node scripts/play-upload.mjs
+# Coller le JSON téléchargé
+cp ~/Downloads/*.json ./play-sa.json   # ne pas committer
+
+export GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(cat play-sa.json)"
+# ou :
+# export GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=./play-sa.json
+
+npm run play:publish
+# → rebuild AAB + upload track internal
 ```
 
-Track par défaut : `internal` (changez avec `PLAY_TRACK=production`).
+Production :
+
+```bash
+PLAY_TRACK=production npm run play:publish
+```
+
+### GitHub Actions (100 % auto ensuite)
+
+Repo → **Settings → Secrets → Actions** :
+
+| Secret | Valeur |
+|---|---|
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | contenu entier du JSON |
+| `ANDROID_KEYSTORE_BASE64` | keystore release (optionnel si rebuild) |
+| `KLIRBUILD_KEYSTORE_PASSWORD` | mot de passe keystore |
+
+Puis : **Actions → Publish to Google Play → Run workflow**  
+Ou pushez un tag `android-v1.0.2`.
+
+## Fichiers déjà prêts
+
+- AAB : https://klirline.app/downloads/KlirBuild-release.aab  
+- Icône : https://klirline.app/downloads/play/icon-512.png  
+- Bannière : https://klirline.app/downloads/play/feature-graphic.png  
+- Script : `scripts/play-upload.mjs`  
+- Workflow : `.github/workflows/play-publish.yml`

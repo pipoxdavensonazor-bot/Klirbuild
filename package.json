@@ -34,6 +34,9 @@
     "desktop:build": "npm --prefix apps/desktop run build",
     "android:sync": "npm --prefix apps/android run sync",
     "android:open": "npm --prefix apps/android run open",
+    "android:release": "npm --prefix apps/android run sync && npm --prefix apps/android run build:release",
+    "play:upload": "node scripts/play-upload.mjs",
+    "play:publish": "npm run android:release && PLAY_AAB_PATH=apps/android/android/app/build/outputs/bundle/release/app-release.aab npm run play:upload",
     "stripe:provision": "node scripts/stripe-provision-prod.mjs",
     "ios:sync": "npm --prefix apps/ios run sync"
   },
@@ -69,6 +72,7 @@
     "autoprefixer": "^10.5.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.20",
+    "googleapis": "^173.0.0",
     "postcss": "^8.5.19",
     "prisma": "^6.19.3",
     "tailwindcss": "^3.4.19",

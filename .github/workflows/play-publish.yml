@@ -1,0 +1,93 @@
+name: Publish to Google Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Play track (internal, alpha, beta, production)"
+        required: true
+        default: "internal"
+      build_android:
+        description: "Rebuild AAB before upload"
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "android-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Play service account secret
+        id: creds
+        env:
+          SA: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Ajoutez le secret GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (JSON du compte de service Play)."
+            exit 1
+          fi
+          echo "has_secret=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        if: ${{ inputs.build_android != false }}
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        if: ${{ inputs.build_android != false }}
+        uses: android-actions/setup-android@v3
+
+      - name: Install root deps (googleapis)
+        run: npm ci
+
+      - name: Build release AAB
+        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        working-directory: apps/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KLIRBUILD_KEYSTORE_PASSWORD: ${{ secrets.KLIRBUILD_KEYSTORE_PASSWORD }}
+        run: |
+          npm ci
+          npx cap sync android
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > klirbuild-release.keystore
+            cat > android/keystore.properties <<EOF
+          storeFile=../../klirbuild-release.keystore
+          storePassword=${KLIRBUILD_KEYSTORE_PASSWORD}
+          keyAlias=klirbuild
+          keyPassword=${KLIRBUILD_KEYSTORE_PASSWORD}
+          EOF
+          fi
+          cd android && chmod +x gradlew && ./gradlew bundleRelease
+
+      - name: Use committed AAB fallback
+        if: ${{ !(github.event_name == 'push' || inputs.build_android) }}
+        run: |
+          mkdir -p apps/android/android/app/build/outputs/bundle/release
+          cp -f public/downloads/KlirBuild-release.aab \
+            apps/android/android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload to Google Play
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: ${{ inputs.track || 'internal' }}
+        run: npm run play:upload
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: klirbuild-play-aab
+          path: apps/android/android/app/build/outputs/bundle/release/*.aab
