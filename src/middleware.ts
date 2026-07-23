@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   "/live",
   "/client-live",
   "/offline",
+  "/download",
+  "/invite",
 ];
 
 /**

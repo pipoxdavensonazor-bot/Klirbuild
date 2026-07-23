@@ -178,11 +178,32 @@ export function LoginForm() {
                     Créer un compte
                   </Link>
                 </div>
-                <p className="mt-3 text-center text-xs text-muted-foreground">
-                  <Link href="/download" className="font-medium text-brand-600 hover:underline">
-                    Télécharger l’app Windows (.exe) ou Android (APK)
-                  </Link>
-                </p>
+                <div className="mt-4 space-y-2 border-t border-border pt-4">
+                  <p className="text-center text-xs font-medium text-foreground">
+                    Installer l’application
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href="/downloads/KlirBuild-setup.exe"
+                      download="KlirBuild-setup.exe"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-2 text-center text-xs font-medium hover:bg-accent"
+                    >
+                      Windows (.exe)
+                    </a>
+                    <a
+                      href="/downloads/KlirBuild-release.apk"
+                      download="KlirBuild-release.apk"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-2 text-center text-xs font-medium hover:bg-accent"
+                    >
+                      Android (APK)
+                    </a>
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground">
+                    <Link href="/download" className="font-medium text-brand-600 hover:underline">
+                      Toutes les versions
+                    </Link>
+                  </p>
+                </div>
               </>
             ) : null}
           </CardContent>

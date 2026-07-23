@@ -59,7 +59,7 @@ export default function DownloadPage() {
               key={item.file}
               href={`/downloads/${item.file}`}
               className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition hover:border-[#004F6E]/40 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
-              download
+              download={item.file}
             >
               <div>
                 <div className="flex items-center gap-2">
