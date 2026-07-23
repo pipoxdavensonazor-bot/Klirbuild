@@ -22,9 +22,12 @@ export function getStripe() {
       );
     }
   }
+  // Cloudflare Workers: node:https hangs — must use Fetch HTTP client.
+  // @see https://opennext.js.org/cloudflare/howtos/stripeAPI
   return new Stripe(key, {
     apiVersion: "2026-06-24.dahlia",
     typescript: true,
+    httpClient: Stripe.createFetchHttpClient(),
   });
 }
 

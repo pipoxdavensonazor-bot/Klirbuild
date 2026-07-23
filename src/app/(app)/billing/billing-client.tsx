@@ -154,7 +154,13 @@ export default function BillingPage() {
       return;
     }
 
-    if (stripeStatus?.configured && stripeStatus.connected) {
+    if (stripeStatus?.configured !== false) {
+      // Allow checkout while status loads, or when connected.
+      // Only hard-block when we know Stripe is not configured.
+      if (stripeStatus && !stripeStatus.connected && !stripeStatus.configured) {
+        setError("Paiement indisponible — Stripe n'est pas connecté. Contactez le support.");
+        return;
+      }
       setLoadingPlan(id);
       try {
         const res = await fetch(apiUrl("/api/stripe/checkout"), {
