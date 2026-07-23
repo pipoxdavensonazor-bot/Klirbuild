@@ -211,7 +211,7 @@ export function FeedPageClient() {
                     liveUrl={
                       activeLive.publicPath
                         ? absoluteAppPath(activeLive.publicPath)
-                        : absoluteAppPath(`/live/${activeLive.id}`)
+                        : undefined
                     }
                   />
                 ) : null}
