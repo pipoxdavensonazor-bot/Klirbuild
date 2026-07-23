@@ -17,7 +17,7 @@ export function DailyRoomEmbed({
   className?: string;
   displayName?: string;
 }) {
-  const isJitsi = /jit\.si|jitsi/i.test(roomUrl);
+  const isJitsi = /jit\.si|jitsi|ffmuc\.net|meet\./i.test(roomUrl) && !/daily\.co/i.test(roomUrl);
   const showHint = Boolean(token?.startsWith("sim_")) || isJitsi;
 
   let src = token

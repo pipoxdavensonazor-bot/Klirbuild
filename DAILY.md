@@ -25,3 +25,18 @@ Sans ces secrets, `/meetings` et `/feed` restent en **Jitsi** — déjà live.
 ```bash
 curl -sS https://klirline.app/api/health | jq '.checks.dailyOrJitsi, .checks.daily'
 ```
+
+## Jitsi sans compte (fallback gratuit)
+
+Le serveur public `meet.jit.si` demande souvent de **créer un compte 8x8**.
+
+KlirBuild utilise par défaut **`meet.ffmuc.net`** (instance publique sans inscription).
+
+Override possible :
+```bash
+npx wrangler secret put NEXT_PUBLIC_JITSI_HOST
+# valeur: meet.ffmuc.net
+```
+
+Pour une expérience pro (salle privée, recording, pas d’instance publique) → configure Daily (`DAILY_API_KEY`).
+

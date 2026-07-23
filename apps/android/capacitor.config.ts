@@ -17,6 +17,7 @@ const config: CapacitorConfig = {
       "*.klirline.app",
       "*.workers.dev",
       "*.daily.co",
+      "meet.ffmuc.net",
       "meet.jit.si",
       "*.jit.si",
     ],

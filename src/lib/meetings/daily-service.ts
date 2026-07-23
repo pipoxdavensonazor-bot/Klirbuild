@@ -86,13 +86,15 @@ export async function createDailyRoom(input: {
   const domain = dailyDomain();
 
   if (!isDailyConfigured()) {
-    // Free fallback (free-for.dev → meet.jit.si) when Daily is not configured.
+    // Free fallback when Daily is not configured.
+    // Avoid meet.jit.si — 8x8 often forces account creation.
+    // Public anonymous-friendly default: meet.ffmuc.net (override via NEXT_PUBLIC_JITSI_HOST).
     const jitsiHost =
       process.env.NEXT_PUBLIC_JITSI_HOST?.trim().replace(/\/$/, "") ||
-      "meet.jit.si";
+      "meet.ffmuc.net";
     return {
       name,
-      url: `https://${jitsiHost}/KlirBuild-${name}`,
+      url: `https://${jitsiHost}/KlirBuild-${name}#config.prejoinPageEnabled=false&config.requireDisplayName=false`,
       simulated: true,
     };
   }

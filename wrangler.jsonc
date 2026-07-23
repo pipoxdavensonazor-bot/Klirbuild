@@ -54,7 +54,8 @@
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://klirline.app",
     "UPLOADS_KV_ENABLED": "true",
-    "STRIPE_ALLOW_LIVE": "true"
+    "STRIPE_ALLOW_LIVE": "true",
+    "NEXT_PUBLIC_JITSI_HOST": "meet.ffmuc.net"
   },
   "observability": {
     "enabled": true,
