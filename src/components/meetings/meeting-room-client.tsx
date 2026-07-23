@@ -194,9 +194,7 @@ export function MeetingRoomClient({ meetingId }: { meetingId: string }) {
           ) : (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                {loading
-                  ? "Connexion à la salle Daily…"
-                  : "Salle indisponible."}
+                {loading ? "Connexion à la salle…" : "Salle indisponible."}
               </CardContent>
             </Card>
           )}

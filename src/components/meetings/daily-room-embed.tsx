@@ -1,11 +1,38 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ExternalLink, Video } from "lucide-react";
+
+const JITSI_HOST =
+  (typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_JITSI_HOST?.trim().replace(/\/$/, "")) ||
+  "meet.ffmuc.net";
+
+function roomNameFromUrl(roomUrl: string) {
+  try {
+    const path = new URL(roomUrl).pathname.replace(/^\//, "");
+    return path.split("/")[0] || "room";
+  } catch {
+    return "room";
+  }
+}
+
+function toJitsiUrl(roomUrl: string, displayName?: string) {
+  const raw = roomNameFromUrl(roomUrl).replace(/^KlirBuild-/i, "");
+  const name = encodeURIComponent(displayName || "KlirBuild");
+  const hash = [
+    "config.prejoinConfig.enabled=false",
+    "config.startWithAudioMuted=false",
+    "config.startWithVideoMuted=false",
+    "config.disableDeepLinking=true",
+    `userInfo.displayName="${name}"`,
+  ].join("&");
+  return `https://${JITSI_HOST}/KlirBuild-${raw}#${hash}`;
+}
 
 /**
  * Daily Prebuilt embed, or Jitsi standalone join (public Jitsi blocks iframes).
- * Sans DAILY_API_KEY → Jitsi Meet (gratuit) ouvert dans un nouvel onglet.
+ * Sans DAILY_API_KEY → Jitsi Meet (gratuit) dans un nouvel onglet — pas de mode démo.
  */
 export function DailyRoomEmbed({
   roomUrl,
@@ -20,39 +47,30 @@ export function DailyRoomEmbed({
   className?: string;
   displayName?: string;
 }) {
-  const isJitsi =
-    /jit\.si|jitsi|ffmuc\.net/i.test(roomUrl) && !/daily\.co/i.test(roomUrl);
-  const isSimulatedDaily = Boolean(token?.startsWith("sim_")) && !isJitsi;
+  const looksDaily = /daily\.co/i.test(roomUrl);
+  const looksJitsi =
+    /jit\.si|jitsi|ffmuc\.net/i.test(roomUrl) && !looksDaily;
+  const simulated = Boolean(token?.startsWith("sim_"));
+
+  // Any simulated / stale Daily URL → force Jitsi (Daily is optional, not a broken demo).
+  const useJitsi = looksJitsi || simulated || looksDaily;
+
+  const src = useMemo(() => {
+    if (useJitsi) return toJitsiUrl(roomUrl, displayName);
+    if (!token) return roomUrl;
+    return `${roomUrl}${roomUrl.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}`;
+  }, [useJitsi, roomUrl, displayName, token]);
+
   const openedRef = useRef(false);
 
-  let src = token
-    ? `${roomUrl}${roomUrl.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}`
-    : roomUrl;
-
-  if (isJitsi) {
-    const name = encodeURIComponent(displayName || "KlirBuild");
-    const hash = [
-      "config.prejoinConfig.enabled=false",
-      "config.startWithAudioMuted=false",
-      "config.startWithVideoMuted=false",
-      "config.disableDeepLinking=true",
-      `userInfo.displayName="${name}"`,
-    ].join("&");
-    src = `${roomUrl.split("#")[0]}#${hash}`;
-  }
-
-  // Public Jitsi sets CSP frame-ancestors / X-Frame-Options — iframe = écran noir.
   useEffect(() => {
-    if (!isJitsi || openedRef.current || typeof window === "undefined") return;
+    if (!useJitsi || openedRef.current || typeof window === "undefined") return;
     openedRef.current = true;
     const win = window.open(src, "_blank", "noopener,noreferrer");
-    if (!win) {
-      // Popup blocked — user must click the button.
-      openedRef.current = false;
-    }
-  }, [isJitsi, src]);
+    if (!win) openedRef.current = false;
+  }, [useJitsi, src]);
 
-  if (isJitsi) {
+  if (useJitsi) {
     return (
       <div
         className={
@@ -60,12 +78,9 @@ export function DailyRoomEmbed({
           "overflow-hidden rounded-lg border border-border bg-gradient-to-b from-sky-50 to-white dark:from-sky-950/40 dark:to-background"
         }
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-950 dark:text-sky-100">
-          <span>
-            Visio <strong>Jitsi</strong> (gratuite). Les serveurs publics
-            bloquent l’intégration iframe — la caméra s’ouvre dans un nouvel
-            onglet.
-          </span>
+        <div className="border-b border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-950 dark:text-sky-100">
+          Visio <strong>Jitsi</strong> — la caméra s’ouvre dans un nouvel
+          onglet (les serveurs publics bloquent l’iframe).
         </div>
         <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 px-6 py-12 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-600/15 text-sky-700 dark:text-sky-300">
@@ -76,8 +91,8 @@ export function DailyRoomEmbed({
               {title ? `Rejoindre « ${title} »` : "Rejoindre la réunion"}
             </p>
             <p className="text-sm text-muted-foreground">
-              Autorisez la caméra et le micro dans l’onglet Jitsi. Si rien ne
-              s’est ouvert, cliquez ci-dessous (bloqueur de pop-up).
+              Autorisez caméra et micro dans l’onglet Jitsi. Si rien ne
+              s’ouvre, utilisez le bouton (bloqueur de pop-up).
             </p>
           </div>
           <a
@@ -100,22 +115,6 @@ export function DailyRoomEmbed({
         className ?? "overflow-hidden rounded-lg border border-border bg-black"
       }
     >
-      {isSimulatedDaily ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
-          <span>
-            Mode démo Daily — ajoutez <code>DAILY_API_KEY</code> pour le domaine
-            natif (caméra intégrée).
-          </span>
-          <a
-            href={roomUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 rounded bg-amber-700 px-2 py-1 font-medium text-white hover:bg-amber-800"
-          >
-            Ouvrir en plein écran
-          </a>
-        </div>
-      ) : null}
       <iframe
         title={title || "Réunion KlirBuild"}
         src={src}
