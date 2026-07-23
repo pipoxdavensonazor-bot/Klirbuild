@@ -75,9 +75,9 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
                 fill="#1A365D"
                 opacity="0.18"
               />
-              <rect x="28" y={76 + row * 36} width="28" height="10" fill="#F2F5F9" opacity="0.55" />
-              <rect x="68" y={76 + row * 36} width="28" height="10" fill="#F2F5F9" opacity="0.4" />
-              <rect x="108" y={76 + row * 36} width="28" height="10" fill="#F2F5F9" opacity="0.55" />
+              <rect x="28" y={76 + row * 36} width="28" height="10" fill="#0B1520" opacity="0.45" />
+              <rect x="68" y={76 + row * 36} width="28" height="10" fill="#0B1520" opacity="0.3" />
+              <rect x="108" y={76 + row * 36} width="28" height="10" fill="#0B1520" opacity="0.45" />
             </g>
           ))}
           {/* échafaudage */}
