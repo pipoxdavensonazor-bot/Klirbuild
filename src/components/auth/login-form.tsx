@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
+import { ConstructionSiteScene } from "@/components/auth/construction-site-scene";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 
@@ -84,22 +84,44 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(26,54,93,0.1),_transparent_42%),linear-gradient(180deg,#f5f6f8,#e8ecf1)] dark:from-slate-950">
-      <div className="flex flex-1 items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="items-center text-center">
-            <KlirBuildLogo className="mb-3 h-[64px] w-[176px]" priority />
-            <CardTitle>
-              {requires2fa ? "Vérification 2FA" : "Connexion à KlirBuild"}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
+    <div className="flex min-h-screen flex-col bg-[#E8EDF3] text-brand-900">
+      <div className="grid flex-1 lg:grid-cols-2">
+        {/* Panneau bienvenue + chantier */}
+        <section className="relative flex min-h-[42vh] flex-col justify-end overflow-hidden lg:min-h-screen">
+          <ConstructionSiteScene className="absolute inset-0" />
+          <div className="relative z-10 space-y-4 px-6 pb-10 pt-16 sm:px-10 lg:px-12 lg:pb-16">
+            <p className="login-welcome-enter font-[family-name:var(--font-login-display)] text-xs font-semibold uppercase tracking-[0.22em] text-accent-200">
+              Construction OS
+            </p>
+            <div className="login-welcome-enter">
+              <KlirBuildLogo className="h-[56px] w-[156px] border border-white/10 bg-white/95 shadow-soft sm:h-[64px] sm:w-[176px]" priority />
+            </div>
+            <h1 className="login-welcome-enter-delay max-w-md font-[family-name:var(--font-login-display)] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
+              Bienvenue sur le chantier numérique
+            </h1>
+            <p className="login-welcome-enter-delay max-w-md text-sm leading-relaxed text-slate-200 sm:text-base">
+              KlirBuild est conçu pour les entreprises de construction —
+              chantiers, équipes, devis, paie et suivi, au même endroit.
+            </p>
+          </div>
+        </section>
+
+        {/* Formulaire */}
+        <section className="relative flex flex-col justify-center bg-[linear-gradient(180deg,#F4F7FA_0%,#E8EDF3_100%)] px-4 py-10 sm:px-8 lg:px-14">
+          <div className="login-form-enter mx-auto w-full max-w-md">
+            <div className="mb-6 lg:hidden">
+              <KlirBuildLogo className="mx-auto h-[52px] w-[144px]" priority />
+            </div>
+            <h2 className="font-[family-name:var(--font-login-display)] text-2xl font-semibold tracking-tight text-brand-800">
+              {requires2fa ? "Vérification 2FA" : "Connexion"}
+            </h2>
+            <p className="mt-1 text-sm text-brand-500">
               {requires2fa
                 ? "Entrez le code à 6 chiffres de votre application d’authentification."
-                : "Connectez-vous avec votre courriel et mot de passe KlirBuild."}
+                : "Accédez à votre espace chantier KlirBuild."}
             </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-3">
+
+            <form onSubmit={onSubmit} className="mt-6 space-y-3">
               {!requires2fa ? (
                 <>
                   <Input
@@ -108,6 +130,7 @@ export function LoginForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className="h-11 bg-white"
                   />
                   <Input
                     type="password"
@@ -115,6 +138,7 @@ export function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    className="h-11 bg-white"
                   />
                 </>
               ) : (
@@ -127,17 +151,16 @@ export function LoginForm() {
                   onChange={(e) => setCode(e.target.value)}
                   required
                   maxLength={8}
+                  className="h-11 bg-white"
                 />
               )}
-              {error ? (
-                <p className="text-sm text-red-600">{error}</p>
-              ) : null}
-              <Button type="submit" className="w-full" disabled={loading}>
+              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading
                   ? "Connexion…"
                   : requires2fa
                     ? "Valider le code"
-                    : "Continuer"}
+                    : "Entrer sur le chantier"}
               </Button>
               {requires2fa ? (
                 <Button
@@ -154,12 +177,13 @@ export function LoginForm() {
                 </Button>
               ) : null}
             </form>
+
             {!requires2fa ? (
               <>
                 {googleEnabled ? (
                   <Button
                     variant="outline"
-                    className="mt-3 w-full"
+                    className="mt-3 h-11 w-full bg-white"
                     type="button"
                     onClick={() => {
                       window.location.href = apiUrl(
@@ -170,7 +194,7 @@ export function LoginForm() {
                     Continuer avec Google
                   </Button>
                 ) : null}
-                <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                <div className="mt-4 flex justify-between text-xs text-brand-500">
                   <Link href="/forgot-password" className="hover:underline">
                     Mot de passe oublié
                   </Link>
@@ -178,27 +202,27 @@ export function LoginForm() {
                     Créer un compte
                   </Link>
                 </div>
-                <div className="mt-4 space-y-2 border-t border-border pt-4">
-                  <p className="text-center text-xs font-medium text-foreground">
+                <div className="mt-6 space-y-2 border-t border-brand-200/70 pt-5">
+                  <p className="text-center text-xs font-medium text-brand-700">
                     Installer l’application
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <a
                       href="/downloads/KlirBuild-setup.exe"
                       download="KlirBuild-setup.exe"
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-2 text-center text-xs font-medium hover:bg-accent"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-brand-200 bg-white px-2 text-center text-xs font-medium text-brand-700 hover:bg-brand-50"
                     >
                       Windows (.exe)
                     </a>
                     <a
                       href="/downloads/KlirBuild-release.apk"
                       download="KlirBuild-release.apk"
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-2 text-center text-xs font-medium hover:bg-accent"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-brand-200 bg-white px-2 text-center text-xs font-medium text-brand-700 hover:bg-brand-50"
                     >
                       Android (APK)
                     </a>
                   </div>
-                  <p className="text-center text-xs text-muted-foreground">
+                  <p className="text-center text-xs text-brand-500">
                     <Link href="/download" className="font-medium text-brand-600 hover:underline">
                       Toutes les versions
                     </Link>
@@ -206,8 +230,8 @@ export function LoginForm() {
                 </div>
               </>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
       <AppFooter />
     </div>

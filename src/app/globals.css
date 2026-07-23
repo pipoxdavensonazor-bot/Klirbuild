@@ -69,3 +69,167 @@
     padding: 1.5rem;
   }
 }
+
+/* ── Login chantier scene ─────────────────────────────────────── */
+.login-site__sky {
+  background:
+    radial-gradient(ellipse 80% 55% at 70% 18%, rgba(196, 165, 116, 0.28), transparent 55%),
+    linear-gradient(165deg, #0B1520 0%, #1A365D 48%, #132A4A 100%);
+}
+
+.login-site__grid {
+  background-image:
+    linear-gradient(rgba(226, 232, 240, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 88%);
+}
+
+.login-site__haze {
+  background: linear-gradient(180deg, transparent, rgba(11, 21, 32, 0.55));
+}
+
+.login-site__jib {
+  animation: login-jib-sway 7s ease-in-out infinite;
+}
+
+.login-site__hook {
+  animation: login-hook-lift 4.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 168px 40px;
+}
+
+.login-site__floor {
+  animation: login-floor-rise 5.5s ease-out infinite;
+  opacity: 0;
+}
+
+.login-site__truck {
+  animation: login-truck-roll 14s linear infinite;
+}
+
+.login-site__tape {
+  animation: login-tape-slide 18s linear infinite;
+}
+
+.login-site__dust {
+  animation: login-dust-rise 6s ease-in infinite;
+}
+
+.login-welcome-enter {
+  animation: login-welcome-in 0.9s ease-out both;
+}
+
+.login-welcome-enter-delay {
+  animation: login-welcome-in 0.9s ease-out 0.18s both;
+}
+
+.login-form-enter {
+  animation: login-form-in 0.75s ease-out 0.12s both;
+}
+
+@keyframes login-jib-sway {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes login-hook-lift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(36px);
+  }
+}
+
+@keyframes login-floor-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  18%,
+  72% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0.35;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes login-truck-roll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(420px);
+  }
+}
+
+@keyframes login-tape-slide {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(42px);
+  }
+}
+
+@keyframes login-dust-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  30% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(1.2);
+  }
+}
+
+@keyframes login-welcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-site__jib,
+  .login-site__hook,
+  .login-site__floor,
+  .login-site__truck,
+  .login-site__tape,
+  .login-site__dust,
+  .login-welcome-enter,
+  .login-welcome-enter-delay,
+  .login-form-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
