@@ -9,8 +9,7 @@ from pathlib import Path
 from fpdf import FPDF
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_PDF = ROOT / "public" / "docs" / "KlirBuild-inventaire-applications.pdf"
-OUT_PDF_DL = ROOT / "public" / "downloads" / "KlirBuild-inventaire-applications.pdf"
+OUT_PDF = ROOT / "docs" / "KlirBuild-inventaire-applications.pdf"
 OUT_MD = ROOT / "docs" / "INVENTAIRE-APPLICATIONS.md"
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -541,16 +540,14 @@ def build_pdf() -> None:
         0,
         5,
         "Pour mettre à jour ce PDF : python3 scripts/generate-inventory-pdf.py "
-        "puis redéployer. Sources : package.json, apps/*, FREE-STACK.md, "
+        "gardé sous docs/ (privé, hors app publique). Sources : package.json, apps/*, FREE-STACK.md, "
         ".env.example, modules/registry.ts.",
     )
 
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     pdf.output(str(OUT_PDF))
-    OUT_PDF_DL.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PDF_DL.write_bytes(OUT_PDF.read_bytes())
     print(f"PDF → {OUT_PDF} ({OUT_PDF.stat().st_size} bytes)")
-    print(f"PDF → {OUT_PDF_DL}")
+    print("Note: PDF stays under docs/ (not published to the public app).")
 
 
 def main() -> None:
