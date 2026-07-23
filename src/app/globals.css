@@ -73,20 +73,20 @@
 /* ── Login chantier scene ─────────────────────────────────────── */
 .login-site__sky {
   background:
-    radial-gradient(ellipse 70% 45% at 72% 12%, rgba(196, 165, 116, 0.18), transparent 52%),
-    linear-gradient(165deg, #060D16 0%, #0B1520 28%, #122033 62%, #0F2744 100%);
+    radial-gradient(ellipse 65% 40% at 75% 10%, rgba(212, 175, 55, 0.16), transparent 50%),
+    linear-gradient(165deg, #06101C 0%, #0A1C31 35%, #1A365D 78%, #132A4A 100%);
 }
 
 .login-site__grid {
   background-image:
-    linear-gradient(rgba(226, 232, 240, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(226, 232, 240, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 28px 28px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 88%);
 }
 
 .login-site__haze {
-  background: linear-gradient(180deg, transparent 0%, rgba(6, 13, 22, 0.72) 55%, rgba(6, 13, 22, 0.92) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(10, 28, 49, 0.75) 50%, rgba(10, 28, 49, 0.96) 100%);
 }
 
 .login-site__jib {

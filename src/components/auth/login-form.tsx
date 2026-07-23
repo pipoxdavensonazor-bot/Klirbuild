@@ -84,17 +84,17 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#C9D3E0] text-brand-950">
+    <div className="flex min-h-screen flex-col bg-[#0A1C31] text-white">
       <div className="grid flex-1 lg:grid-cols-2">
-        {/* Panneau bienvenue + chantier */}
-        <section className="relative flex min-h-[42vh] flex-col justify-end overflow-hidden lg:min-h-screen">
+        {/* Panneau bienvenue + chantier — bleu marine / texte blanc / Or */}
+        <section className="relative flex min-h-[42vh] flex-col justify-end overflow-hidden bg-[#0A1C31] lg:min-h-screen">
           <ConstructionSiteScene className="absolute inset-0" />
-          <div className="relative z-10 space-y-4 bg-gradient-to-t from-[#060D16] via-[#060D16]/85 to-transparent px-6 pb-10 pt-20 sm:px-10 lg:px-12 lg:pb-16">
-            <p className="login-welcome-enter font-[family-name:var(--font-login-display)] text-xs font-semibold uppercase tracking-[0.22em] text-[#E4D4B8]">
+          <div className="relative z-10 space-y-4 bg-gradient-to-t from-[#0A1C31] via-[#0A1C31]/90 to-transparent px-6 pb-10 pt-20 sm:px-10 lg:px-12 lg:pb-16">
+            <p className="login-welcome-enter font-[family-name:var(--font-login-display)] text-sm font-semibold uppercase tracking-[0.24em] text-[#D4AF37]">
               Construction OS
             </p>
             <div className="login-welcome-enter">
-              <KlirBuildLogo className="h-[56px] w-[156px] border border-white/15 bg-white shadow-soft sm:h-[64px] sm:w-[176px]" priority />
+              <KlirBuildLogo className="h-[56px] w-[156px] border border-[#D4AF37]/35 bg-white shadow-soft sm:h-[64px] sm:w-[176px]" priority />
             </div>
             <h1 className="login-welcome-enter-delay max-w-md font-[family-name:var(--font-login-display)] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
               Bienvenue sur le chantier numérique
@@ -107,15 +107,15 @@ export function LoginForm() {
         </section>
 
         {/* Formulaire */}
-        <section className="relative flex flex-col justify-center bg-[linear-gradient(180deg,#D9E1EC_0%,#C9D3E0_100%)] px-4 py-10 sm:px-8 lg:px-14">
-          <div className="login-form-enter mx-auto w-full max-w-md rounded-xl border border-brand-900/10 bg-[#F7F9FC] p-6 shadow-soft sm:p-8">
+        <section className="relative flex flex-col justify-center bg-[#0F2744] px-4 py-10 sm:px-8 lg:px-14">
+          <div className="login-form-enter mx-auto w-full max-w-md rounded-xl border border-[#D4AF37]/25 bg-[#132A4A] p-6 sm:p-8">
             <div className="mb-6 lg:hidden">
               <KlirBuildLogo className="mx-auto h-[52px] w-[144px]" priority />
             </div>
-            <h2 className="font-[family-name:var(--font-login-display)] text-2xl font-semibold tracking-tight text-brand-950">
+            <h2 className="font-[family-name:var(--font-login-display)] text-2xl font-semibold tracking-tight text-white">
               {requires2fa ? "Vérification 2FA" : "Connexion"}
             </h2>
-            <p className="mt-1 text-sm text-brand-800">
+            <p className="mt-1 text-sm text-white/85">
               {requires2fa
                 ? "Entrez le code à 6 chiffres de votre application d’authentification."
                 : "Accédez à votre espace chantier KlirBuild."}
@@ -183,7 +183,7 @@ export function LoginForm() {
                 {googleEnabled ? (
                   <Button
                     variant="outline"
-                    className="mt-3 h-11 w-full bg-white"
+                    className="mt-3 h-11 w-full border-[#D4AF37]/40 bg-transparent text-white hover:bg-[#0A1C31] hover:text-white"
                     type="button"
                     onClick={() => {
                       window.location.href = apiUrl(
@@ -194,36 +194,36 @@ export function LoginForm() {
                     Continuer avec Google
                   </Button>
                 ) : null}
-                <div className="mt-4 flex justify-between text-xs text-brand-800">
-                  <Link href="/forgot-password" className="hover:underline">
+                <div className="mt-4 flex justify-between text-xs text-white/80">
+                  <Link href="/forgot-password" className="hover:text-white hover:underline">
                     Mot de passe oublié
                   </Link>
-                  <Link href="/register" className="hover:underline">
+                  <Link href="/register" className="hover:text-white hover:underline">
                     Créer un compte
                   </Link>
                 </div>
-                <div className="mt-6 space-y-2 border-t border-brand-300 pt-5">
-                  <p className="text-center text-xs font-medium text-brand-900">
+                <div className="mt-6 space-y-2 border-t border-white/15 pt-5">
+                  <p className="text-center text-xs font-medium text-white">
                     Installer l’application
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <a
                       href="/downloads/KlirBuild-setup.exe"
                       download="KlirBuild-setup.exe"
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-brand-300 bg-white px-2 text-center text-xs font-medium text-brand-900 hover:bg-brand-50"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#0A1C31] px-2 text-center text-xs font-medium text-white hover:border-[#D4AF37] hover:bg-[#06101C]"
                     >
                       Windows (.exe)
                     </a>
                     <a
                       href="/downloads/KlirBuild-release.apk"
                       download="KlirBuild-release.apk"
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-brand-300 bg-white px-2 text-center text-xs font-medium text-brand-900 hover:bg-brand-50"
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#0A1C31] px-2 text-center text-xs font-medium text-white hover:border-[#D4AF37] hover:bg-[#06101C]"
                     >
                       Android (APK)
                     </a>
                   </div>
-                  <p className="text-center text-xs text-brand-800">
-                    <Link href="/download" className="font-medium text-brand-900 hover:underline">
+                  <p className="text-center text-xs text-white/75">
+                    <Link href="/download" className="font-medium text-[#D4AF37] hover:underline">
                       Toutes les versions
                     </Link>
                   </p>
