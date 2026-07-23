@@ -94,7 +94,7 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
         <g className="login-site__crane" transform="translate(390 70)">
           {/* mât */}
           <rect x="18" y="40" width="14" height="440" fill="url(#steel)" />
-          <rect x="14" y="40" width="22" height="12" fill="#C4A574" />
+          <rect x="14" y="40" width="22" height="12" fill="#D4AF37" />
           {/* flèche */}
           <g className="login-site__jib" style={{ transformOrigin: "25px 52px" }}>
             <path d="M25 52 L210 36 L210 48 L25 64 Z" fill="url(#brass)" />
@@ -102,7 +102,7 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
             {/* câble + charge */}
             <g className="login-site__hook">
               <line x1="168" y1="40" x2="168" y2="150" stroke="#E2E8F0" strokeWidth="2" />
-              <rect x="152" y="150" width="32" height="22" rx="2" fill="#C4A574" />
+              <rect x="152" y="150" width="32" height="22" rx="2" fill="#D4AF37" />
               <rect x="158" y="156" width="20" height="10" fill="#1A365D" opacity="0.35" />
             </g>
           </g>
@@ -116,9 +116,9 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
           <rect x="78" y="10" width="42" height="28" rx="3" fill="#2A4A73" />
           <rect x="88" y="16" width="22" height="12" fill="#D7DEE8" opacity="0.5" />
           <circle cx="24" cy="68" r="12" fill="#0B1520" />
-          <circle cx="24" cy="68" r="5" fill="#C4A574" />
+          <circle cx="24" cy="68" r="5" fill="#D4AF37" />
           <circle cx="88" cy="68" r="12" fill="#0B1520" />
-          <circle cx="88" cy="68" r="5" fill="#C4A574" />
+          <circle cx="88" cy="68" r="5" fill="#D4AF37" />
         </g>
 
         {/* particules poussière */}
