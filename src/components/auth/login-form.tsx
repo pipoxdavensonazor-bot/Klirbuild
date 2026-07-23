@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
-import { ConstructionSiteScene } from "@/components/auth/construction-site-scene";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +104,14 @@ export function LoginForm() {
             </div>
 
             <div className="login-scene-fade relative mx-auto h-[260px] w-full max-w-lg sm:h-[320px] lg:mx-0 lg:h-[420px] lg:max-w-none">
-              <ConstructionSiteScene className="h-full w-full" />
+              <Image
+                src="/login/construction-hero.jpg"
+                alt="Chantier de construction — pompe à béton, grue et structure en cours"
+                fill
+                priority
+                sizes="(max-width: 1024px) 90vw, 45vw"
+                className="object-cover object-center"
+              />
             </div>
           </div>
         </section>
