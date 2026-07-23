@@ -6,6 +6,7 @@ import { Check, Copy, Megaphone, Radio, Square, Video, X } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
 import { DailyRoomEmbed } from "@/components/meetings/daily-room-embed";
+import { LiveSocialConnections } from "@/components/meetings/live-social-connections";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +54,7 @@ export function FeedPageClient() {
     roomUrl: string;
     token: string;
     title: string;
+    publicPath?: string;
   } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -147,6 +149,10 @@ export function FeedPageClient() {
       roomUrl: data.roomUrl,
       token: data.token,
       title: title || "Live",
+      publicPath:
+        typeof data.live?.publicPath === "string"
+          ? data.live.publicPath
+          : undefined,
     });
     setError("");
   }
@@ -192,13 +198,36 @@ export function FeedPageClient() {
                   <X className="h-4 w-4" /> Fermer
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <DailyRoomEmbed
                   roomUrl={activeLive.roomUrl}
                   token={activeLive.token}
                   title={activeLive.title}
                   meetingId={activeLive.id}
                 />
+                {canLive ? (
+                  <LiveSocialConnections
+                    title={activeLive.title}
+                    liveUrl={
+                      activeLive.publicPath
+                        ? absoluteAppPath(activeLive.publicPath)
+                        : absoluteAppPath(`/live/${activeLive.id}`)
+                    }
+                  />
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {canLive && !activeLive ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  Comptes entreprise pour le live
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LiveSocialConnections />
               </CardContent>
             </Card>
           ) : null}

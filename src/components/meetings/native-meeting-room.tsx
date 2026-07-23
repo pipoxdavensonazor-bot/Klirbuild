@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  MonitorUp,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { apiUrl } from "@/lib/api-client";
 
 type PeerInfo = { peerId: string; name: string };
@@ -52,7 +58,9 @@ export function NativeMeetingRoom({
   const [ready, setReady] = useState(false);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const peerNames = useRef(new Map<string, string>());
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const upsertRemote = useCallback(
     (peerId: string, stream: MediaStream) => {
@@ -276,6 +284,62 @@ export function NativeMeetingRoom({
     setCamOn(track.enabled);
   }
 
+  async function stopShare() {
+    const screen = screenTrackRef.current;
+    if (!screen) {
+      setSharing(false);
+      return;
+    }
+    screen.onended = null;
+    screen.stop();
+    const cam = streamRef.current?.getVideoTracks()[0] ?? null;
+    for (const pc of pcs.current.values()) {
+      const sender = pc
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "video");
+      if (sender && cam) await sender.replaceTrack(cam);
+    }
+    if (localVideoRef.current && streamRef.current) {
+      localVideoRef.current.srcObject = streamRef.current;
+    }
+    screenTrackRef.current = null;
+    setSharing(false);
+  }
+
+  async function toggleShare() {
+    if (sharing || screenTrackRef.current) {
+      await stopShare();
+      return;
+    }
+    try {
+      const display = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      const track = display.getVideoTracks()[0];
+      if (!track) return;
+      screenTrackRef.current = track;
+      track.onended = () => {
+        void stopShare();
+      };
+      for (const pc of pcs.current.values()) {
+        const sender = pc
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+        if (sender) await sender.replaceTrack(track);
+      }
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = new MediaStream([
+          track,
+          ...(streamRef.current?.getAudioTracks() ?? []),
+        ]);
+      }
+      setSharing(true);
+    } catch {
+      /* user cancelled */
+    }
+  }
+
   const tiles = [
     { peerId: myId, name: `${name} (vous)`, stream: null as MediaStream | null, local: true },
     ...remoteStreams.map((r) => ({
@@ -346,6 +410,20 @@ export function NativeMeetingRoom({
           ) : (
             <VideoOff className="h-4 w-4" />
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => void toggleShare()}
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
+            sharing
+              ? "bg-sky-600 hover:bg-sky-500"
+              : "bg-white/10 hover:bg-white/20"
+          }`}
+          aria-label={
+            sharing ? "Arrêter le partage d’écran" : "Partager l’écran"
+          }
+        >
+          <MonitorUp className="h-4 w-4" />
         </button>
       </div>
     </div>
