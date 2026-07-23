@@ -6,6 +6,7 @@ import type { Role } from "@/types";
 import {
   createDailyRoom,
   createMeetingToken,
+  resolveMeetingRoomUrl,
   type DailyAudience,
 } from "@/lib/meetings/daily-service";
 
@@ -235,9 +236,21 @@ export async function issueMeetingJoinToken(input: {
   });
   if ("error" in tokenRes) return { error: tokenRes.error };
 
+  const roomUrl = resolveMeetingRoomUrl(row.dailyRoomUrl, row.dailyRoomName);
+
+  // Heal stale Daily/Jitsi URLs stored before the anonymous-host switch.
+  if (roomUrl !== row.dailyRoomUrl) {
+    await prisma.meeting
+      .update({
+        where: { id: row.id },
+        data: { dailyRoomUrl: roomUrl },
+      })
+      .catch(() => null);
+  }
+
   return {
     token: tokenRes.token,
-    roomUrl: row.dailyRoomUrl,
+    roomUrl,
     roomName: row.dailyRoomName,
     meeting: mapMeeting(row),
     simulated: tokenRes.simulated,

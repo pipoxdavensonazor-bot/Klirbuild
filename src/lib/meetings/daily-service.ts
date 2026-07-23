@@ -16,6 +16,50 @@ export function dailyDomain() {
   );
 }
 
+/** Public Jitsi host used when Daily is not configured. */
+export function jitsiHost() {
+  return (
+    process.env.NEXT_PUBLIC_JITSI_HOST?.trim().replace(/\/$/, "") ||
+    "meet.ffmuc.net"
+  );
+}
+
+/** Build a joinable Jitsi URL (standalone tab — public instances block iframes). */
+export function jitsiRoomUrl(roomName: string, displayName?: string) {
+  const name = roomName.replace(/^KlirBuild-/i, "");
+  const base = `https://${jitsiHost()}/KlirBuild-${name}`;
+  const hash = [
+    "config.prejoinConfig.enabled=false",
+    "config.startWithAudioMuted=false",
+    "config.startWithVideoMuted=false",
+    "config.disableDeepLinking=true",
+    displayName
+      ? `userInfo.displayName="${encodeURIComponent(displayName)}"`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("&");
+  return `${base}#${hash}`;
+}
+
+export function isJitsiRoomUrl(url: string) {
+  return (
+    /jit\.si|jitsi|ffmuc\.net/i.test(url) && !/daily\.co/i.test(url)
+  );
+}
+
+/**
+ * When Daily is missing, always serve a current anonymous Jitsi URL.
+ * Fixes old rows stored as klirbuild.daily.co (dead) or meet.jit.si (account wall).
+ */
+export function resolveMeetingRoomUrl(storedUrl: string, roomName: string) {
+  if (isDailyConfigured()) return storedUrl;
+  if (isJitsiRoomUrl(storedUrl) && storedUrl.includes(jitsiHost())) {
+    return storedUrl.split("#")[0] || storedUrl;
+  }
+  return jitsiRoomUrl(roomName).split("#")[0]!;
+}
+
 function apiKey() {
   return process.env.DAILY_API_KEY?.trim() || "";
 }
@@ -87,14 +131,11 @@ export async function createDailyRoom(input: {
 
   if (!isDailyConfigured()) {
     // Free fallback when Daily is not configured.
-    // Avoid meet.jit.si — 8x8 often forces account creation.
-    // Public anonymous-friendly default: meet.ffmuc.net (override via NEXT_PUBLIC_JITSI_HOST).
-    const jitsiHost =
-      process.env.NEXT_PUBLIC_JITSI_HOST?.trim().replace(/\/$/, "") ||
-      "meet.ffmuc.net";
+    // Public instances (ffmuc, jit.si) set CSP frame-ancestors → no iframe embed.
+    // Room opens in a standalone tab via DailyRoomEmbed.
     return {
       name,
-      url: `https://${jitsiHost}/KlirBuild-${name}#config.prejoinPageEnabled=false&config.requireDisplayName=false`,
+      url: jitsiRoomUrl(name).split("#")[0]!,
       simulated: true,
     };
   }

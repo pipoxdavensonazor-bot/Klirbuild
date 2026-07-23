@@ -6,6 +6,7 @@ import type { Role } from "@/types";
 import {
   createDailyRoom,
   createMeetingToken,
+  resolveMeetingRoomUrl,
   type DailyAudience,
 } from "@/lib/meetings/daily-service";
 
@@ -428,9 +429,19 @@ export async function issueLiveJoinToken(input: {
   });
   if ("error" in tokenRes) return { error: tokenRes.error };
 
+  const roomUrl = resolveMeetingRoomUrl(row.dailyRoomUrl, row.dailyRoomName);
+  if (roomUrl !== row.dailyRoomUrl) {
+    await prisma.liveSession
+      .update({
+        where: { id: row.id },
+        data: { dailyRoomUrl: roomUrl },
+      })
+      .catch(() => null);
+  }
+
   return {
     token: tokenRes.token,
-    roomUrl: row.dailyRoomUrl,
+    roomUrl,
     live: mapLive(row),
     simulated: tokenRes.simulated,
   };
