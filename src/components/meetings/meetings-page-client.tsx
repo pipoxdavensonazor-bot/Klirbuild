@@ -170,12 +170,12 @@ export function MeetingsPageClient() {
 
           {dailyConfigured ? (
             <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
-              Daily connecté — salles natives intégrées.
+              Daily connecté — salles intégrées dans KlirBuild.
             </p>
           ) : (
             <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-950 dark:text-sky-100">
-              Visio <strong>Jitsi</strong> active — la caméra s’ouvre dans un
-              nouvel onglet.
+              Visio <strong>dans le même bureau</strong> — caméra et micro
+              restent dans KlirBuild.
             </p>
           )}
 

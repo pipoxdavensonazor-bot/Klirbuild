@@ -130,12 +130,11 @@ export async function createDailyRoom(input: {
   const domain = dailyDomain();
 
   if (!isDailyConfigured()) {
-    // Free fallback when Daily is not configured.
-    // Public instances (ffmuc, jit.si) set CSP frame-ancestors → no iframe embed.
-    // Room opens in a standalone tab via DailyRoomEmbed.
+    // Free fallback when Daily is not configured:
+    // native in-page WebRTC room (same KlirBuild desk). URL is a marker only.
     return {
       name,
-      url: jitsiRoomUrl(name).split("#")[0]!,
+      url: `https://klirline.app/meetings/native/${name}`,
       simulated: true,
     };
   }

@@ -26,6 +26,15 @@ export type KlirKvNamespace = {
     metadata: Record<string, unknown> | null;
   }>;
   delete(key: string): Promise<void>;
+  list(options?: {
+    prefix?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<{
+    keys: { name: string; expiration?: number; metadata?: unknown }[];
+    list_complete: boolean;
+    cursor?: string;
+  }>;
 };
 
 export type KlirCloudflareEnv = {

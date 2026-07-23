@@ -31,6 +31,9 @@ type Meeting = {
 
 export function MeetingRoomClient({ meetingId }: { meetingId: string }) {
   const role = useSessionStore((s) => s.role);
+  const userName = useSessionStore(
+    (s) => s.userName || s.userEmail || "Participant"
+  );
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [token, setToken] = useState("");
   const [roomUrl, setRoomUrl] = useState("");
@@ -190,6 +193,8 @@ export function MeetingRoomClient({ meetingId }: { meetingId: string }) {
               roomUrl={roomUrl}
               token={token}
               title={meeting?.title}
+              meetingId={meetingId}
+              displayName={userName}
             />
           ) : (
             <Card>

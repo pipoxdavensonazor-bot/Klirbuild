@@ -197,6 +197,7 @@ export function FeedPageClient() {
                   roomUrl={activeLive.roomUrl}
                   token={activeLive.token}
                   title={activeLive.title}
+                  meetingId={activeLive.id}
                 />
               </CardContent>
             </Card>
