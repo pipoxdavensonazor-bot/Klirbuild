@@ -17,7 +17,7 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox="0 0 640 720"
-        preserveAspectRatio="xMidYMax meet"
+        preserveAspectRatio="xMidYMid meet"
         role="presentation"
       >
         <defs>
@@ -30,8 +30,8 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
             <stop offset="100%" stopColor="#5A7599" />
           </linearGradient>
           <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#E4D4B8" />
-            <stop offset="100%" stopColor="#C4A574" />
+            <stop offset="0%" stopColor="#F0D78C" />
+            <stop offset="100%" stopColor="#D4AF37" />
           </linearGradient>
         </defs>
 
@@ -45,7 +45,7 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
 
         {/* Bandes chantier */}
         <g className="login-site__tape">
-          <rect x="-40" y="600" width="720" height="18" fill="#C4A574" opacity="0.92" />
+          <rect x="-40" y="600" width="720" height="18" fill="#D4AF37" opacity="0.95" />
           <g fill="#0B1520">
             {Array.from({ length: 18 }).map((_, i) => (
               <rect
@@ -81,7 +81,7 @@ export function ConstructionSiteScene({ className = "" }: { className?: string }
             </g>
           ))}
           {/* échafaudage */}
-          <g stroke="#C4A574" strokeWidth="2" opacity="0.75">
+          <g stroke="#D4AF37" strokeWidth="2" opacity="0.8">
             <line x1="-18" y1="60" x2="-18" y2="380" />
             <line x1="208" y1="60" x2="208" y2="380" />
             {Array.from({ length: 9 }).map((_, i) => (

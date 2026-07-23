@@ -86,23 +86,26 @@ export function LoginForm() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0A1C31] text-white">
       <div className="grid flex-1 lg:grid-cols-2">
-        {/* Panneau bienvenue + chantier — bleu marine / texte blanc / Or */}
-        <section className="relative flex min-h-[42vh] flex-col justify-end overflow-hidden bg-[#0A1C31] lg:min-h-screen">
-          <ConstructionSiteScene className="absolute inset-0" />
-          <div className="relative z-10 space-y-4 bg-gradient-to-t from-[#0A1C31] via-[#0A1C31]/90 to-transparent px-6 pb-10 pt-20 sm:px-10 lg:px-12 lg:pb-16">
-            <p className="login-welcome-enter font-[family-name:var(--font-login-display)] text-sm font-semibold uppercase tracking-[0.24em] text-[#D4AF37]">
-              Construction OS
-            </p>
-            <div className="login-welcome-enter">
+        {/* Panneau bienvenue + chantier — texte à gauche, animation à droite */}
+        <section className="relative flex min-h-[52vh] overflow-hidden bg-[#0A1C31] lg:min-h-screen">
+          <div className="relative z-10 grid w-full grid-cols-1 items-center gap-6 px-6 py-10 sm:px-10 lg:grid-cols-2 lg:gap-4 lg:px-10 lg:py-12 xl:px-12">
+            <div className="login-welcome-enter space-y-4">
+              <p className="font-[family-name:var(--font-login-display)] text-sm font-semibold uppercase tracking-[0.24em] text-[#D4AF37]">
+                Construction OS
+              </p>
               <KlirBuildLogo className="h-[56px] w-[156px] border border-[#D4AF37]/35 bg-white shadow-soft sm:h-[64px] sm:w-[176px]" priority />
+              <h1 className="login-welcome-enter-delay max-w-md font-[family-name:var(--font-login-display)] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.6rem]">
+                Bienvenue sur le chantier numérique
+              </h1>
+              <p className="login-welcome-enter-delay max-w-md text-sm leading-relaxed text-white sm:text-base">
+                KlirBuild est conçu pour les entreprises de construction —
+                chantiers, équipes, devis, paie et suivi, au même endroit.
+              </p>
             </div>
-            <h1 className="login-welcome-enter-delay max-w-md font-[family-name:var(--font-login-display)] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
-              Bienvenue sur le chantier numérique
-            </h1>
-            <p className="login-welcome-enter-delay max-w-md text-sm leading-relaxed text-white sm:text-base">
-              KlirBuild est conçu pour les entreprises de construction —
-              chantiers, équipes, devis, paie et suivi, au même endroit.
-            </p>
+
+            <div className="login-welcome-enter-delay relative mx-auto h-[240px] w-full max-w-lg sm:h-[300px] lg:mx-0 lg:h-[min(62vh,520px)] lg:max-w-none">
+              <ConstructionSiteScene className="absolute inset-0 rounded-lg border border-[#D4AF37]/20 bg-[#06101C]/40" />
+            </div>
           </div>
         </section>
 
