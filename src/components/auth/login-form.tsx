@@ -178,6 +178,11 @@ export function LoginForm() {
                     Créer un compte
                   </Link>
                 </div>
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  <Link href="/download" className="font-medium text-brand-600 hover:underline">
+                    Télécharger l’app Windows (.exe) ou Android (APK)
+                  </Link>
+                </p>
               </>
             ) : null}
           </CardContent>

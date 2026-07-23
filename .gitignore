@@ -24,6 +24,9 @@ apps/android/*.keystore
 apps/android/*.jks
 *.apk
 *.aab
+# Hosted installers for /download
+!public/downloads/
+!public/downloads/**
 *.iml
 .idea/
 
