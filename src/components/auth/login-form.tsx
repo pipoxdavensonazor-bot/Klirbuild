@@ -103,7 +103,7 @@ export function LoginForm() {
               </p>
             </div>
 
-            <div className="relative mx-auto h-[260px] w-full max-w-lg overflow-hidden rounded-lg border border-[#D4AF37]/35 bg-[#06101C] sm:h-[320px] lg:mx-0 lg:h-[420px] lg:max-w-none">
+            <div className="login-scene-fade relative mx-auto h-[260px] w-full max-w-lg sm:h-[320px] lg:mx-0 lg:h-[420px] lg:max-w-none">
               <ConstructionSiteScene className="h-full w-full" />
             </div>
           </div>
