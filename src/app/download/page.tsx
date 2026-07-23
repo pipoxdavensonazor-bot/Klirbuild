@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Télécharger KlirBuild — Windows & Android",
   description:
-    "Installer KlirBuild sur Windows (.exe) ou Android (APK / Play Store AAB).",
+    "Installer KlirBuild sur Windows (.exe) ou Android (APK / AAB Play Store).",
 };
 
 const files = [
@@ -129,3 +129,4 @@ export default function DownloadPage() {
     </main>
   );
 }
+
