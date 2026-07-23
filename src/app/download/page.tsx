@@ -120,6 +120,21 @@ export default function DownloadPage() {
           </p>
         </section>
 
+        <section className="mt-10 space-y-2 rounded-xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-700">
+          <h2 className="font-semibold text-slate-900">Documentation projet</h2>
+          <p>
+            Inventaire complet des applications, services et outils utilisés
+            dans KlirBuild (PDF) :
+          </p>
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-md bg-[#004F6E] px-4 text-sm font-medium text-white"
+            href="/docs/KlirBuild-inventaire-applications.pdf"
+            download="KlirBuild-inventaire-applications.pdf"
+          >
+            Télécharger l’inventaire PDF
+          </a>
+        </section>
+
         <p className="mt-8 text-sm">
           <Link href="/login" className="text-[#004F6E] underline">
             Retour à la connexion

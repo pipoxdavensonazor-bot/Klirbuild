@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   "/offline",
   "/download",
   "/invite",
+  "/docs",
 ];
 
 /**
