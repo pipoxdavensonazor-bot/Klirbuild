@@ -70,22 +70,48 @@
   }
 }
 
-/* Login fields: force black typed text (parent panel uses text-white) */
+/* Login fields: force readable black typed text on white inputs.
+   Parent panel uses text-white; Android WebView / dark color-scheme
+   can also force light text — override with !important + light scheme. */
+.login-form-fields {
+  color-scheme: light;
+}
+
 .login-field {
-  color: #0a0a0a;
-  caret-color: #0a0a0a;
+  display: flex;
+  width: 100%;
+  height: 2.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--input));
+  background-color: #ffffff !important;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  color-scheme: light;
+}
+
+.login-field:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px hsl(var(--ring));
 }
 
 .login-field::placeholder {
-  color: #737373;
+  color: #525252 !important;
+  -webkit-text-fill-color: #525252 !important;
+  opacity: 1;
 }
 
 .login-field:-webkit-autofill,
 .login-field:-webkit-autofill:hover,
-.login-field:-webkit-autofill:focus {
-  -webkit-text-fill-color: #0a0a0a;
-  caret-color: #0a0a0a;
-  box-shadow: 0 0 0 1000px #ffffff inset;
+.login-field:-webkit-autofill:focus,
+.login-field:-webkit-autofill:active {
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000 !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
   transition: background-color 99999s ease-out;
 }
 

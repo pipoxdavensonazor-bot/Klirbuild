@@ -7,7 +7,6 @@ import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
 
 export function LoginForm() {
@@ -130,28 +129,42 @@ export function LoginForm() {
                 : "Accédez à votre espace chantier KlirBuild."}
             </p>
 
-            <form onSubmit={onSubmit} className="mt-6 space-y-3">
+            <form onSubmit={onSubmit} className="login-form-fields mt-6 space-y-3">
               {!requires2fa ? (
                 <>
-                  <Input
+                  <input
                     type="email"
                     placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
+                    autoComplete="email"
+                    className="login-field"
+                    style={{
+                      color: "#000000",
+                      WebkitTextFillColor: "#000000",
+                      caretColor: "#000000",
+                      backgroundColor: "#ffffff",
+                    }}
                   />
-                  <Input
+                  <input
                     type="password"
                     placeholder="Mot de passe"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
+                    autoComplete="current-password"
+                    className="login-field"
+                    style={{
+                      color: "#000000",
+                      WebkitTextFillColor: "#000000",
+                      caretColor: "#000000",
+                      backgroundColor: "#ffffff",
+                    }}
                   />
                 </>
               ) : (
-                <Input
+                <input
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -160,7 +173,13 @@ export function LoginForm() {
                   onChange={(e) => setCode(e.target.value)}
                   required
                   maxLength={8}
-                  className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
+                  className="login-field"
+                  style={{
+                    color: "#000000",
+                    WebkitTextFillColor: "#000000",
+                    caretColor: "#000000",
+                    backgroundColor: "#ffffff",
+                  }}
                 />
               )}
               {error ? <p className="text-sm text-red-700">{error}</p> : null}
