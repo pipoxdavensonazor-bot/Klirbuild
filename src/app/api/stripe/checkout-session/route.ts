@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { syncFromCheckoutSession } from "@/lib/billing/subscription-service";
 import {
   INVOICE_PAYMENT_PURPOSE,
@@ -8,6 +9,9 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe";
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireCompanyContext();
+    if (auth instanceof NextResponse) return auth;
+
     if (!isStripeConfigured()) {
       return NextResponse.json({ error: "Stripe non configuré" }, { status: 503 });
     }
@@ -21,6 +25,14 @@ export async function GET(request: Request) {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["subscription", "payment_intent"],
     });
+
+    const metaCompany =
+      session.metadata?.companyId?.trim() ||
+      session.client_reference_id?.trim() ||
+      "";
+    if (metaCompany && metaCompany !== auth.companyId) {
+      return NextResponse.json({ error: "Session Stripe non autorisée" }, { status: 403 });
+    }
 
     if (session.status !== "complete") {
       return NextResponse.json(

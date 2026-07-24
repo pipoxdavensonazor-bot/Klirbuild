@@ -1,26 +1,26 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { createInvoice, listInvoices } from "@/lib/invoices/invoice-service";
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  const enriched = await enrichSession(session);
-  return enriched.companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET() {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const invoices = await listInvoices(cid);
   return NextResponse.json({ invoices });
 }
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const gated = await requireCompanyPlanFeature(cid, "quotes_invoices");
   if (gated) return gated;
   const body = await request.json().catch(() => ({}));

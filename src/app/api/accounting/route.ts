@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import {
   createJournalEntry,
   listJournalEntries,
@@ -10,14 +9,15 @@ import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
-async function cid() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  return (await enrichSession(session)).companyId;
+async function cid(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET() {
   const companyId = await cid();
+  if (companyId instanceof NextResponse) return companyId;
   const denied = await requireCompanyPlanFeature(companyId, "accounting");
   if (denied) return denied;
   const [accounts, entries] = await Promise.all([
@@ -29,6 +29,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const companyId = await cid();
+  if (companyId instanceof NextResponse) return companyId;
   const denied = await requireCompanyPlanFeature(companyId, "accounting");
   if (denied) return denied;
   const body = await request.json().catch(() => ({}));

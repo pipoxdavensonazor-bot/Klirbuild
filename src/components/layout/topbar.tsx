@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/workforce/session";
 import { getPlan, routeAllowedForPlan, type SubscriptionPlanId } from "@/lib/billing/plans";
+import { showPlanRoleSimulators } from "@/lib/demo/show-simulators";
 import { getMarket, marketProfiles, type MarketRegionId } from "@/lib/markets/regions";
 import type { Role } from "@/types";
 import { ALL_ROLES, roleLabelFr } from "@/lib/workforce/roles";
@@ -61,11 +62,13 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const role = useSessionStore((s) => s.role);
   const planId = useSessionStore((s) => s.plan);
   const marketRegion = useSessionStore((s) => s.marketRegion);
+  const userEmail = useSessionStore((s) => s.userEmail);
   const setRole = useSessionStore((s) => s.setRole);
   const setPlan = useSessionStore((s) => s.setPlan);
   const setMarketRegion = useSessionStore((s) => s.setMarketRegion);
   const plan = getPlan(planId);
   const market = getMarket(marketRegion);
+  const showSimulators = showPlanRoleSimulators(userEmail);
 
   const crumbs = useMemo(
     () =>
@@ -151,44 +154,48 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           </kbd>
         </button>
 
-        <select
-          aria-label="Marché"
-          className="hidden h-9 max-w-[150px] rounded-md border border-border bg-background px-2 text-xs xl:block"
-          value={marketRegion}
-          onChange={(e) => setMarketRegion(e.target.value as MarketRegionId)}
-        >
-          {marketProfiles.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id}
-            </option>
-          ))}
-        </select>
+        {showSimulators ? (
+          <>
+            <select
+              aria-label="Marché"
+              className="hidden h-9 max-w-[150px] rounded-md border border-border bg-background px-2 text-xs xl:block"
+              value={marketRegion}
+              onChange={(e) => setMarketRegion(e.target.value as MarketRegionId)}
+            >
+              {marketProfiles.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id}
+                </option>
+              ))}
+            </select>
 
-        <select
-          aria-label="Simuler un plan"
-          className="hidden h-9 max-w-[120px] rounded-md border border-border bg-background px-2 text-xs lg:block"
-          value={planId}
-          onChange={(e) => setPlan(e.target.value as SubscriptionPlanId)}
-        >
-          {plans.map((p) => (
-            <option key={p} value={p}>
-              Plan {getPlan(p).name}
-            </option>
-          ))}
-        </select>
+            <select
+              aria-label="Simuler un plan"
+              className="hidden h-9 max-w-[120px] rounded-md border border-border bg-background px-2 text-xs lg:block"
+              value={planId}
+              onChange={(e) => setPlan(e.target.value as SubscriptionPlanId)}
+            >
+              {plans.map((p) => (
+                <option key={p} value={p}>
+                  Plan {getPlan(p).name}
+                </option>
+              ))}
+            </select>
 
-        <select
-          aria-label="Simuler un rôle"
-          className="hidden h-9 max-w-[160px] rounded-md border border-border bg-background px-2 text-xs md:block"
-          value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
-        >
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {roleLabelFr(r)}
-            </option>
-          ))}
-        </select>
+            <select
+              aria-label="Simuler un rôle"
+              className="hidden h-9 max-w-[160px] rounded-md border border-border bg-background px-2 text-xs md:block"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {roleLabelFr(r)}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
 
         <Button
           variant="ghost"

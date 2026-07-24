@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { prisma } from "@/lib/db";
 import {
   connectSocialAccountViaKlirline,
@@ -35,26 +34,27 @@ import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 
 export const runtime = "nodejs";
 
-async function companyContext() {
-  const session = await getRequestSession();
-  if (!session) {
-    return { companyId: DEMO_COMPANY_ID, companyName: "KlirBuild" };
-  }
-  const enriched = await enrichSession(session);
+async function companyContext(): Promise<
+  { companyId: string; companyName: string } | NextResponse
+> {
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
   let companyName = "Mon entreprise";
   if (process.env.DATABASE_URL) {
     const company = await prisma.company.findUnique({
-      where: { id: enriched.companyId },
+      where: { id: auth.companyId },
       select: { name: true },
     });
     if (company?.name) companyName = company.name;
   }
-  return { companyId: enriched.companyId, companyName };
+  return { companyId: auth.companyId, companyName };
 }
 
 export async function GET(request: Request) {
   try {
-    const { companyId, companyName } = await companyContext();
+    const ctx = await companyContext();
+    if (ctx instanceof NextResponse) return ctx;
+    const { companyId, companyName } = ctx;
     const denied = await requireCompanyPlanFeature(companyId, "social_ads");
     if (denied) return denied;
     const url = new URL(request.url);
@@ -132,7 +132,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { companyId, companyName } = await companyContext();
+  const ctx = await companyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  const { companyId, companyName } = ctx;
   const denied = await requireCompanyPlanFeature(companyId, "social_ads");
   if (denied) return denied;
   const body = await request.json().catch(() => ({}));

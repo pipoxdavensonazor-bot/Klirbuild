@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { appendAiChatMessages, getAiChatThread } from "@/lib/ai/ai-chat-service";
 import { buildBusinessContext, buildConstructionContext } from "@/lib/ai/context";
 import {
@@ -9,7 +9,6 @@ import {
 import { mockKeywordReply } from "@/lib/ai/mock-replies";
 import type { ChatTurn } from "@/lib/ai/openai-client";
 import { constructionSystemPrompt, generalSystemPrompt } from "@/lib/ai/prompts";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
 import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { getMarket, type MarketRegionId } from "@/lib/markets/regions";
 
@@ -31,20 +30,16 @@ function parseHistory(raw: unknown): ChatTurn[] {
     .slice(-MAX_HISTORY);
 }
 
-async function resolveSession() {
-  const session = await getRequestSession();
-  if (!session) return { companyId: DEMO_COMPANY_ID, email: "guest@klirline.demo" };
-  const enriched = await enrichSession(session);
-  return { companyId: enriched.companyId, email: enriched.email };
-}
-
 export async function GET() {
-  const { companyId, email } = await resolveSession();
-  const thread = await getAiChatThread(companyId, email);
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
+  const thread = await getAiChatThread(auth.companyId, auth.session.email);
   return NextResponse.json(thread);
 }
 
 export async function POST(request: Request) {
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
   const body = await request.json().catch(() => ({}));
   const message = String(body.message ?? "").trim();
   const regionId = (body.marketRegion as MarketRegionId) || "CA-QC";
@@ -56,7 +51,8 @@ export async function POST(request: Request) {
   }
 
   const market = getMarket(regionId);
-  const { companyId, email } = await resolveSession();
+  const { companyId } = auth;
+  const email = auth.session.email;
   const denied = await requireCompanyPlanFeature(companyId, "ai");
   if (denied) return denied;
   const hasLiveAi = hasLiveAiProvider();

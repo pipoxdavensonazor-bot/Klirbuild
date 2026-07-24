@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import {
   crmKpis,
   deleteDeal,
@@ -13,21 +12,22 @@ import {
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  const enriched = await enrichSession(session);
-  return enriched.companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET() {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const [leads, deals] = await Promise.all([listLeads(cid), listDeals(cid)]);
   return NextResponse.json({ leads, deals, kpis: crmKpis(leads, deals) });
 }
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const body = await request.json().catch(() => ({}));
   const entity = body.entity === "deal" ? "deal" : "lead";
   const action = typeof body.action === "string" ? body.action : "upsert";

@@ -8,7 +8,8 @@
     "open": "npx cap open android",
     "add:android": "npx cap add android",
     "build:debug": "cd android && ./gradlew assembleDebug",
-    "build:release": "cd android && ./gradlew assembleRelease"
+    "build:release": "cd android && ./gradlew assembleRelease",
+    "build:aab": "cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^7.2.0",

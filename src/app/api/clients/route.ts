@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { createClient, listClients } from "@/lib/clients/client-service";
 import type { ClientStatus } from "@/types";
 
 export async function GET() {
-  const session = await getRequestSession();
-  const companyId = session?.companyId ?? DEMO_COMPANY_ID;
-  const clients = await listClients(companyId);
-  return NextResponse.json({ clients, companyId });
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
+  const clients = await listClients(auth.companyId);
+  return NextResponse.json({ clients, companyId: auth.companyId });
 }
 
 export async function POST(request: Request) {
-  const session = await getRequestSession();
-  const companyId = session?.companyId ?? DEMO_COMPANY_ID;
-  const gated = await requireCompanyPlanFeature(companyId, "crm");
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
+  const gated = await requireCompanyPlanFeature(auth.companyId, "crm");
   if (gated) return gated;
   const body = await request.json().catch(() => ({}));
 
@@ -29,7 +28,7 @@ export async function POST(request: Request) {
     typeof body.status === "string" ? (body.status as ClientStatus) : "lead";
 
   const result = await createClient({
-    companyId,
+    companyId: auth.companyId,
     name,
     email,
     phone,
@@ -40,31 +39,27 @@ export async function POST(request: Request) {
   });
 
   if ("error" in result && result.error) {
-    const status = result.error.includes("Limite") ? 403 : 400;
-    return NextResponse.json({ error: result.error }, { status });
+    const statusCode = result.error.includes("Limite") ? 403 : 400;
+    return NextResponse.json({ error: result.error }, { status: statusCode });
   }
 
   return NextResponse.json({ client: result.client }, { status: 201 });
 }
 
 export async function DELETE(request: Request) {
-  const session = await getRequestSession();
-  if (!session) {
-    return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
-  }
-  const { enrichSession } = await import("@/lib/auth/auth-service");
-  const enriched = await enrichSession(session);
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) return auth;
   const id = new URL(request.url).searchParams.get("id")?.trim() || "";
   if (!id) return NextResponse.json({ error: "ID requis." }, { status: 400 });
 
-  const client = (await listClients(enriched.companyId)).find((c) => c.id === id);
+  const client = (await listClients(auth.companyId)).find((c) => c.id === id);
   const { requestSensitiveDelete } = await import(
     "@/lib/admin/delete-governance-service"
   );
   const result = await requestSensitiveDelete({
-    companyId: enriched.companyId,
-    role: enriched.role,
-    email: enriched.email,
+    companyId: auth.companyId,
+    role: auth.session.role,
+    email: auth.session.email,
     resourceType: "client",
     resourceId: id,
     resourceLabel: client?.name,

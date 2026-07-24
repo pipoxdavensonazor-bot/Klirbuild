@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { connectSocialAccountViaKlirline } from "@/lib/social-ads/social-ads-service";
 import { connectZernioCallbackAccount } from "@/lib/social-ads/zernio-connections-service";
 import { isZernioEnabled, syncZernioAccounts } from "@/lib/social-ads/zernio-service";
@@ -10,10 +11,12 @@ export const runtime = "nodejs";
  * Callback OAuth → KlirBuild
  * Klirline: ?company_id=...&platform=meta&status=ok
  * Zernio: ?company_id=...&connected=facebook&accountId=...&username=...
+ *
+ * company_id in the query is validated against the signed session — never trusted alone.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const companyId = url.searchParams.get("company_id")?.trim() ?? "";
+  const claimedCompanyId = url.searchParams.get("company_id")?.trim() ?? "";
   const platform = (url.searchParams.get("platform")?.trim() ?? "meta") as SocialPlatform;
   const status = url.searchParams.get("status")?.trim() ?? "ok";
   const connected = url.searchParams.get("connected")?.trim();
@@ -28,10 +31,17 @@ export async function GET(request: Request) {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
   const redirectBase = `${appUrl}/social-ads`;
+  const loginUrl = `${appUrl}/login?next=${encodeURIComponent("/social-ads?tab=connections")}`;
 
-  if (!companyId) {
+  const auth = await requireCompanyContext();
+  if (auth instanceof NextResponse) {
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const companyId = auth.companyId;
+  if (claimedCompanyId && claimedCompanyId !== companyId) {
     return NextResponse.redirect(
-      `${redirectBase}?error=${encodeURIComponent("Paramètre company_id manquant")}&tab=connections`
+      `${redirectBase}?error=${encodeURIComponent("Entreprise OAuth non autorisée")}&tab=connections`
     );
   }
 

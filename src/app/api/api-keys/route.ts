@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import {
   createApiKey,
   listApiKeys,
@@ -9,14 +8,16 @@ import {
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  return (await enrichSession(session)).companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET() {
-  const keys = await listApiKeys(await companyId());
+  const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
+  const keys = await listApiKeys(cid);
   return NextResponse.json({ keys });
 }
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "create";
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
 
   if (action === "revoke") {
     const id = typeof body.id === "string" ? body.id : "";
