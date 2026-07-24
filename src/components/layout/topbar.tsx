@@ -96,11 +96,11 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   return (
     <>
-      <header className="app-topbar sticky top-0 z-20 flex items-center gap-1.5 overflow-hidden border-b border-border bg-background/90 px-2 backdrop-blur sm:gap-2 sm:px-3 md:gap-3 md:px-4">
+      <header className="app-topbar sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/90 px-2 backdrop-blur sm:gap-2.5 sm:px-3 md:gap-3 md:px-4">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 lg:hidden"
+          className="h-9 w-9 shrink-0 lg:hidden"
           onClick={onMenu}
           aria-label="Ouvrir le menu"
         >
@@ -111,7 +111,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           variant="full"
           priority
           zoom={0.95}
-          className="app-topbar-logo h-6 w-[64px] shrink-0 sm:h-7 sm:w-[76px] lg:hidden"
+          className="app-topbar-logo h-8 w-[88px] shrink-0 sm:h-9 sm:w-[104px] lg:hidden"
         />
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground md:flex">

@@ -114,7 +114,13 @@ function roleAllowed(
   return list.some((p) => canApp(role, p));
 }
 
-export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
+export function AppSidebar({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const role = useSessionStore((s) => s.role);
   const planId = useSessionStore((s) => s.plan);
@@ -143,6 +149,10 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
     return { visibleNav: visible, lockedNav: locked };
   }, [role, planId, isPlatformAdmin]);
 
+  function handleNav() {
+    onNavigate?.();
+  }
+
   return (
     <aside
       className={cn(
@@ -155,7 +165,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
           <KlirBuildLogo variant="mark" shape="circle" priority className="h-9 w-9" />
         ) : (
           <div className="flex flex-col items-start space-y-2">
-            <KlirBuildLogo variant="full" priority className="h-9 w-[104px] lg:h-[52px] lg:w-[148px]" />
+            <KlirBuildLogo variant="full" priority className="h-10 w-[112px] lg:h-[52px] lg:w-[148px]" />
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/50">
               Construction OS
             </p>
@@ -173,6 +183,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNav}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                 active
@@ -204,6 +215,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={handleNav}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                     active
@@ -237,6 +249,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
                     <Link
                       key={item.href}
                       href="/billing"
+                      onClick={handleNav}
                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/40 hover:bg-white/5"
                       title={`Upgrade requis — ${item.label}`}
                     >
@@ -264,6 +277,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
             {isCentralAdmin ? (
               <Link
                 href="/billing"
+                onClick={handleNav}
                 className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-accent-500 hover:underline"
               >
                 <Sparkles className="h-3 w-3" />

@@ -91,22 +91,22 @@
 
 .app-topbar {
   --app-top-inset: env(safe-area-inset-top, 0px);
-  --app-topbar-row: 2.75rem; /* compact static row */
+  --app-topbar-row: 3.25rem;
   height: calc(var(--app-topbar-row) + var(--app-top-inset));
   min-height: calc(var(--app-topbar-row) + var(--app-top-inset));
   padding-top: var(--app-top-inset);
   box-sizing: border-box;
   flex-wrap: nowrap;
-  white-space: nowrap;
+  overflow: visible;
 }
 
 .app-topbar-logo {
-  max-width: 64px;
+  max-width: 88px;
 }
 
 @media (min-width: 640px) {
   .app-topbar-logo {
-    max-width: 76px;
+    max-width: 104px;
   }
 }
 
