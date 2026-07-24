@@ -70,6 +70,37 @@
   }
 }
 
+/* Login shell: true fullscreen on Android / mobile browsers */
+.login-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  box-sizing: border-box;
+}
+
+.login-footer-compact {
+  padding-top: 0.85rem !important;
+  padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+.login-footer-compact .flex.flex-wrap.items-center.justify-center.gap-2\.5 a {
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+@media (max-width: 1023px) {
+  .login-footer-compact p.mb-3 {
+    display: none;
+  }
+  .login-footer-compact .flex.flex-wrap.items-center.justify-center.gap-2\.5 {
+    gap: 0.4rem;
+  }
+}
+
 /* Login fields: force readable black typed text on white inputs.
    Parent panel uses text-white; Android WebView / dark color-scheme
    can also force light text — override with !important + light scheme. */
