@@ -72,7 +72,7 @@ export function NotificationsBell() {
           setOpen((v) => !v);
           if (!open) void load();
         }}
-        className="relative"
+        className="relative h-8 w-8 shrink-0"
       >
         <Bell className="h-4 w-4" />
         {unread > 0 ? (
