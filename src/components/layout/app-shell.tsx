@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {mobileOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="app-mobile-drawer h-full w-64 shadow-soft">
+          <div className="app-mobile-drawer h-full w-[min(16.5rem,86vw)] shadow-soft">
             <AppSidebar />
           </div>
           <button

@@ -155,7 +155,7 @@ export function AppSidebar({ collapsed }: { collapsed?: boolean }) {
           <KlirBuildLogo variant="mark" shape="circle" priority className="h-9 w-9" />
         ) : (
           <div className="flex flex-col items-start space-y-2">
-            <KlirBuildLogo variant="full" priority className="h-[52px] w-[148px]" />
+            <KlirBuildLogo variant="full" priority className="h-9 w-[104px] lg:h-[52px] lg:w-[148px]" />
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/50">
               Construction OS
             </p>

@@ -96,15 +96,22 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   return (
     <>
-      <header className="app-topbar sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
-        <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenu}>
+      <header className="app-topbar sticky top-0 z-20 flex items-center gap-1.5 overflow-hidden border-b border-border bg-background/90 px-2 backdrop-blur sm:gap-2 sm:px-3 md:gap-3 md:px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 lg:hidden"
+          onClick={onMenu}
+          aria-label="Ouvrir le menu"
+        >
           <Menu className="h-4 w-4" />
         </Button>
 
         <KlirBuildLogo
           variant="full"
           priority
-          className="h-[34px] w-[96px] shrink-0 lg:hidden"
+          zoom={0.95}
+          className="app-topbar-logo h-6 w-[64px] shrink-0 sm:h-7 sm:w-[76px] lg:hidden"
         />
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground md:flex">
@@ -124,8 +131,18 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         </div>
 
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="ml-auto flex h-10 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:ml-0"
+          aria-label="Rechercher"
+          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-slate-50 text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:hidden"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:ml-0 md:flex"
         >
           <Search className="h-4 w-4" />
           <span className="flex-1 text-left">Search…</span>
@@ -176,6 +193,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         <Button
           variant="ghost"
           size="icon"
+          className="h-8 w-8 shrink-0"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label="Toggle theme"
         >
@@ -183,13 +201,17 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           <Moon className="hidden h-4 w-4 dark:block" />
         </Button>
 
-        <NotificationsBell />
+        <div className="shrink-0">
+          <NotificationsBell />
+        </div>
 
-        <ProfileMenu />
+        <div className="shrink-0">
+          <ProfileMenu />
+        </div>
       </header>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[12vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[max(12vh,calc(env(safe-area-inset-top,0px)+4rem))]">
           <div className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-background shadow-soft">
             <div className="border-b border-border p-3">
               <Input

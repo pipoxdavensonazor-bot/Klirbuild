@@ -92,11 +92,11 @@ export function ProfileMenu() {
   }
 
   return (
-    <div ref={ref} className="relative flex items-center gap-2">
+    <div ref={ref} className="relative flex items-center gap-1.5 sm:gap-2">
       <Link
         href="/profile"
         title={`Profil — ${company.name}`}
-        className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-sm transition hover:border-brand-400 hover:ring-2 hover:ring-brand-200 dark:bg-slate-900"
+        className="group hidden h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-sm transition hover:border-brand-400 hover:ring-2 hover:ring-brand-200 dark:bg-slate-900 md:flex"
       >
         {company.logoUrl ? (
           <Image
@@ -117,11 +117,11 @@ export function ProfileMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-2 transition hover:bg-slate-50 dark:hover:bg-slate-900"
+        className="flex h-8 items-center gap-1.5 rounded-full border border-border py-0.5 pl-0.5 pr-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-900 sm:pr-2"
         aria-expanded={open}
         aria-haspopup="true"
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500 text-[10px] font-semibold text-white">
           {(displayName
             .split(" ")
             .map((p) => p[0])
