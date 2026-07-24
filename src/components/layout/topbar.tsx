@@ -134,7 +134,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Rechercher"
-          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-slate-50 text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:hidden"
+          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-slate-50 text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:hidden"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -193,7 +193,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className="h-9 w-9 shrink-0"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label="Toggle theme"
         >
