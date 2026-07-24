@@ -4,8 +4,8 @@ import { promisify } from "util";
 const scryptAsync = promisify(scrypt);
 const pbkdf2Async = promisify(pbkdf2);
 
-/** Lighter than Node default scrypt — safe for Cloudflare Workers CPU limits. */
-const PBKDF2_ITERATIONS = 120_000;
+/** Cap at 100k — Cloudflare Workers reject PBKDF2 above that. */
+const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_KEYLEN = 32;
 const PBKDF2_DIGEST = "sha256";
 
