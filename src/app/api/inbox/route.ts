@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import {
   ensureCompanyInboxEmail,
   getCompanyEmailContext,
@@ -13,15 +12,15 @@ import {
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  const enriched = await enrichSession(session);
-  return enriched.companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   await ensureCompanyInboxEmail(cid);
   const clientId = new URL(request.url).searchParams.get("clientId") ?? undefined;
   const emails = await listEmails(cid, clientId);
@@ -45,6 +44,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const body = await request.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
   const subject = typeof body.subject === "string" ? body.subject : "";

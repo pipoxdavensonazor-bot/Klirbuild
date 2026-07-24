@@ -10,7 +10,14 @@ export const runtime = "nodejs";
  */
 export async function POST(request: Request) {
   const secret = process.env.DAILY_WEBHOOK_SECRET?.trim();
-  if (secret) {
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "DAILY_WEBHOOK_SECRET non configuré" },
+        { status: 503 }
+      );
+    }
+  } else {
     const header = request.headers.get("x-webhook-secret") || "";
     if (header !== secret) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

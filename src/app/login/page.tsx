@@ -14,7 +14,7 @@ export default function LoginPage() {
     <div className={loginDisplay.variable}>
       <Suspense
         fallback={
-            <div className="flex min-h-screen items-center justify-center bg-[#0A1C31] p-8 text-sm text-white">
+            <div className="login-shell flex items-center justify-center bg-[#0A1C31] p-8 text-sm text-white">
               Chargement du chantier…
             </div>
         }

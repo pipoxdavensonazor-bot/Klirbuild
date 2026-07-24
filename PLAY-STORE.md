@@ -25,7 +25,8 @@ export GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(cat play-sa.json)"
 # export GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=./play-sa.json
 
 npm run play:publish
-# → rebuild AAB + upload track internal
+# → rebuild AAB (bundleRelease) + upload track internal
+# APK sideload: npm run android:apk
 ```
 
 Production :

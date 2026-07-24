@@ -49,6 +49,8 @@ export function ProfileMenu() {
   const displayName = userName || userEmail.split("@")[0] || "Utilisateur";
   const market = getMarket(marketRegion);
 
+  const close = useCallback(() => setOpen(false), []);
+
   const loadCompany = useCallback(async () => {
     try {
       const res = await fetch(apiUrl("/api/company"), { credentials: "include" });
@@ -70,15 +72,17 @@ export function ProfileMenu() {
   }, [loadCompany]);
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    if (open) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
+    if (!open) return;
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open, close]);
 
   async function signOut() {
     setSigningOut(true);
+    close();
     try {
       await fetch(apiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
       useSessionStore.persist.clearStorage();
@@ -92,55 +96,56 @@ export function ProfileMenu() {
   }
 
   return (
-    <div ref={ref} className="relative flex items-center gap-2">
-      <Link
-        href="/profile"
-        title={`Profil — ${company.name}`}
-        className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-sm transition hover:border-brand-400 hover:ring-2 hover:ring-brand-200 dark:bg-slate-900"
-      >
-        {company.logoUrl ? (
-          <Image
-            src={company.logoUrl}
-            alt={company.name}
-            width={36}
-            height={36}
-            className="h-full w-full object-contain p-0.5"
-            unoptimized
-          />
-        ) : (
-          <span className="text-[10px] font-bold text-brand-700 group-hover:text-brand-500">
-            {companyInitials(company.name)}
-          </span>
-        )}
-      </Link>
-
+    <div ref={ref} className="relative shrink-0">
+      {/* Company profile only — opens dropdown */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-2 transition hover:bg-slate-50 dark:hover:bg-slate-900"
+        className="flex h-9 max-w-[9.5rem] items-center gap-1.5 rounded-full border border-border bg-white py-0.5 pl-0.5 pr-2 shadow-sm transition hover:border-brand-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 sm:max-w-[14rem]"
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="menu"
+        aria-label={`Menu entreprise ${company.name}`}
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
-          {(displayName
-            .split(" ")
-            .map((p) => p[0])
-            .join("")
-            .slice(0, 2) || "KB"
-          ).toUpperCase()}
-        </div>
-        <div className="hidden leading-tight sm:block text-left">
-          <p className="text-xs font-medium">{displayName}</p>
-          <p className="text-[10px] text-muted-foreground">{roleLabelFr(role)}</p>
-        </div>
-        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition", open && "rotate-180")} />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-white">
+          {company.logoUrl ? (
+            <Image
+              src={company.logoUrl}
+              alt=""
+              width={32}
+              height={32}
+              className="h-full w-full object-contain p-0.5"
+              unoptimized
+            />
+          ) : (
+            <span className="text-[10px] font-bold text-brand-700">
+              {companyInitials(company.name)}
+            </span>
+          )}
+        </span>
+        <span className="hidden min-w-0 flex-1 text-left leading-tight sm:block">
+          <span className="block truncate text-xs font-medium text-foreground">
+            {company.name}
+          </span>
+          <span className="block truncate text-[10px] text-muted-foreground">
+            {roleLabelFr(role)}
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition",
+            open && "rotate-180"
+          )}
+        />
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-background shadow-lg">
+        <div
+          role="menu"
+          className="absolute right-0 top-[calc(100%+0.35rem)] z-[60] w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border bg-background shadow-lg"
+        >
           <Link
             href="/profile"
-            onClick={() => setOpen(false)}
+            onClick={close}
             className="flex items-center gap-3 border-b border-border bg-slate-50/80 p-4 transition hover:bg-slate-100 dark:bg-slate-900/50"
           >
             {company.logoUrl ? (
@@ -149,7 +154,7 @@ export function ProfileMenu() {
                 alt=""
                 width={48}
                 height={48}
-                className="h-12 w-12 rounded-lg border border-border object-contain bg-white p-1"
+                className="h-12 w-12 rounded-lg border border-border bg-white object-contain p-1"
                 unoptimized
               />
             ) : (
@@ -160,11 +165,11 @@ export function ProfileMenu() {
             <div className="min-w-0">
               <p className="truncate font-semibold">{company.name}</p>
               <p className="text-xs text-muted-foreground">{displayName}</p>
-              <p className="text-[10px] text-brand-600">Modifier le profil →</p>
+              <p className="text-[10px] text-brand-600">Profil entreprise →</p>
             </div>
           </Link>
 
-          <div className="p-3 space-y-3">
+          <div className="space-y-3 p-3">
             <label className="block text-xs">
               <span className="mb-1 flex items-center gap-1 text-muted-foreground">
                 <Building2 className="h-3 w-3" />
@@ -189,23 +194,23 @@ export function ProfileMenu() {
             <div className="space-y-1 border-t border-border pt-2">
               <Link
                 href="/profile"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-900"
               >
                 <User className="h-4 w-4 text-muted-foreground" />
-                Mon profil & logo
+                Profil & logo entreprise
               </Link>
               <Link
                 href="/settings"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-900"
               >
                 <Settings className="h-4 w-4 text-muted-foreground" />
-                Paramètres complets
+                Paramètres
               </Link>
               <Link
                 href="/settings"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-900"
               >
                 <Shield className="h-4 w-4 text-muted-foreground" />

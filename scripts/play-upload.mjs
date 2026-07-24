@@ -60,7 +60,13 @@ function loadCredentials() {
 async function main() {
   if (!existsSync(AAB)) {
     throw new Error(
-      `AAB introuvable: ${AAB}\nLancez: cd apps/android/android && ./gradlew bundleRelease`
+      `AAB introuvable: ${AAB}\nLancez: npm run android:release\n(ou: cd apps/android/android && ./gradlew bundleRelease)`
+    );
+  }
+  if (!AAB.toLowerCase().endsWith(".aab")) {
+    throw new Error(
+      `PLAY_AAB_PATH doit pointer vers un fichier .aab (reçu: ${AAB}).\n` +
+        `Google Play n’accepte pas les APK via cette API — utilisez bundleRelease.`
     );
   }
 

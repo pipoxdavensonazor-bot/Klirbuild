@@ -24,12 +24,18 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: "#004F6E",
+    backgroundColor: "#0A1C31",
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: "#004F6E",
+      backgroundColor: "#0A1C31",
+      immersive: true,
+    },
+    StatusBar: {
+      overlaysWebView: true,
+      style: "DARK",
+      backgroundColor: "#00000000",
     },
   },
 };

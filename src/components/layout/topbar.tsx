@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/workforce/session";
 import { getPlan, routeAllowedForPlan, type SubscriptionPlanId } from "@/lib/billing/plans";
+import { showPlanRoleSimulators } from "@/lib/demo/show-simulators";
 import { getMarket, marketProfiles, type MarketRegionId } from "@/lib/markets/regions";
 import type { Role } from "@/types";
 import { ALL_ROLES, roleLabelFr } from "@/lib/workforce/roles";
@@ -61,11 +62,13 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const role = useSessionStore((s) => s.role);
   const planId = useSessionStore((s) => s.plan);
   const marketRegion = useSessionStore((s) => s.marketRegion);
+  const userEmail = useSessionStore((s) => s.userEmail);
   const setRole = useSessionStore((s) => s.setRole);
   const setPlan = useSessionStore((s) => s.setPlan);
   const setMarketRegion = useSessionStore((s) => s.setMarketRegion);
   const plan = getPlan(planId);
   const market = getMarket(marketRegion);
+  const showSimulators = showPlanRoleSimulators(userEmail);
 
   const crumbs = useMemo(
     () =>
@@ -96,15 +99,22 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur">
-        <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenu}>
+      <header className="app-topbar sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/90 px-2 backdrop-blur sm:gap-2.5 sm:px-3 md:gap-3 md:px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 lg:hidden"
+          onClick={onMenu}
+          aria-label="Ouvrir le menu"
+        >
           <Menu className="h-4 w-4" />
         </Button>
 
         <KlirBuildLogo
           variant="full"
           priority
-          className="h-[34px] w-[96px] shrink-0 lg:hidden"
+          zoom={0.95}
+          className="app-topbar-logo h-8 w-[88px] shrink-0 sm:h-9 sm:w-[104px] lg:hidden"
         />
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground md:flex">
@@ -124,8 +134,18 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         </div>
 
         <button
+          type="button"
           onClick={() => setOpen(true)}
-          className="ml-auto flex h-10 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:ml-0"
+          aria-label="Rechercher"
+          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-slate-50 text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:hidden"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="ml-auto hidden h-10 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 md:ml-0 md:flex"
         >
           <Search className="h-4 w-4" />
           <span className="flex-1 text-left">Search…</span>
@@ -134,48 +154,53 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           </kbd>
         </button>
 
-        <select
-          aria-label="Marché"
-          className="hidden h-9 max-w-[150px] rounded-md border border-border bg-background px-2 text-xs xl:block"
-          value={marketRegion}
-          onChange={(e) => setMarketRegion(e.target.value as MarketRegionId)}
-        >
-          {marketProfiles.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id}
-            </option>
-          ))}
-        </select>
+        {showSimulators ? (
+          <>
+            <select
+              aria-label="Marché"
+              className="hidden h-9 max-w-[150px] rounded-md border border-border bg-background px-2 text-xs xl:block"
+              value={marketRegion}
+              onChange={(e) => setMarketRegion(e.target.value as MarketRegionId)}
+            >
+              {marketProfiles.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id}
+                </option>
+              ))}
+            </select>
 
-        <select
-          aria-label="Simuler un plan"
-          className="hidden h-9 max-w-[120px] rounded-md border border-border bg-background px-2 text-xs lg:block"
-          value={planId}
-          onChange={(e) => setPlan(e.target.value as SubscriptionPlanId)}
-        >
-          {plans.map((p) => (
-            <option key={p} value={p}>
-              Plan {getPlan(p).name}
-            </option>
-          ))}
-        </select>
+            <select
+              aria-label="Simuler un plan"
+              className="hidden h-9 max-w-[120px] rounded-md border border-border bg-background px-2 text-xs lg:block"
+              value={planId}
+              onChange={(e) => setPlan(e.target.value as SubscriptionPlanId)}
+            >
+              {plans.map((p) => (
+                <option key={p} value={p}>
+                  Plan {getPlan(p).name}
+                </option>
+              ))}
+            </select>
 
-        <select
-          aria-label="Simuler un rôle"
-          className="hidden h-9 max-w-[160px] rounded-md border border-border bg-background px-2 text-xs md:block"
-          value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
-        >
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {roleLabelFr(r)}
-            </option>
-          ))}
-        </select>
+            <select
+              aria-label="Simuler un rôle"
+              className="hidden h-9 max-w-[160px] rounded-md border border-border bg-background px-2 text-xs md:block"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {roleLabelFr(r)}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
 
         <Button
           variant="ghost"
           size="icon"
+          className="h-9 w-9 shrink-0"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label="Toggle theme"
         >
@@ -183,13 +208,17 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           <Moon className="hidden h-4 w-4 dark:block" />
         </Button>
 
-        <NotificationsBell />
+        <div className="shrink-0">
+          <NotificationsBell />
+        </div>
 
-        <ProfileMenu />
+        <div className="shrink-0">
+          <ProfileMenu />
+        </div>
       </header>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[12vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[max(12vh,calc(env(safe-area-inset-top,0px)+4rem))]">
           <div className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-background shadow-soft">
             <div className="border-b border-border p-3">
               <Input

@@ -1,25 +1,25 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { createQuote, listQuotes } from "@/lib/quotes/quote-service";
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  const enriched = await enrichSession(session);
-  return enriched.companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET() {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const quotes = await listQuotes(cid);
   return NextResponse.json({ quotes });
 }
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const body = await request.json().catch(() => ({}));
   const clientId = typeof body.clientId === "string" ? body.clientId : "";
   const items = Array.isArray(body.items) ? body.items : undefined;

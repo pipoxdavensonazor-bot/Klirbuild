@@ -150,8 +150,8 @@ export const tutorials: Tutorial[] = [
       },
       {
         time: "3:20",
-        title: "Simuler un rôle",
-        body: "Changez le rôle simulé dans la barre du haut : la navigation change selon le profil.",
+        title: "Simuler un rôle (compte démo)",
+        body: "Sur un compte @klirline.demo, changez le rôle simulé dans la barre du haut : la navigation change selon le profil.",
       },
       {
         time: "4:10",

@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
-import { DEMO_COMPANY_ID } from "@/lib/billing/constants";
+import { requireCompanyContext } from "@/lib/auth/require-company";
 import { requireCompanyPlanFeature } from "@/lib/billing/require-plan-server";
 import { createProject, listProjects } from "@/lib/projects/project-service";
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return DEMO_COMPANY_ID;
-  const enriched = await enrichSession(session);
-  return enriched.companyId;
+async function companyId(): Promise<string | NextResponse> {
+  const ctx = await requireCompanyContext();
+  if (ctx instanceof NextResponse) return ctx;
+  return ctx.companyId;
 }
 
 export async function GET(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const clientId = new URL(request.url).searchParams.get("clientId") ?? undefined;
   const projects = await listProjects(cid, clientId);
   return NextResponse.json({ projects });
@@ -22,6 +21,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cid = await companyId();
+  if (cid instanceof NextResponse) return cid;
   const gated = await requireCompanyPlanFeature(cid, "projects");
   if (gated) return gated;
   const body = await request.json().catch(() => ({}));
