@@ -5,6 +5,7 @@ import {
   createDemoSession,
   parseSessionCookie,
 } from "@/lib/auth/demo-session";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 
 describe("TOTP", () => {
   it("génère un secret base32 et valide un code courant", () => {
@@ -42,6 +43,26 @@ describe("TOTP", () => {
 
     expect(verifyTotpCode(secret, otp)).toBe(true);
     expect(verifyTotpCode(secret, "000000")).toBe(false);
+  });
+});
+
+describe("password hashing", () => {
+  it("hash pbkdf2 et vérifie le mot de passe", async () => {
+    const hash = await hashPassword("SecretPass123!");
+    expect(hash.startsWith("pbkdf2:")).toBe(true);
+    expect(await verifyPassword("SecretPass123!", hash)).toBe(true);
+    expect(await verifyPassword("wrong", hash)).toBe(false);
+  });
+
+  it("accepte encore les hash scrypt historiques", async () => {
+    const { randomBytes, scrypt } = await import("crypto");
+    const { promisify } = await import("util");
+    const scryptAsync = promisify(scrypt);
+    const salt = randomBytes(16).toString("hex");
+    const derived = (await scryptAsync("legacy-pass", salt, 64)) as Buffer;
+    const legacy = `${salt}:${derived.toString("hex")}`;
+    expect(await verifyPassword("legacy-pass", legacy)).toBe(true);
+    expect(await verifyPassword("nope", legacy)).toBe(false);
   });
 });
 

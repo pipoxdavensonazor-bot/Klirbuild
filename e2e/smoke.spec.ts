@@ -19,7 +19,7 @@ test.describe("KlirBuild smoke", () => {
     await expect(page.getByPlaceholder("Email")).toBeVisible();
     await expect(page.getByPlaceholder("Mot de passe")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Entrer sur le chantier|Valider/i })
+      page.getByRole("button", { name: /^(Connexion|Valider)/i })
     ).toBeVisible();
   });
 
@@ -45,7 +45,7 @@ test.describe("KlirBuild smoke", () => {
     await page.goto("/login");
     await page.getByPlaceholder("Email").fill(email!);
     await page.getByPlaceholder("Mot de passe").fill(password!);
-    await page.getByRole("button", { name: /Entrer sur le chantier|Valider/i }).click();
+    await page.getByRole("button", { name: /^(Connexion|Valider)/i }).click();
     await page.waitForURL(/dashboard|2fa|login/i, { timeout: 30_000 });
     if (page.url().includes("login")) {
       // 2FA step on same form
@@ -62,7 +62,7 @@ test.describe("KlirBuild smoke", () => {
     await page.goto("/login");
     await page.getByPlaceholder("Email").fill(email!);
     await page.getByPlaceholder("Mot de passe").fill(password!);
-    await page.getByRole("button", { name: /Entrer sur le chantier|Valider/i }).click();
+    await page.getByRole("button", { name: /^(Connexion|Valider)/i }).click();
     await page.waitForURL(/dashboard|login/i, { timeout: 30_000 });
     test.skip(page.url().includes("login"), "2FA ou login échoué");
 

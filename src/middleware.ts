@@ -27,11 +27,44 @@ const PUBLIC_PATHS = [
 const DEMO_AUTH_BYPASS =
   process.env.DEMO_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
 
+const CORS_ORIGINS = new Set([
+  "https://klirline.app",
+  "https://www.klirline.app",
+  "https://klirbuild.pipoxdavensonazor.workers.dev",
+  "capacitor://localhost",
+  "https://localhost",
+  "http://localhost",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+]);
+
+function withApiCors(request: NextRequest, response: NextResponse) {
+  const origin = request.headers.get("origin") || "";
+  if (origin && CORS_ORIGINS.has(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Credentials", "true");
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With"
+    );
+    response.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+    response.headers.set("Vary", "Origin");
+  }
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (apiRequiresDatabase(pathname) && !hasDatabaseUrl()) {
-    return databaseRequiredResponse();
+    return withApiCors(request, databaseRequiredResponse());
+  }
+
+  if (pathname.startsWith("/api/") && request.method === "OPTIONS") {
+    return withApiCors(request, new NextResponse(null, { status: 204 }));
   }
 
   if (
@@ -40,7 +73,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    if (pathname.startsWith("/api/")) return withApiCors(request, response);
+    return response;
   }
 
   if (DEMO_AUTH_BYPASS) {

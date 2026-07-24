@@ -7,7 +7,7 @@ import Link from "next/link";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
-import { apiUrl, parseApiResponse } from "@/lib/api-client";
+import { apiUrl, networkErrorMessage, parseApiResponse } from "@/lib/api-client";
 
 function isNativeShell() {
   if (typeof window === "undefined") return false;
@@ -88,7 +88,7 @@ export function LoginForm() {
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur réseau");
+      setError(networkErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -214,7 +214,7 @@ export function LoginForm() {
                   ? "Connexion…"
                   : requires2fa
                     ? "Valider le code"
-                    : "Entrer sur le chantier"}
+                    : "Connexion"}
               </Button>
               {requires2fa ? (
                 <Button

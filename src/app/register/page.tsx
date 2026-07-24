@@ -8,7 +8,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { apiUrl, parseApiResponse } from "@/lib/api-client";
+import { apiUrl, networkErrorMessage, parseApiResponse } from "@/lib/api-client";
 
 function RegisterForm() {
   const router = useRouter();
@@ -72,7 +72,7 @@ function RegisterForm() {
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur réseau");
+      setError(networkErrorMessage(err));
     } finally {
       setLoading(false);
     }
