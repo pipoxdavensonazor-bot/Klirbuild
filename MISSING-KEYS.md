@@ -25,9 +25,20 @@ Alt. Zapier MCP : connecter Stripe via
 `https://mcp.zapier.com/api/v1/connect-auth/StripeCLIAPI?accountId=27053541`
 puis demander à l’agent de créer les produits.
 
-## Google
+## Google OAuth
 
-Redirect URI exacte : `https://klirline.app/api/auth/google/callback`
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Créer identifiants → **ID client OAuth** → Type **Application Web**
+2. Origines JS : `https://klirline.app`
+3. Redirect URI exacte : `https://klirline.app/api/auth/google/callback`
+4. Publier les secrets Worker :
+
+```bash
+printf '%s' 'VOTRE_CLIENT_ID.apps.googleusercontent.com' | npx wrangler secret put GOOGLE_CLIENT_ID
+printf '%s' 'VOTRE_CLIENT_SECRET' | npx wrangler secret put GOOGLE_CLIENT_SECRET
+npm run deploy
+```
+
+Sans ces secrets, le bouton « Continuer avec Google » reste masqué (login email/mot de passe OK).
 
 ## Provision automatique (dès que `sk_test_` est dispo)
 

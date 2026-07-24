@@ -123,10 +123,10 @@ export async function GET(request: Request) {
       tier: "premium",
     },
     googleOAuth: {
-      ok: true,
+      ok: isGoogleOAuthConfigured(),
       detail: isGoogleOAuthConfigured()
         ? "Google OAuth actif"
-        : "GOOGLE_CLIENT_ID / SECRET optionnels — login email/mot de passe OK",
+        : "GOOGLE_CLIENT_ID / SECRET manquants — bouton Google masqué",
       tier: "premium",
     },
     openai: {
