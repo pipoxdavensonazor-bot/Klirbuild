@@ -24,7 +24,7 @@ const INTEGRATIONS: {
     checkIds: ["googleOAuth"],
     hint: "Connexion avec un compte Google",
     pendingHint:
-      "Créez un client OAuth Google et ajoutez GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET sur Netlify. Redirect URI : https://klirline.app/api/auth/google/callback",
+      "Créez un client OAuth Google (Web) et ajoutez GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET via wrangler secret put. Redirect URI : https://klirline.app/api/auth/google/callback",
   },
   {
     name: "OpenAI",
