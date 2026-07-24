@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(26,54,93,0.05),_transparent_30%),linear-gradient(180deg,#f5f6f8_0%,#eef1f5_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(26,54,93,0.28),_transparent_32%),linear-gradient(180deg,#0a1220_0%,#040b14_100%)]">
+    <div className="app-shell flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(26,54,93,0.05),_transparent_30%),linear-gradient(180deg,#f5f6f8_0%,#eef1f5_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(26,54,93,0.28),_transparent_32%),linear-gradient(180deg,#0a1220_0%,#040b14_100%)]">
       <SessionSync />
       <div className="hidden lg:block">
         <div className="sticky top-0 h-screen">
@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {mobileOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="h-full w-64 shadow-soft">
+          <div className="app-mobile-drawer h-full w-64 shadow-soft">
             <AppSidebar />
           </div>
           <button
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <AppFooter />
       </div>
 
-      <Link href="/ai" className="fixed bottom-20 right-5 z-30 lg:bottom-5">
+      <Link href="/ai" className="app-fab-ai fixed right-5 z-30">
         <Button size="lg" className="rounded-full shadow-soft">
           <Bot className="h-4 w-4" />
           Klir AI

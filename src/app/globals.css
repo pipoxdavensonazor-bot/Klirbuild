@@ -82,6 +82,49 @@
   box-sizing: border-box;
 }
 
+/* App chrome: keep menu bar below Android status bar */
+.app-topbar {
+  --app-top-inset: env(safe-area-inset-top, 0px);
+  height: calc(3.5rem + var(--app-top-inset));
+  padding-top: var(--app-top-inset);
+  box-sizing: border-box;
+}
+
+.app-mobile-drawer {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-fab-ai {
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .app-fab-ai {
+    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Android WebView often reports 0 safe-area — force a status-bar gap */
+html.capacitor-android .app-topbar,
+html.capacitor-native .app-topbar {
+  --app-top-inset: max(env(safe-area-inset-top, 0px), 32px);
+}
+
+html.capacitor-android .login-shell,
+html.capacitor-native .login-shell {
+  padding-top: max(env(safe-area-inset-top, 0px), 32px);
+}
+
+html.capacitor-android .app-mobile-drawer,
+html.capacitor-native .app-mobile-drawer {
+  padding-top: max(env(safe-area-inset-top, 0px), 32px);
+}
+
+html.capacitor-android .app-fab-ai,
+html.capacitor-native .app-fab-ai {
+  bottom: calc(5rem + max(env(safe-area-inset-bottom, 0px), 16px));
+}
+
 .login-footer-compact {
   padding-top: 0.85rem !important;
   padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px)) !important;
