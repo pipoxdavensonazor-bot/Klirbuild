@@ -70,6 +70,25 @@
   }
 }
 
+/* Login fields: force black typed text (parent panel uses text-white) */
+.login-field {
+  color: #0a0a0a;
+  caret-color: #0a0a0a;
+}
+
+.login-field::placeholder {
+  color: #737373;
+}
+
+.login-field:-webkit-autofill,
+.login-field:-webkit-autofill:hover,
+.login-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0a0a0a;
+  caret-color: #0a0a0a;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 99999s ease-out;
+}
+
 /* ── Login floor plan background ──────────────────────────────── */
 .login-floorplan-bg {
   background: #0A1C31;

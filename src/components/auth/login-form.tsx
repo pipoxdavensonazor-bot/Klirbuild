@@ -139,7 +139,7 @@ export function LoginForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-11 bg-white"
+                    className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
                   />
                   <Input
                     type="password"
@@ -147,7 +147,7 @@ export function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-11 bg-white"
+                    className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
                   />
                 </>
               ) : (
@@ -160,10 +160,10 @@ export function LoginForm() {
                   onChange={(e) => setCode(e.target.value)}
                   required
                   maxLength={8}
-                  className="h-11 bg-white"
+                  className="login-field h-11 bg-white text-black placeholder:text-neutral-500"
                 />
               )}
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? <p className="text-sm text-red-700">{error}</p> : null}
               <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading
                   ? "Connexion…"
