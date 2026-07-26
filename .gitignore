@@ -54,6 +54,7 @@ prisma/*.db-journal
 *.tsbuildinfo
 next-env.d.ts
 _ref_construction/
+klirline-store.zip
 
 #amplify-do-not-edit-begin
 amplify/\#current-cloud-backend

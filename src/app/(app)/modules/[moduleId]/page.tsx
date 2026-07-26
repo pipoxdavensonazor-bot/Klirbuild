@@ -32,6 +32,66 @@ export default async function ModuleStubPage({
     );
   }
 
+  if (moduleId === "retail-os") {
+    const storeUrl =
+      process.env.NEXT_PUBLIC_KLIRLINE_STORE_URL ??
+      "https://klirline.com";
+    const content = getModulePageContent(mod);
+    return (
+      <div id="klirline-store">
+        <PageHeader
+          title={mod.name}
+          description={content.tagline}
+          actions={
+            <>
+              <StatusBadge status="pending" />
+              <a href={storeUrl} target="_blank" rel="noopener noreferrer">
+                <Button>Ouvrir Klirline Store</Button>
+              </a>
+              <Link href="/settings">
+                <Button variant="outline">Gérer les modules</Button>
+              </Link>
+            </>
+          }
+        />
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Klirline Store</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                Marketplace Vite + Supabase + MonCash dans{" "}
+                <code className="text-xs">apps/klirline-store</code>.
+              </p>
+              <ul className="list-inside list-disc space-y-2">
+                {content.features.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              <p className="text-xs">
+                Local: <code>npm run store:dev</code> depuis la racine du monorepo.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Feuille de route</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
+                {content.roadmap.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   const content = getModulePageContent(mod);
 
   return (

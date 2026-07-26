@@ -30,7 +30,7 @@
     "e2e:ui": "playwright test --ui",
     "security:check": "node scripts/security-check.mjs",
     "amplify:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws-amplify-fix.ps1",
-    "desktop:dev": "npm --prefix apps/desktop run dev",
+"desktop:dev": "npm --prefix apps/desktop run dev",
     "desktop:build": "npm --prefix apps/desktop run build",
     "android:sync": "npm --prefix apps/android run sync",
     "android:open": "npm --prefix apps/android run open",
@@ -41,7 +41,11 @@
     "play:publish": "npm run android:release && PLAY_AAB_PATH=apps/android/android/app/build/outputs/bundle/release/app-release.aab npm run play:upload",
     "stripe:provision": "node scripts/stripe-provision-prod.mjs",
     "ios:sync": "npm --prefix apps/ios run sync",
-    "docs:inventory": "python3 scripts/generate-inventory-pdf.py"
+    "docs:inventory": "python3 scripts/generate-inventory-pdf.py",
+    "store:dev": "npm --prefix apps/klirline-store run dev",
+    "store:build": "npm --prefix apps/klirline-store run build",
+    "store:install": "npm --prefix apps/klirline-store install",
+    "store:deploy": "npm --prefix apps/klirline-store run deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

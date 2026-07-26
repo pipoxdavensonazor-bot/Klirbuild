@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "sentry": {
+      "enabled": true
+    },
+    "notion": {
+      "enabled": true
+    },
+    "stripe": {
+      "enabled": true
+    },
+    "miro": {
+      "enabled": true
+    },
+    "github": {
+      "enabled": true
+    }
+  }
+}

@@ -42,15 +42,20 @@ export const modulePageContent: Record<string, ModulePageContent> = {
     status: "planned",
   },
   "retail-os": {
-    tagline: "Inventaire multi-magasins et opérations retail.",
+    tagline: "Klirline Store — marketplace Haiti avec MonCash, vendeurs et inventaire.",
     features: [
-      "Stock par emplacement",
-      "Réapprovisionnement",
-      "Promotions et marges",
-      "Équipe et shifts",
+      "Vitrine Klirline Store (apps/klirline-store)",
+      "Catalogue produits + filtres HTG",
+      "Comptes vendeurs / KYC + panel admin",
+      "Checkout Digicel MonCash",
+      "Wishlist, commandes, panier session",
     ],
-    roadmap: ["Code-barres", "E-commerce sync", "Loyalty"],
-    status: "planned",
+    roadmap: [
+      "Sync inventaire Retail OS ↔ Store",
+      "Loyalty / points Klirline",
+      "Multi-magasin et code-barres",
+    ],
+    status: "preview",
   },
   "education-os": {
     tagline: "Programmes, cohortes et opérations pour écoles et centres de formation.",

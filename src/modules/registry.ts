@@ -47,8 +47,12 @@ export const moduleRegistry: KlirlineModule[] = [
   {
     id: "retail-os",
     name: "Retail OS",
-    description: "Inventory, locations, and retail operations.",
-    nav: [{ href: "/modules/retail-os", label: "Retail OS" }],
+    description:
+      "Klirline Store marketplace — catalog, vendors, MonCash checkout for Haiti retail.",
+    nav: [
+      { href: "/modules/retail-os", label: "Retail OS" },
+      { href: "/modules/retail-os#klirline-store", label: "Klirline Store" },
+    ],
     permissions: ["crm:read"],
   },
   {

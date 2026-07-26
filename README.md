@@ -74,3 +74,14 @@ Legacy Netlify notes remain in [`DEPLOY.md`](DEPLOY.md).
 ## Bolt prompts
 
 See `BOLT_PROMPTS_12_SERIES.md` and `BOLT_PROMPTS_KLIRLINE_CORE_MVP.md`.
+
+## Klirline Store
+
+Marketplace sibling app (Vite) lives in `apps/klirline-store`.
+
+```bash
+npm run store:install
+npm run store:dev
+```
+
+Linked from KlirlineOS **Retail OS** (`/modules/retail-os`). See `apps/klirline-store/README.md`.
