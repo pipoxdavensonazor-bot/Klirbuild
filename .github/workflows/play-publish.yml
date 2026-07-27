@@ -40,7 +40,7 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: ${{ inputs.build_android != false }}
         with:
           distribution: temurin
