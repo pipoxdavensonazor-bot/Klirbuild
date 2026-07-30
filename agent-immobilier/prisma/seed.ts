@@ -73,25 +73,61 @@ async function main() {
     },
   });
 
+  const centrisCondoImages = [
+    "ADDD250DE614ADFDDDDDDDDDDB",
+    "ADDD250DDD1B4FEDDDDDDDDDDB",
+    "ADDD250DDDD1DE7DDDDDDDDDDB",
+    "ADDD250DE614AD8DDDDDDDDDDA",
+    "ADDD250DE614AD9DDDDDDDDDD0",
+    "ADDD250DE614AD3DDDDDDDDDDF",
+    "ADDD250DE614AD5DDDDDDDDDDD",
+    "ADDD250DE614AD6DDDDDDDDDD1",
+  ].map(
+    (id, sortOrder) => ({
+      url: `https://mspublic.centris.ca/media.ashx?id=${id}&t=pi&w=1260&h=1024&sm=c`,
+      alt: sortOrder === 0 ? "Condo Louis-Jolliet" : `Photo ${sortOrder + 1}`,
+      sortOrder,
+    })
+  );
+
   const condo = await prisma.property.create({
     data: {
       slug: "condo-50-louis-jolliet-301-saint-jerome",
       title: "Condo — 50 Rue Louis-Jolliet, app. 301",
-      description: "Condo à vendre à Saint-Jérôme. Idéal premier acheteur ou investissement.",
-      address: "50 Rue Louis-Jolliet, app. 301",
+      description: `
+<p><strong>Condo clé en main à Saint-Jérôme</strong> — localisation stratégique, opportunité à saisir.</p>
+<p>Vous recherchez un condo à vendre à Saint-Jérôme offrant confort, luminosité et accessibilité&nbsp;? Cette propriété située au <strong>50, rue Louis-Jolliet, app.&nbsp;301</strong> est une occasion à ne pas manquer dans le secteur prisé des Laurentides.</p>
+<p>Dès votre entrée, vous serez charmé par une <strong>aire de vie ouverte baignée de lumière naturelle</strong>, créant un espace chaleureux et invitant. La cuisine propose un espace pratique avec rangement optimisé, s’ouvrant sur un salon convivial.</p>
+<h3>Caractéristiques</h3>
+<ul>
+  <li><strong>Type :</strong> Condo (copropriété divise)</li>
+  <li><strong>Pièces :</strong> 8 · <strong>Chambres :</strong> 2 · <strong>Salle de bain :</strong> 1</li>
+  <li><strong>Superficie nette :</strong> 1&nbsp;192&nbsp;pi² · <strong>Année :</strong> 2009</li>
+  <li><strong>Emménagement :</strong> 60&nbsp;jours après acceptation de la promesse d’achat</li>
+</ul>
+<h3>Détails financiers</h3>
+<ul>
+  <li><strong>Prix :</strong> 399&nbsp;999&nbsp;$</li>
+  <li><strong>Évaluation municipale (2024) :</strong> 364&nbsp;000&nbsp;$</li>
+  <li><strong>Taxes (2026) :</strong> 2&nbsp;598&nbsp;$ / an</li>
+  <li><strong>Frais de copropriété :</strong> 226&nbsp;$ / mois</li>
+</ul>
+<p><strong>Nº Centris :</strong> <a href="https://www.centris.ca/fr/condo~a-vendre~saint-jerome/28226321" target="_blank" rel="noopener noreferrer">28226321</a></p>
+`.trim(),
+      address: "50, Rue Louis-Jolliet, app. 301",
       city: "Saint-Jérôme",
       price: 399999,
       type: "CONDO",
       bedrooms: 2,
       bathrooms: 1,
-      garage: true,
-      areaSqft: 950,
+      garage: false,
+      areaSqft: 1192,
       status: "AVAILABLE",
       featured: true,
+      mapEmbedUrl:
+        "https://maps.google.com/maps?q=45.762861,-74.012639&z=16&output=embed",
       images: {
-        create: [
-          { url: unsplash("photo-1502672260266-1c1ef2d93688"), alt: "Condo", sortOrder: 0 },
-        ],
+        create: centrisCondoImages,
       },
     },
   });

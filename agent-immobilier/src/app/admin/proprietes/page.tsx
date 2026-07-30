@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { ensureOpenHouseSchema } from "@/lib/ensure-schema";
 import { formatPrice, propertyTypeLabel, statusLabel } from "@/lib/utils";
 import { PropertyAdminForm } from "@/components/admin/property-form";
 import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Maisons · Admin" };
 
 export default async function AdminPropertiesPage() {
+  await ensureOpenHouseSchema();
   const properties = await prisma.property
     .findMany({
       include: {
@@ -17,7 +19,17 @@ export default async function AdminPropertiesPage() {
       },
       orderBy: { updatedAt: "desc" },
     })
-    .catch(() => []);
+    .catch(async () =>
+      prisma.property
+        .findMany({
+          include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+          orderBy: { updatedAt: "desc" },
+        })
+        .then((rows) =>
+          rows.map((p) => ({ ...p, openHouses: [] as never[] }))
+        )
+        .catch(() => [])
+    );
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12">
@@ -113,7 +125,9 @@ export default async function AdminPropertiesPage() {
                       featured: p.featured,
                       garage: p.garage,
                       imageUrl: p.images[0]?.url || "",
+                      imageUrls: p.images.map((img) => img.url),
                       videoUrl: p.videoUrl,
+                      mapEmbedUrl: p.mapEmbedUrl,
                       openHouse: oh
                         ? {
                             startsAt: oh.startsAt.toISOString(),

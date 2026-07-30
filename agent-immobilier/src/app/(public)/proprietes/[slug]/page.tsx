@@ -5,6 +5,7 @@ import { ContactForm } from "@/components/contact/contact-form";
 import { RichHtml } from "@/components/ui/rich-html";
 import { SiteImage } from "@/components/ui/site-image";
 import { Button } from "@/components/ui/button";
+import { ensureOpenHouseSchema } from "@/lib/ensure-schema";
 import { prisma } from "@/lib/prisma";
 import {
   formatPrice,
@@ -35,17 +36,31 @@ export default async function PropertyDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const property = await prisma.property.findUnique({
-    where: { slug },
-    include: {
-      images: { orderBy: { sortOrder: "asc" } },
-      openHouses: {
-        where: { published: true, endsAt: { gte: new Date() } },
-        orderBy: { startsAt: "asc" },
+  await ensureOpenHouseSchema();
+
+  const property = await prisma.property
+    .findUnique({
+      where: { slug },
+      include: {
+        images: { orderBy: { sortOrder: "asc" } },
+        openHouses: {
+          where: { published: true, endsAt: { gte: new Date() } },
+          orderBy: { startsAt: "asc" },
+        },
       },
-    },
-  });
+    })
+    .catch(() =>
+      prisma.property.findUnique({
+        where: { slug },
+        include: { images: { orderBy: { sortOrder: "asc" } } },
+      })
+    );
   if (!property) notFound();
+
+  const openHouse =
+    "openHouses" in property && Array.isArray(property.openHouses)
+      ? property.openHouses[0]
+      : null;
 
   const profile = await prisma.profile.findFirst();
   const phone = profile?.phone ?? "(514) 574-8712";
@@ -69,12 +84,12 @@ export default async function PropertyDetailPage({
       </div>
       <p className="mt-2 text-sm text-slate-500">{property.address}</p>
 
-      {property.openHouses[0] ? (
+      {openHouse ? (
         <div className="mt-6 border border-[#C9A227]/40 bg-[#C9A227]/10 px-4 py-3 text-sm text-[#0F172A]">
           <strong>Visite libre :</strong>{" "}
-          {property.openHouses[0].startsAt.toLocaleString("fr-CA")} →{" "}
-          {property.openHouses[0].endsAt.toLocaleString("fr-CA")}
-          {property.openHouses[0].notes ? ` — ${property.openHouses[0].notes}` : ""}
+          {openHouse.startsAt.toLocaleString("fr-CA")} →{" "}
+          {openHouse.endsAt.toLocaleString("fr-CA")}
+          {openHouse.notes ? ` — ${openHouse.notes}` : ""}
         </div>
       ) : null}
 
@@ -136,9 +151,27 @@ export default async function PropertyDetailPage({
         </h2>
         <RichHtml
           html={property.description}
-          className="mt-4 text-slate-600 [&_a]:text-[#C9A227] [&_img]:my-4 [&_img]:max-w-full [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
+          className="mt-4 text-slate-600 [&_a]:text-[#C9A227] [&_img]:my-4 [&_img]:max-w-full [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:font-semibold [&_h3]:text-[#0F172A]"
         />
       </div>
+
+      {property.mapEmbedUrl ? (
+        <div className="mt-10 overflow-hidden border border-slate-200">
+          <h2 className="border-b border-slate-200 px-4 py-3 font-[family-name:var(--font-display)] text-xl text-[#0F172A]">
+            Localisation
+          </h2>
+          <div className="aspect-[16/9] w-full bg-slate-100">
+            <iframe
+              src={property.mapEmbedUrl}
+              title={`Carte — ${property.title}`}
+              className="h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      ) : null}
 
       <section className="mt-14 grid gap-10 border-t border-slate-200 pt-12 lg:grid-cols-5">
         <div className="lg:col-span-2">

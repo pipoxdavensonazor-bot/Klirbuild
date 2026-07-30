@@ -24,7 +24,9 @@ type PropertyInput = {
   featured?: boolean;
   garage?: boolean;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string | null;
+  mapEmbedUrl?: string | null;
   openHouse?: {
     startsAt?: string;
     endsAt?: string;
@@ -58,7 +60,11 @@ export function PropertyAdminForm({
     setMessage(null);
     const fd = new FormData(e.currentTarget);
     const clearOh = fd.get("ohClear") === "on";
-    const payload = {
+    const gallery = String(fd.get("imageUrls") || "")
+      .split("\n")
+      .map((u) => u.trim())
+      .filter(Boolean);
+    const payload: Record<string, unknown> = {
       id: initial?.id,
       title: String(fd.get("title") || ""),
       slug: String(fd.get("slug") || ""),
@@ -75,6 +81,7 @@ export function PropertyAdminForm({
       garage: fd.get("garage") === "on",
       imageUrl: String(fd.get("imageUrl") || ""),
       videoUrl: String(fd.get("videoUrl") || "") || null,
+      mapEmbedUrl: String(fd.get("mapEmbedUrl") || "") || null,
       openHouse: clearOh
         ? { clear: true }
         : {
@@ -84,6 +91,7 @@ export function PropertyAdminForm({
             published: fd.get("ohPublished") === "on",
           },
     };
+    if (gallery.length) payload.images = gallery;
 
     const res = await fetch("/api/properties", {
       method: initial?.id ? "PUT" : "POST",
@@ -124,12 +132,35 @@ export function PropertyAdminForm({
         defaultValue={initial?.imageUrl || ""}
       />
       <div>
+        <Label htmlFor="imageUrls">Galerie (une URL par ligne, optionnel)</Label>
+        <textarea
+          id="imageUrls"
+          name="imageUrls"
+          rows={4}
+          defaultValue={(initial?.imageUrls || []).join("\n")}
+          placeholder="https://…&#10;https://…"
+          className="mt-1 w-full border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Si rempli, remplace toute la galerie (photo principale incluse en 1ʳᵉ ligne).
+        </p>
+      </div>
+      <div>
         <Label htmlFor="videoUrl">Vidéo (URL /api/media/… ou YouTube)</Label>
         <Input
           id="videoUrl"
           name="videoUrl"
           defaultValue={initial?.videoUrl || ""}
           placeholder="/api/media/… ou https://…"
+        />
+      </div>
+      <div>
+        <Label htmlFor="mapEmbedUrl">Carte (URL iframe Google Maps, optionnel)</Label>
+        <Input
+          id="mapEmbedUrl"
+          name="mapEmbedUrl"
+          defaultValue={initial?.mapEmbedUrl || ""}
+          placeholder="https://www.google.com/maps/embed?…"
         />
       </div>
       <RichTextEditor

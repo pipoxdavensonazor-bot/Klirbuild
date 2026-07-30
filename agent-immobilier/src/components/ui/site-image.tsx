@@ -13,12 +13,14 @@ export function SiteImage({
   const srcStr = typeof src === "string" ? src : "";
   const isLocalMedia =
     srcStr.startsWith("/api/media/") || srcStr.includes("/api/media/");
+  const isCentris =
+    srcStr.includes("mspublic.centris.ca") || srcStr.includes("centris.ca/");
 
   return (
     <Image
       src={src}
       alt={alt}
-      unoptimized={unoptimized ?? isLocalMedia}
+      unoptimized={unoptimized ?? (isLocalMedia || isCentris)}
       {...rest}
     />
   );

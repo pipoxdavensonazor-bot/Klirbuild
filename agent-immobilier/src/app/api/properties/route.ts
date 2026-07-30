@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { ensureOpenHouseSchema } from "@/lib/ensure-schema";
 import { sanitizeRichHtml } from "@/lib/rich-text";
 
 type OpenHousePayload = {
@@ -11,8 +12,38 @@ type OpenHousePayload = {
   clear?: boolean;
 };
 
+function normalizeImageUrls(body: {
+  images?: unknown;
+  imageUrl?: unknown;
+}): string[] {
+  const fromArray = Array.isArray(body.images)
+    ? body.images.map((u) => String(u || "").trim()).filter(Boolean)
+    : [];
+  if (fromArray.length) return fromArray;
+  const single = String(body.imageUrl || "").trim();
+  return single ? [single] : [];
+}
+
+async function replaceImages(
+  propertyId: string,
+  urls: string[],
+  alt: string
+) {
+  if (!urls.length) return;
+  await prisma.propertyImage.deleteMany({ where: { propertyId } });
+  await prisma.propertyImage.createMany({
+    data: urls.map((url, sortOrder) => ({
+      propertyId,
+      url,
+      alt: sortOrder === 0 ? alt : `${alt} — photo ${sortOrder + 1}`,
+      sortOrder,
+    })),
+  });
+}
+
 async function upsertOpenHouse(propertyId: string, oh?: OpenHousePayload) {
   if (!oh) return;
+  await ensureOpenHouseSchema();
   try {
     if (oh.clear) {
       await prisma.openHouse.deleteMany({ where: { propertyId } });
@@ -46,6 +77,7 @@ async function upsertOpenHouse(propertyId: string, oh?: OpenHousePayload) {
 }
 
 export async function GET() {
+  await ensureOpenHouseSchema();
   const properties = await prisma.property
     .findMany({
       include: {
@@ -54,7 +86,14 @@ export async function GET() {
       },
       orderBy: { updatedAt: "desc" },
     })
-    .catch(() => []);
+    .catch(async () =>
+      prisma.property
+        .findMany({
+          include: { images: { orderBy: { sortOrder: "asc" } } },
+          orderBy: { updatedAt: "desc" },
+        })
+        .catch(() => [])
+    );
   return NextResponse.json(properties);
 }
 
@@ -62,6 +101,7 @@ export async function POST(req: Request) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
+  await ensureOpenHouseSchema();
   const body = await req.json();
   const slug =
     String(body.slug || "")
@@ -70,6 +110,7 @@ export async function POST(req: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || `maison-${Date.now()}`;
 
+  const imageUrls = normalizeImageUrls(body);
   const property = await prisma.property.create({
     data: {
       title: body.title,
@@ -86,15 +127,17 @@ export async function POST(req: Request) {
       status: body.status || "AVAILABLE",
       featured: Boolean(body.featured),
       videoUrl: body.videoUrl ? String(body.videoUrl) : null,
-      images: body.imageUrl
+      mapEmbedUrl: body.mapEmbedUrl ? String(body.mapEmbedUrl) : null,
+      images: imageUrls.length
         ? {
-            create: [
-              {
-                url: String(body.imageUrl),
-                alt: body.title,
-                sortOrder: 0,
-              },
-            ],
+            create: imageUrls.map((url, sortOrder) => ({
+              url,
+              alt:
+                sortOrder === 0
+                  ? String(body.title || "Photo")
+                  : `${body.title} — photo ${sortOrder + 1}`,
+              sortOrder,
+            })),
           }
         : undefined,
     },
@@ -107,12 +150,21 @@ export async function PUT(req: Request) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
+  await ensureOpenHouseSchema();
   const body = await req.json();
-  if (!body.id) {
-    return NextResponse.json({ error: "id required" }, { status: 400 });
+  let id = body.id ? String(body.id) : "";
+  if (!id && body.slug) {
+    const existing = await prisma.property.findUnique({
+      where: { slug: String(body.slug) },
+      select: { id: true },
+    });
+    id = existing?.id || "";
+  }
+  if (!id) {
+    return NextResponse.json({ error: "id or slug required" }, { status: 400 });
   }
   const property = await prisma.property.update({
-    where: { id: body.id },
+    where: { id },
     data: {
       title: body.title,
       slug: body.slug,
@@ -131,11 +183,20 @@ export async function PUT(req: Request) {
       status: body.status || "AVAILABLE",
       featured: Boolean(body.featured),
       videoUrl: body.videoUrl ? String(body.videoUrl) : null,
+      mapEmbedUrl:
+        body.mapEmbedUrl === undefined
+          ? undefined
+          : body.mapEmbedUrl
+            ? String(body.mapEmbedUrl)
+            : null,
     },
   });
   await upsertOpenHouse(property.id, body.openHouse);
 
-  if (body.imageUrl) {
+  const imageUrls = normalizeImageUrls(body);
+  if (Array.isArray(body.images) && imageUrls.length) {
+    await replaceImages(property.id, imageUrls, String(body.title || property.title));
+  } else if (body.imageUrl) {
     const existingImage = await prisma.propertyImage.findFirst({
       where: { propertyId: property.id },
       orderBy: { sortOrder: "asc" },

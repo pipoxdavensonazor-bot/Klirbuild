@@ -64,6 +64,8 @@ export async function buildHomeFeed(limit = 12): Promise<HomeFeedItem[]> {
     })
     .catch(() => []);
 
+  const { ensureOpenHouseSchema } = await import("@/lib/ensure-schema");
+  await ensureOpenHouseSchema();
   const openHouses = await prisma.openHouse
     .findMany({
       where: { published: true, endsAt: { gte: now } },
