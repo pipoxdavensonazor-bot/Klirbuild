@@ -6,6 +6,15 @@ import { sendEmail } from "@/lib/email/email-service";
 
 const TOKEN_HOURS = 2;
 
+/** SHA-256 hex of the raw token — only the hash is stored in DB. */
+export function hashResetToken(rawToken: string): string {
+  return crypto.createHash("sha256").update(rawToken, "utf8").digest("hex");
+}
+
+export function generateResetToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
 export async function requestPasswordReset(email: string) {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return { error: "Courriel requis." as const };
@@ -14,18 +23,26 @@ export async function requestPasswordReset(email: string) {
   }
 
   const user = await prisma.user.findUnique({ where: { email: normalized } });
+  // Always return ok to avoid account enumeration.
   if (!user) return { ok: true as const };
 
-  const token = crypto.randomBytes(32).toString("hex");
+  const rawToken = generateResetToken();
+  const tokenHash = hashResetToken(rawToken);
   const expiresAt = new Date(Date.now() + TOKEN_HOURS * 3600000);
 
+  // Invalidate prior unused tokens for this email.
+  await prisma.passwordResetToken.updateMany({
+    where: { email: normalized, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
   await prisma.passwordResetToken.create({
-    data: { email: normalized, token, expiresAt },
+    data: { email: normalized, token: tokenHash, expiresAt },
   });
 
   const base =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
-  const link = `${base}/reset-password?token=${token}`;
+  const link = `${base}/reset-password?token=${rawToken}`;
 
   await sendEmail({
     companyId: user.companyId,
@@ -46,7 +63,10 @@ export async function resetPasswordWithToken(token: string, password: string) {
     return { error: "DATABASE_URL requis." as const };
   }
 
-  const row = await prisma.passwordResetToken.findUnique({ where: { token } });
+  const tokenHash = hashResetToken(token.trim());
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { token: tokenHash },
+  });
   if (!row || row.usedAt || row.expiresAt < new Date()) {
     return { error: "Lien expiré ou invalide." as const };
   }
