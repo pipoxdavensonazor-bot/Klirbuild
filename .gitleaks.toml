@@ -1,0 +1,11 @@
+# Gitleaks config — false-positive allowlist for KlirBuild.
+# Real secrets must never be allowlisted; only confirmed non-secrets.
+
+title = "klirbuild"
+
+[allowlist]
+description = "Confirmed false positives (identifier names, not credentials)"
+fingerprints = [
+  # History: pbkdf2Async(..., PBKDF2_KEYLEN, PBKDF2_DIGEST) — constant names, not an API key
+  "320a96b0b481de3f8353bef3a3e2ce72cdc51039:src/lib/auth/password.ts:generic-api-key:18",
+]
