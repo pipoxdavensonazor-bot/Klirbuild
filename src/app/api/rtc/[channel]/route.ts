@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, requireSession } from "@/lib/auth/auth-service";
+import { requireSession } from "@/lib/auth/auth-service";
 import { canApp } from "@/lib/workforce/types";
 import {
   heartbeatPresence,
@@ -16,16 +16,15 @@ type Params = { params: Promise<{ channel: string }> };
 async function authorize() {
   const session = await requireSession();
   if (session instanceof NextResponse) return { error: session };
-  const enriched = await enrichSession(session);
   if (
-    !canApp(enriched.role, "meetings:join") &&
-    !canApp(enriched.role, "live:host")
+    !canApp(session.role, "meetings:join") &&
+    !canApp(session.role, "live:host")
   ) {
     return {
       error: NextResponse.json({ error: "Accès refusé." }, { status: 403 }),
     };
   }
-  return { enriched };
+  return { enriched: session };
 }
 
 function cleanChannel(raw: string) {

@@ -16,6 +16,11 @@ export async function POST(request: Request) {
     ok: true,
     message:
       "Si un compte existe, un courriel de réinitialisation a été envoyé.",
-    demo: "demo" in result && result.demo,
+    // Never reveal demo/DB mode in production responses.
+    ...(process.env.NODE_ENV !== "production" &&
+    "demo" in result &&
+    result.demo
+      ? { demo: true }
+      : {}),
   });
 }

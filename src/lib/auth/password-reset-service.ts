@@ -79,15 +79,36 @@ export async function resetPasswordWithToken(token: string, password: string) {
 
   const passwordHash = await hashPassword(password);
   await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, sessionVersion: { increment: 1 } },
+    }),
     prisma.passwordResetToken.update({
       where: { id: row.id },
       data: { usedAt: new Date() },
     }),
   ]);
 
+  const refreshed = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      email: true,
+      companyId: true,
+      role: true,
+      sessionVersion: true,
+      isPlatformAdmin: true,
+    },
+  });
+
   return {
     ok: true as const,
-    user: { email: user.email, companyId: user.companyId, role: user.role },
+    user: {
+      email: refreshed!.email,
+      companyId: refreshed!.companyId,
+      role: refreshed!.role,
+      sessionVersion: refreshed!.sessionVersion ?? 0,
+      isPlatformAdmin:
+        Boolean(refreshed!.isPlatformAdmin) || refreshed!.role === "SUPER_ADMIN",
+    },
   };
 }

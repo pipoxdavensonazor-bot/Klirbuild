@@ -22,6 +22,19 @@ export async function POST(request: Request) {
         ? (body.role as Role)
         : "FIELD_WORKER";
 
+    // Only company / platform admins may invite another COMPANY_ADMIN.
+    if (
+      role === "COMPANY_ADMIN" &&
+      session.role !== "COMPANY_ADMIN" &&
+      session.role !== "SUPER_ADMIN" &&
+      !session.isPlatformAdmin
+    ) {
+      return NextResponse.json(
+        { error: "Seul un administrateur peut inviter un administrateur." },
+        { status: 403 }
+      );
+    }
+
     const result = await createInvitation({
       companyId: session.companyId,
       email,

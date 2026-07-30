@@ -16,6 +16,12 @@ export async function POST(request: Request, { params }: Params) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
   const action = typeof body.action === "string" ? body.action : "";

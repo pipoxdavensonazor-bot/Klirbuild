@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { hasDatabase } from "@/lib/auth/auth-service";
+import { hasDatabase, requireSession } from "@/lib/auth/auth-service";
 import { isAuthSecretHardened } from "@/lib/auth/demo-session";
 import { isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
+import { can } from "@/types";
 import {
   isStripeConfigured,
   isStripePublishableConfigured,
@@ -21,14 +22,7 @@ async function checkMarketingSchema(): Promise<{ ok: boolean; detail?: string }>
     await prisma.socialAccountConnection.count();
     await prisma.socialAdCampaignRecord.count();
     return { ok: true };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes("does not exist")) {
-      return {
-        ok: false,
-        detail: "Tables marketing absentes — npm run db:push sur la base Netlify",
-      };
-    }
+  } catch {
     return { ok: false, detail: "Schéma marketing non synchronisé" };
   }
 }
@@ -47,7 +41,51 @@ function resolveAppUrl(request: Request) {
   return undefined;
 }
 
+function canViewDetails(request: Request) {
+  const token = process.env.HEALTH_TOKEN?.trim();
+  if (!token) return false;
+  const auth = request.headers.get("authorization") || "";
+  return auth === `Bearer ${token}`;
+}
+
+/** Public liveness — no secret names, no infra fingerprinting. */
+function publicPayload() {
+  return {
+    status: "ok" as const,
+    timestamp: new Date().toISOString(),
+    checks: {
+      app: { ok: true },
+      googleOAuth: { ok: isGoogleOAuthConfigured() },
+    },
+  };
+}
+
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const wantDetail = url.searchParams.get("detail") === "1";
+
+  if (!wantDetail) {
+    return NextResponse.json(publicPayload());
+  }
+
+  const tokenOk = canViewDetails(request);
+  let viewer: "health-token" | "admin" | null = tokenOk ? "health-token" : null;
+  if (!viewer) {
+    const session = await requireSession();
+    if (session instanceof NextResponse) return session;
+    const allowed =
+      session.isPlatformAdmin ||
+      can(session.role, "settings:manage") ||
+      can(session.role, "company:manage");
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Détails health réservés aux administrateurs." },
+        { status: 403 }
+      );
+    }
+    viewer = "admin";
+  }
+
   const appUrl = resolveAppUrl(request);
   const prices = stripePriceIdsStatus();
 
@@ -67,66 +105,60 @@ export async function GET(request: Request) {
       tier: "core",
     },
     authSecret: {
-      ok:
-        isAuthSecretHardened() || process.env.NODE_ENV !== "production",
+      ok: isAuthSecretHardened() || process.env.NODE_ENV !== "production",
       detail: isAuthSecretHardened()
         ? undefined
-        : process.env.NODE_ENV === "production"
-          ? "BETTER_AUTH_SECRET manquant ou trop court (32+ caractères)"
-          : "Secret de développement — définissez BETTER_AUTH_SECRET (32+) en production",
+        : "BETTER_AUTH_SECRET manquant ou trop court (32+)",
       tier: "core",
     },
     stripe: {
       ok: isStripeConfigured(),
-      detail: isStripeConfigured() ? undefined : "STRIPE_SECRET_KEY manquant",
+      detail: isStripeConfigured() ? undefined : "Stripe non configuré",
       tier: "billing",
     },
     stripePublishable: {
       ok: isStripePublishableConfigured(),
       detail: isStripePublishableConfigured()
         ? undefined
-        : "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY manquant",
+        : "Clé publishable manquante",
       tier: "billing",
     },
     stripePrices: {
       ok: prices.ok,
       detail: prices.ok
         ? `${prices.configured}/${prices.total} Price IDs`
-        : `Price IDs manquants (${prices.missing.length}): ${prices.missing.join(", ")}`,
+        : `Price IDs manquants: ${prices.missing.length}`,
       tier: "billing",
     },
     webhook: {
       ok: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
       detail: process.env.STRIPE_WEBHOOK_SECRET?.trim()
         ? undefined
-        : "STRIPE_WEBHOOK_SECRET manquant",
+        : "Webhook Stripe non configuré",
       tier: "billing",
     },
     appUrl: {
       ok: Boolean(appUrl),
-      detail: appUrl ? undefined : "NEXT_PUBLIC_APP_URL recommandé en production",
+      detail: appUrl ? undefined : "NEXT_PUBLIC_APP_URL recommandé",
       tier: "optional",
     },
     cron: {
       ok: Boolean(process.env.CRON_SECRET?.trim()),
       detail: process.env.CRON_SECRET?.trim()
         ? undefined
-        : "CRON_SECRET manquant — automations cron non sécurisées",
+        : "CRON_SECRET manquant",
       tier: "optional",
     },
-    // Premium / nice-to-have — n'entrent PAS dans summary.optional
     zernio: {
       ok: true,
-      detail: isZernioEnabled()
-        ? "Zernio actif"
-        : "ZERNIO_API_KEY optionnel — pubs réseaux en mode Klirline",
+      detail: isZernioEnabled() ? "Zernio actif" : "Mode Klirline",
       tier: "premium",
     },
     googleOAuth: {
       ok: isGoogleOAuthConfigured(),
       detail: isGoogleOAuthConfigured()
         ? "Google OAuth actif"
-        : "GOOGLE_CLIENT_ID / SECRET manquants — bouton Google masqué",
+        : "Google OAuth non configuré",
       tier: "premium",
     },
     openai: {
@@ -137,29 +169,27 @@ export async function GET(request: Request) {
     dailyOrJitsi: {
       ok: true,
       detail: process.env.DAILY_API_KEY?.trim()
-        ? `Daily.co (${process.env.NEXT_PUBLIC_DAILY_DOMAIN?.trim() || "klirbuild.daily.co"})`
-        : "Jitsi Meet (gratuit) — DAILY_API_KEY optionnel",
+        ? "Daily.co"
+        : "Jitsi Meet",
       tier: "optional",
     },
     resend: {
       ok: Boolean(process.env.RESEND_API_KEY?.trim()),
       detail: process.env.RESEND_API_KEY?.trim()
         ? undefined
-        : "RESEND_API_KEY manquant — courriels désactivés",
+        : "Resend non configuré",
       tier: "optional",
     },
     daily: {
       ok: true,
-      detail: process.env.DAILY_API_KEY?.trim()
-        ? `domaine: ${process.env.NEXT_PUBLIC_DAILY_DOMAIN?.trim() || "klirbuild.daily.co"}`
-        : "Daily non configuré — Jitsi actif (voir dailyOrJitsi)",
+      detail: process.env.DAILY_API_KEY?.trim() ? "Daily" : "Jitsi",
       tier: "premium",
     },
     resendInbound: {
       ok: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()),
       detail: process.env.RESEND_WEBHOOK_SECRET?.trim()
-        ? `domaine: ${process.env.INBOUND_EMAIL_DOMAIN?.trim() || "inbox.klirline.ca"}`
-        : "RESEND_WEBHOOK_SECRET manquant — réception entrante non sécurisée",
+        ? undefined
+        : "Webhook inbound non configuré",
       tier: "optional",
     },
   };
@@ -174,26 +204,20 @@ export async function GET(request: Request) {
         checks.schema = { ...marketing, tier: "core" };
         checks.seed = {
           ok: companyCount > 0,
-          detail:
-            companyCount > 0
-              ? undefined
-              : "Aucune entreprise — exécutez npm run db:seed",
+          detail: companyCount > 0 ? undefined : "Aucune entreprise",
           tier: "core",
         };
-      } catch (e) {
+      } catch {
         checks.schema = {
           ok: false,
-          detail:
-            e instanceof Error && e.message.includes("does not exist")
-              ? "Tables de base manquantes — exécutez npm run db:push"
-              : "Schéma Prisma non synchronisé",
+          detail: "Schéma Prisma non synchronisé",
           tier: "core",
         };
       }
-    } catch (e) {
+    } catch {
       checks.database = {
         ok: false,
-        detail: e instanceof Error ? e.message : "Connexion DB échouée",
+        detail: "Connexion DB échouée",
         tier: "core",
       };
     }
@@ -210,9 +234,6 @@ export async function GET(request: Request) {
     .every((c) => c.ok);
 
   const status = !coreOk ? "unavailable" : coreOk && billingOk ? "ready" : "degraded";
-
-  // HTTP 503 seulement si le core est cassé. Billing manquant = "degraded" en 200
-  // (évite que les moniteurs / navigateurs affichent "Internal Server Error").
   const httpStatus = coreOk ? 200 : 503;
 
   return NextResponse.json(
@@ -220,13 +241,10 @@ export async function GET(request: Request) {
       status,
       environment: process.env.NODE_ENV,
       appUrl: appUrl ?? null,
-      summary: {
-        core: coreOk,
-        billing: billingOk,
-        optional: optionalOk,
-      },
+      summary: { core: coreOk, billing: billingOk, optional: optionalOk },
       checks,
       timestamp: new Date().toISOString(),
+      viewer,
     },
     { status: httpStatus }
   );

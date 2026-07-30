@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { isStripeConfigured, priceIdForPlan } from "@/lib/stripe";
 
 /**
- * Statut Stripe léger — pas d'appel réseau Stripe (balance.retrieve)
- * qui timeout / brûle le CPU Worker (Error 1102).
+ * Statut Stripe — authentifié + billing:manage (plus de fuite anonyme).
  */
 export async function GET() {
+  const auth = await requirePermission("billing:manage");
+  if (auth instanceof NextResponse) return auth;
+
   const plans = ["starter", "growth", "business"] as const;
   const cycles = ["monthly", "yearly"] as const;
   const prices: Record<string, boolean> = {};
@@ -24,7 +27,7 @@ export async function GET() {
     connected: configured,
     connectionError: configured
       ? null
-      : "STRIPE_SECRET_KEY manquante — ajoutez-la via wrangler secret (prod) ou .env.local (dev).",
+      : "Stripe non configuré pour cet environnement.",
     publishableKeySet: Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY),
     webhookSecretSet: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     prices,

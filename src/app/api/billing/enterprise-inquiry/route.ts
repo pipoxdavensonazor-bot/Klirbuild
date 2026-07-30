@@ -14,6 +14,12 @@ export async function POST(request: Request) {
   const message = typeof body.message === "string" ? body.message : "";
 
   const session = await enrichSession(auth);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   const result = await sendEnterpriseInquiry({
     companyId: session.companyId,
     requesterEmail: session.email,

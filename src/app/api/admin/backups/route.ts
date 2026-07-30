@@ -13,6 +13,12 @@ export async function GET(request: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
 
   if (!isAdminDeleter(enriched.role)) {
     return NextResponse.json({ error: "Accès admin requis." }, { status: 403 });
@@ -45,6 +51,12 @@ export async function POST() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
 
   const result = await createCompanyBackup({
     companyId: enriched.companyId,

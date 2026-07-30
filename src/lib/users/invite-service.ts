@@ -254,7 +254,14 @@ export async function acceptInvitation(input: {
   const passwordHash = await hashPassword(input.password);
 
   const user = await prisma.$transaction(async (tx) => {
-    const created = await tx.user.create({
+    const claimed = await tx.invitation.updateMany({
+      where: { id: invitation.id, acceptedAt: null },
+      data: { acceptedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      throw new Error("INVITE_ALREADY_ACCEPTED");
+    }
+    return tx.user.create({
       data: {
         name,
         email: invitation.email,
@@ -263,12 +270,15 @@ export async function acceptInvitation(input: {
         companyId: invitation.companyId,
       },
     });
-    await tx.invitation.update({
-      where: { id: invitation.id },
-      data: { acceptedAt: new Date() },
-    });
-    return created;
+  }).catch((err: unknown) => {
+    if (err instanceof Error && err.message === "INVITE_ALREADY_ACCEPTED") {
+      return null;
+    }
+    throw err;
   });
+  if (!user) {
+    return { error: "Invitation déjà acceptée." as const };
+  }
 
   return {
     user: {

@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  enrichSession,
-  getRequestSession,
-  hasDatabase,
-} from "@/lib/auth/auth-service";
+import { requireSession } from "@/lib/auth/auth-service";
 import type { DemoSession } from "@/lib/auth/demo-session";
-import { prisma } from "@/lib/db";
 
 export type PlatformAdminSession = DemoSession & {
   isPlatformAdmin: true;
@@ -13,35 +8,22 @@ export type PlatformAdminSession = DemoSession & {
 
 /**
  * Guard API — admin Klirline Inc. uniquement (toutes entreprises).
+ * Privileges are revalidated from DB inside requireSession/enrichSession.
  */
 export async function requirePlatformAdmin(): Promise<
   PlatformAdminSession | NextResponse
 > {
-  const session = await getRequestSession();
-  if (!session) {
-    return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+
+  if (!session.isPlatformAdmin) {
+    return NextResponse.json(
+      { error: "Accès réservé à l'administrateur plateforme KlirBuild." },
+      { status: 403 }
+    );
   }
 
-  const enriched = await enrichSession(session);
-
-  if (enriched.isPlatformAdmin) {
-    return { ...enriched, isPlatformAdmin: true };
-  }
-
-  if (hasDatabase()) {
-    const user = await prisma.user.findUnique({
-      where: { email: enriched.email },
-      select: { isPlatformAdmin: true, role: true },
-    });
-    if (user?.isPlatformAdmin || user?.role === "SUPER_ADMIN") {
-      return { ...enriched, isPlatformAdmin: true };
-    }
-  }
-
-  return NextResponse.json(
-    { error: "Accès réservé à l'administrateur plateforme KlirBuild." },
-    { status: 403 }
-  );
+  return { ...session, isPlatformAdmin: true };
 }
 
 export function isPlatformAdminResponse(
