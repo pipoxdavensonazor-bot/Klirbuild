@@ -16,5 +16,6 @@ describe("csp", () => {
     expect(headers["Content-Security-Policy"]).toContain("object-src 'none'");
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
+    expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-site");
   });
 });
