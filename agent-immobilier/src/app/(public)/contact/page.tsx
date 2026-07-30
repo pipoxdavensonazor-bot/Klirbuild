@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { whatsappLink } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Contact",
   description:

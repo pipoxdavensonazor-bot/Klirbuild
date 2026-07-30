@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
 
+export const dynamic = "force-dynamic";
+
 export default async function ArticlePage({
   params,
 }: {

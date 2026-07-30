@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Événements" };
 
 export default async function SeminarsPage() {

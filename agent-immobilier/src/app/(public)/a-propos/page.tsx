@@ -3,6 +3,8 @@ import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
 import { resolvePublicPhotoUrl, PORTRAIT_CAREER } from "@/lib/photos";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "À propos",
   description:

@@ -10,6 +10,8 @@ import { whatsappLink, centrisListingsUrl } from "@/lib/utils";
 import { PORTRAIT_HERO, resolvePublicPhotoUrl } from "@/lib/photos";
 import { CAREER_PHOTO_KEY, getSetting } from "@/lib/settings";
 
+export const dynamic = "force-dynamic";
+
 const careerHighlights = [
   {
     value: "20 ans",

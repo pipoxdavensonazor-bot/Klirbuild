@@ -1,6 +1,8 @@
 import { PropertyCard } from "@/components/properties/property-card";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Propriétés" };
 
 export default async function PropertiesPage() {
