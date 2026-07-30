@@ -129,54 +129,57 @@ export function DiffusionAdminClient() {
 
   return (
     <div className="space-y-10">
-      <section className="space-y-3 border border-slate-200 bg-white p-5">
+      <section className="space-y-4 border border-[#C9A227] bg-[#C9A227]/10 p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A227]">
+          Chemin choisi — court · sûr · rapide
+        </p>
         <h2 className="text-lg font-medium text-[#0F172A]">
-          3 façons de connecter les comptes
+          Zapier webhook (Catch Hook)
         </h2>
         <p className="text-sm text-slate-600">
-          Zapier MCP (Cursor) n’est pas requis. Choisissez <strong>une</strong>{" "}
-          méthode ci-dessous — ou plusieurs en parallèle.
+          On utilise vos comptes déjà Connected sur zapier.com. Aucun jeton Meta
+          dans le site. Une fois l’URL collée, « Publier sur les réseaux » envoie
+          Facebook + Instagram + LinkedIn automatiquement.
         </p>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-          <li>
-            <strong>Zapier webhook</strong> — utilise vos connexions déjà sur
-            zapier.com
-          </li>
-          <li>
-            <strong>Make.com webhook</strong> — alternative à Zapier, même idée
-          </li>
-          <li>
-            <strong>API directe Meta / LinkedIn</strong> — coller un jeton, sans
-            Zapier ni Make
-          </li>
-        </ul>
-      </section>
-
-      <section className="space-y-4 border border-[#C9A227]/40 bg-[#C9A227]/5 p-5">
-        <h2 className="text-lg font-medium text-[#0F172A]">
-          1 · Zapier (webhook)
-        </h2>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
           <li>
-            Créez un Zap → déclencheur{" "}
-            <strong>Webhooks by Zapier → Catch Hook</strong> → copiez l’URL
-          </li>
-          <li>Collez l’URL ci-dessous → Enregistrer</li>
-          <li>
-            Ajoutez les actions Facebook Pages / Instagram / LinkedIn avec vos
-            comptes Connected sur{" "}
+            Ouvrez{" "}
             <a
-              href="https://zapier.com/app/assets/connections"
+              href="https://zapier.com/app/zaps"
               target="_blank"
               rel="noreferrer"
               className="text-[#C9A227] underline"
             >
-              zapier.com
-            </a>
-            . Champs : <code>caption</code>, <code>url</code>,{" "}
-            <code>imageUrl</code>
+              zapier.com/app/zaps
+            </a>{" "}
+            → <strong>Create</strong>
           </li>
-          <li>Publiez le Zap (ON)</li>
+          <li>
+            Déclencheur : <strong>Webhooks by Zapier</strong> →{" "}
+            <strong>Catch Hook</strong> → Continue → <strong>copiez l’URL</strong>
+          </li>
+          <li>Collez l’URL ci-dessous → Enregistrer</li>
+          <li>
+            3 actions (comptes Connected Léonne) :
+            <ul className="mt-1 list-disc pl-5">
+              <li>
+                Facebook Pages → Create Page Post — Message{" "}
+                <code>caption</code>, Link <code>url</code>
+              </li>
+              <li>
+                Instagram for Business → Publish Photo — Caption{" "}
+                <code>caption</code>, Photo <code>imageUrl</code>
+              </li>
+              <li>
+                LinkedIn → Create Share Update — Comment{" "}
+                <code>caption</code>, URL <code>url</code>
+              </li>
+            </ul>
+          </li>
+          <li>
+            Zap <strong>ON</strong>. Test : condo Louis-Jolliet → Publier sur les
+            réseaux.
+          </li>
         </ol>
         {zapier ? (
           <form
@@ -203,9 +206,13 @@ export function DiffusionAdminClient() {
         ) : null}
       </section>
 
-      <section className="space-y-4 border border-slate-300 bg-slate-50 p-5">
+      <details className="space-y-4 border border-slate-200 bg-white p-5">
+        <summary className="cursor-pointer text-lg font-medium text-[#0F172A]">
+          Autres options (Make.com / API directe) — non nécessaires
+        </summary>
+      <section className="mt-4 space-y-4 border border-slate-300 bg-slate-50 p-5">
         <h2 className="text-lg font-medium text-[#0F172A]">
-          2 · Make.com (autre façon — sans Zapier)
+          Make.com (webhook)
         </h2>
         <p className="text-sm text-slate-600">
           Même principe : le site envoie un JSON, Make publie sur Facebook,
@@ -262,9 +269,9 @@ export function DiffusionAdminClient() {
         )}
       </section>
 
-      <section className="space-y-4 border border-emerald-700/30 bg-emerald-50/40 p-5">
+      <section className="mt-4 space-y-4 border border-emerald-700/30 bg-emerald-50/40 p-5">
         <h2 className="text-lg font-medium text-[#0F172A]">
-          3 · API directe Meta + LinkedIn (sans Zapier ni Make)
+          API directe Meta + LinkedIn
         </h2>
         <p className="text-sm text-slate-600">
           Collez un jeton de page / LinkedIn : le site publie lui-même quand vous
@@ -403,6 +410,7 @@ export function DiffusionAdminClient() {
           ))}
         </div>
       </section>
+      </details>
 
       {message ? <p className="text-sm text-slate-600">{message}</p> : null}
 
