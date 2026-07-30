@@ -51,14 +51,19 @@ export async function upsertAutomation(
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
-    const row = await prisma.automation.update({
-      where: { id: input.id },
+    const updated = await prisma.automation.updateMany({
+      where: { id: input.id, companyId },
       data: {
         name,
         trigger: input.trigger,
         active: input.active ?? undefined,
       },
     });
+    if (updated.count === 0) return { error: "Automatisation introuvable." as const };
+    const row = await prisma.automation.findFirst({
+      where: { id: input.id, companyId },
+    });
+    if (!row) return { error: "Automatisation introuvable." as const };
     return { automation: mapAuto(row) };
   }
 

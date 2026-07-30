@@ -117,15 +117,20 @@ export async function updateProject(
   const existing = await prisma.project.findFirst({ where: { id, companyId } });
   if (!existing) return { error: "Projet introuvable." as const };
 
-  const row = await prisma.project.update({
-    where: { id },
+  const updated = await prisma.project.updateMany({
+    where: { id, companyId },
     data: {
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
       ...(input.clientId !== undefined ? { clientId: input.clientId || null } : {}),
       ...(input.budget !== undefined ? { budget: input.budget } : {}),
       ...(status ? { status, progress: progress ?? existing.progress } : {}),
     },
+  });
+  if (updated.count === 0) return { error: "Projet introuvable." as const };
+  const row = await prisma.project.findFirst({
+    where: { id, companyId },
     include: { client: { select: { name: true } } },
   });
+  if (!row) return { error: "Projet introuvable." as const };
   return { project: mapDbProject(row) };
 }

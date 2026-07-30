@@ -88,8 +88,9 @@ export async function upsertTask(
       where: { id: input.id, project: { companyId } },
     });
     if (!existing) return { error: "Tâche introuvable." as const };
-    const row = await prisma.task.update({
-      where: { id: input.id },
+    // Re-check tenant via nested project.companyId (Task has no companyId column).
+    const updated = await prisma.task.updateMany({
+      where: { id: input.id, project: { companyId } },
       data: {
         title,
         ...(input.status ? { status: input.status } : {}),
@@ -100,8 +101,13 @@ export async function upsertTask(
         ...(input.startDate ? { startDate: new Date(input.startDate) } : {}),
         ...(input.dueDate ? { dueDate: new Date(input.dueDate) } : {}),
       },
+    });
+    if (updated.count === 0) return { error: "Tâche introuvable." as const };
+    const row = await prisma.task.findFirst({
+      where: { id: input.id, project: { companyId } },
       include: { project: { select: { name: true } } },
     });
+    if (!row) return { error: "Tâche introuvable." as const };
     return { task: mapTask(row) };
   }
 
@@ -122,10 +128,9 @@ export async function upsertTask(
 
 export async function deleteTask(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
-  const existing = await prisma.task.findFirst({
+  const deleted = await prisma.task.deleteMany({
     where: { id, project: { companyId } },
   });
-  if (!existing) return { error: "Tâche introuvable." as const };
-  await prisma.task.delete({ where: { id } });
+  if (deleted.count === 0) return { error: "Tâche introuvable." as const };
   return { ok: true as const };
 }

@@ -118,8 +118,8 @@ export async function reviewDeleteRequest(input: {
   if (req.status !== "pending") return { error: "Demande déjà traitée." as const };
 
   if (input.decision === "reject") {
-    const row = await prisma.deleteRequest.update({
-      where: { id: req.id },
+    const updated = await prisma.deleteRequest.updateMany({
+      where: { id: req.id, companyId: input.companyId },
       data: {
         status: "rejected",
         reviewedByEmail: input.reviewerEmail,
@@ -127,6 +127,11 @@ export async function reviewDeleteRequest(input: {
         reviewNote: input.note?.trim() || null,
       },
     });
+    if (updated.count === 0) return { error: "Demande introuvable." as const };
+    const row = await prisma.deleteRequest.findFirst({
+      where: { id: req.id, companyId: input.companyId },
+    });
+    if (!row) return { error: "Demande introuvable." as const };
     return { ok: true as const, request: mapDeleteRequest(row) };
   }
 
@@ -138,8 +143,8 @@ export async function reviewDeleteRequest(input: {
   );
   if ("error" in applied && applied.error) return applied;
 
-  const row = await prisma.deleteRequest.update({
-    where: { id: req.id },
+  const updated = await prisma.deleteRequest.updateMany({
+    where: { id: req.id, companyId: input.companyId },
     data: {
       status: "approved",
       reviewedByEmail: input.reviewerEmail,
@@ -147,6 +152,11 @@ export async function reviewDeleteRequest(input: {
       reviewNote: input.note?.trim() || null,
     },
   });
+  if (updated.count === 0) return { error: "Demande introuvable." as const };
+  const row = await prisma.deleteRequest.findFirst({
+    where: { id: req.id, companyId: input.companyId },
+  });
+  if (!row) return { error: "Demande introuvable." as const };
   return { ok: true as const, request: mapDeleteRequest(row), deleted: true as const };
 }
 

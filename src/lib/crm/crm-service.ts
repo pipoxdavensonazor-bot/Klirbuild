@@ -88,8 +88,8 @@ export async function upsertLead(
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
-    const row = await prisma.lead.update({
-      where: { id: input.id },
+    const updated = await prisma.lead.updateMany({
+      where: { id: input.id, companyId },
       data: {
         name,
         email: input.email ?? null,
@@ -99,6 +99,11 @@ export async function upsertLead(
         ownerName: input.owner ?? null,
       },
     });
+    if (updated.count === 0) return { error: "Lead introuvable." as const };
+    const row = await prisma.lead.findFirst({
+      where: { id: input.id, companyId },
+    });
+    if (!row) return { error: "Lead introuvable." as const };
     return { lead: mapLead(row) };
   }
   const row = await prisma.lead.create({
@@ -132,8 +137,8 @@ export async function upsertDeal(
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
   if (input.id) {
-    const row = await prisma.deal.update({
-      where: { id: input.id },
+    const updated = await prisma.deal.updateMany({
+      where: { id: input.id, companyId },
       data: {
         title,
         clientName: input.clientName ?? null,
@@ -143,6 +148,11 @@ export async function upsertDeal(
         closeDate: input.closeDate ? new Date(input.closeDate) : undefined,
       },
     });
+    if (updated.count === 0) return { error: "Deal introuvable." as const };
+    const row = await prisma.deal.findFirst({
+      where: { id: input.id, companyId },
+    });
+    if (!row) return { error: "Deal introuvable." as const };
     return { deal: mapDeal(row) };
   }
   const row = await prisma.deal.create({
@@ -161,17 +171,15 @@ export async function upsertDeal(
 
 export async function deleteLead(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
-  const row = await prisma.lead.findFirst({ where: { id, companyId } });
-  if (!row) return { error: "Lead introuvable." as const };
-  await prisma.lead.delete({ where: { id } });
+  const deleted = await prisma.lead.deleteMany({ where: { id, companyId } });
+  if (deleted.count === 0) return { error: "Lead introuvable." as const };
   return { ok: true as const };
 }
 
 export async function deleteDeal(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
-  const row = await prisma.deal.findFirst({ where: { id, companyId } });
-  if (!row) return { error: "Deal introuvable." as const };
-  await prisma.deal.delete({ where: { id } });
+  const deleted = await prisma.deal.deleteMany({ where: { id, companyId } });
+  if (deleted.count === 0) return { error: "Deal introuvable." as const };
   return { ok: true as const };
 }
 

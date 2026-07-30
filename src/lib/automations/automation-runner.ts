@@ -102,8 +102,8 @@ export async function runAllActiveAutomations(companyId?: string) {
         continue;
       }
 
-      await prisma.automation.update({
-        where: { id: auto.id },
+      await prisma.automation.updateMany({
+        where: { id: auto.id, companyId: company.id },
         data: { runs: { increment: 1 }, lastRunAt: new Date() },
       });
 
@@ -147,8 +147,8 @@ export async function runSingleAutomation(companyId: string, id: string) {
     };
   }
 
-  await prisma.automation.update({
-    where: { id },
+  await prisma.automation.updateMany({
+    where: { id, companyId },
     data: { runs: { increment: 1 }, lastRunAt: new Date() },
   });
 

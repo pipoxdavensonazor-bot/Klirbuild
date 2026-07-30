@@ -174,14 +174,17 @@ export async function updateMeetingStatus(
   const existing = await prisma.meeting.findFirst({ where: { id, companyId } });
   if (!existing) return { error: "Réunion introuvable." as const };
 
-  const row = await prisma.meeting.update({
-    where: { id },
+  const updated = await prisma.meeting.updateMany({
+    where: { id, companyId },
     data: {
       status,
       ...(status === "live" ? { startsAt: existing.startsAt ?? new Date() } : {}),
       ...(status === "ended" ? { endsAt: new Date() } : {}),
     },
   });
+  if (updated.count === 0) return { error: "Réunion introuvable." as const };
+  const row = await prisma.meeting.findFirst({ where: { id, companyId } });
+  if (!row) return { error: "Réunion introuvable." as const };
   return { meeting: mapMeeting(row) };
 }
 
