@@ -9,6 +9,7 @@ import {
   listEmails,
   sendClientMessage,
 } from "@/lib/email/email-service";
+import { sanitizeEmailHtml } from "@/lib/security/sanitize-html";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,10 @@ export async function GET(request: Request) {
   if (cid instanceof NextResponse) return cid;
   await ensureCompanyInboxEmail(cid);
   const clientId = new URL(request.url).searchParams.get("clientId") ?? undefined;
-  const emails = await listEmails(cid, clientId);
+  const emails = (await listEmails(cid, clientId)).map((email) => ({
+    ...email,
+    bodyHtml: email.bodyHtml ? sanitizeEmailHtml(email.bodyHtml) : email.bodyHtml,
+  }));
   const inboxAddress = await companyInboxAddress(cid);
   const emailContext = await getCompanyEmailContext(cid);
   const appUrl =

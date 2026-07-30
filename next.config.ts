@@ -22,6 +22,27 @@ const nextConfig: NextConfig = {
   },
   // Standalone only for Docker (App Runner). Cloudflare OpenNext uses default .next output.
   ...(process.env.DOCKER_BUILD === "true" ? { output: "standalone" as const } : {}),
+  async headers() {
+    // CSP is applied dynamically in middleware (env-aware). Baseline headers here
+    // cover responses that skip middleware (static assets).
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(self), geolocation=(self)",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
