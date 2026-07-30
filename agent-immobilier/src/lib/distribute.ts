@@ -210,14 +210,34 @@ export async function publishPropertyShare(opts: {
 
   const url = `${siteUrl()}/proprietes/${property.slug}`;
   const title = property.title;
-  const body = `${property.city} · ${property.price.toLocaleString("fr-CA")} $ — ${url}`;
+  const priceLabel = `${property.price.toLocaleString("fr-CA")} $`;
+  const specs = [
+    property.bedrooms ? `${property.bedrooms} ch.` : null,
+    property.bathrooms ? `${property.bathrooms} sdb` : null,
+    property.areaSqft
+      ? `${property.areaSqft.toLocaleString("fr-CA")} pi²`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const body = `${property.city} · ${priceLabel}${specs ? ` · ${specs}` : ""} — ${url}`;
   const links = buildShareLinks({ title, url, text: body });
 
   const selected = opts.platforms?.length
     ? accounts.filter((a) => opts.platforms!.includes(a.platform))
     : accounts;
 
-  const caption = `${title}\n\n${body}`;
+  const caption = [
+    `🏠 À VENDRE — ${title}`,
+    "",
+    `${property.address}, ${property.city}`,
+    `💰 ${priceLabel}${specs ? ` · ${specs}` : ""}`,
+    "",
+    `👉 ${url}`,
+    "",
+    `Léonne Bien-Aimé · PROPRIO DIRECT · (514) 574-8712`,
+    `#immobilier #${property.city.replace(/[^a-zA-ZàâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ]/g, "")} #àvendre #PROPRIODIRECT`,
+  ].join("\n");
   const results: Array<{
     platform: string;
     status: string;
