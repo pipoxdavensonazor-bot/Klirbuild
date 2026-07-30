@@ -1,6 +1,9 @@
-import { randomBytes } from "crypto";
 import type { Role } from "@/types";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import {
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "@/lib/auth/token-hash";
 import { getBillingState } from "@/lib/billing/subscription-service";
 import { getPlan } from "@/lib/billing/plans";
 import { prisma } from "@/lib/db";
@@ -105,7 +108,8 @@ export async function createInvitation(input: {
     return { error: "Entreprise introuvable — reconnectez-vous." as const };
   }
 
-  const token = randomBytes(24).toString("hex");
+  const rawToken = generateOpaqueToken(24);
+  const tokenHash = hashOpaqueToken(rawToken);
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
   const invitation = await prisma.invitation.create({
@@ -113,7 +117,7 @@ export async function createInvitation(input: {
       companyId,
       email,
       role,
-      token,
+      token: tokenHash,
       expiresAt,
     },
   });
@@ -139,7 +143,7 @@ export async function createInvitation(input: {
   });
 
   const origin = appUrl();
-  const inviteUrl = `${origin}/register?invite=${token}`;
+  const inviteUrl = `${origin}/register?invite=${rawToken}`;
 
   const html = inviteEmailHtml({
     companyName,
@@ -212,8 +216,9 @@ export async function createInvitation(input: {
 
 export async function getInvitationByToken(token: string) {
   if (!token) return null;
+  const tokenHash = hashOpaqueToken(token.trim());
   const invitation = await prisma.invitation.findUnique({
-    where: { token },
+    where: { token: tokenHash },
     include: { company: { select: { name: true } } },
   });
   if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {

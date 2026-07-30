@@ -216,6 +216,7 @@ model Invitation {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   email     String
   role      Role     @default(EMPLOYEE)
+  /// SHA-256 hex of the raw invite token emailed to the user (never store plaintext).
   token     String   @unique
   expiresAt DateTime
   acceptedAt DateTime?

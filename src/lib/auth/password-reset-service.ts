@@ -1,6 +1,9 @@
-import crypto from "crypto";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { hashPassword } from "@/lib/auth/password";
+import {
+  generateOpaqueToken,
+  hashOpaqueToken,
+} from "@/lib/auth/token-hash";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/email-service";
 
@@ -8,11 +11,11 @@ const TOKEN_HOURS = 2;
 
 /** SHA-256 hex of the raw token — only the hash is stored in DB. */
 export function hashResetToken(rawToken: string): string {
-  return crypto.createHash("sha256").update(rawToken, "utf8").digest("hex");
+  return hashOpaqueToken(rawToken);
 }
 
 export function generateResetToken(): string {
-  return crypto.randomBytes(32).toString("hex");
+  return generateOpaqueToken(32);
 }
 
 export async function requestPasswordReset(email: string) {

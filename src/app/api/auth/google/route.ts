@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { googleAuthUrl, isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
 import { createSignedOAuthState } from "@/lib/auth/oauth-state";
+import { sanitizeNextPath } from "@/lib/auth/safe-next";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ function appBaseUrl() {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const next = url.searchParams.get("next")?.trim() || "/dashboard";
+  const next = sanitizeNextPath(url.searchParams.get("next"));
 
   if (!isGoogleOAuthConfigured()) {
     return NextResponse.redirect(

@@ -8,6 +8,7 @@ import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Button } from "@/components/ui/button";
 import { apiUrl, networkErrorMessage, parseApiResponse } from "@/lib/api-client";
+import { sanitizeNextPath } from "@/lib/auth/safe-next";
 
 function isNativeShell() {
   if (typeof window === "undefined") return false;
@@ -22,7 +23,7 @@ function isNativeShell() {
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  const next = sanitizeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");

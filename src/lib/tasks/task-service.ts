@@ -81,6 +81,13 @@ export async function upsertTask(
     });
     if (!project) return { error: "Créez d'abord un projet." as const };
     projectId = project.id;
+  } else {
+    // Prevent attaching a task to another tenant's project.
+    const owned = await prisma.project.findFirst({
+      where: { id: projectId, companyId },
+      select: { id: true },
+    });
+    if (!owned) return { error: "Projet introuvable." as const };
   }
 
   if (input.id) {
