@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
+import type { DemoSession } from "@/lib/auth/demo-session";
+import type { Role } from "@/types";
 
 const requireCompanyContext = vi.fn();
 
@@ -12,6 +14,15 @@ import {
   hasPermission,
   requirePermission,
 } from "@/lib/auth/require-permission";
+
+function session(role: Role, email: string): DemoSession {
+  return {
+    email,
+    companyId: "co_1",
+    role,
+    exp: Date.now() + 60_000,
+  };
+}
 
 describe("requirePermission", () => {
   beforeEach(() => {
@@ -28,12 +39,7 @@ describe("requirePermission", () => {
   it("refuse un employé sans company:manage", async () => {
     requireCompanyContext.mockResolvedValue({
       companyId: "co_1",
-      session: {
-        userId: "u1",
-        email: "worker@example.com",
-        companyId: "co_1",
-        role: "FIELD_WORKER",
-      },
+      session: session("FIELD_WORKER", "worker@example.com"),
     });
     const result = await requirePermission("company:manage");
     expect(result).toBeInstanceOf(NextResponse);
@@ -43,12 +49,7 @@ describe("requirePermission", () => {
   it("autorise COMPANY_ADMIN pour company:manage et settings:manage", async () => {
     const ctx = {
       companyId: "co_1",
-      session: {
-        userId: "u1",
-        email: "admin@example.com",
-        companyId: "co_1",
-        role: "COMPANY_ADMIN" as const,
-      },
+      session: session("COMPANY_ADMIN", "admin@example.com"),
     };
     requireCompanyContext.mockResolvedValue(ctx);
     await expect(requirePermission("company:manage")).resolves.toEqual(ctx);
@@ -56,32 +57,15 @@ describe("requirePermission", () => {
   });
 
   it("refuse SAFETY_OFFICER pour company:manage malgré settings:manage", async () => {
-    requireCompanyContext.mockResolvedValue({
+    const ctx = {
       companyId: "co_1",
-      session: {
-        userId: "u1",
-        email: "safety@example.com",
-        companyId: "co_1",
-        role: "SAFETY_OFFICER",
-      },
-    });
+      session: session("SAFETY_OFFICER", "safety@example.com"),
+    };
+    requireCompanyContext.mockResolvedValue(ctx);
     const result = await requirePermission("company:manage");
     expect(result).toBeInstanceOf(NextResponse);
     expect((result as NextResponse).status).toBe(403);
-    expect(
-      hasPermission(
-        {
-          companyId: "co_1",
-          session: {
-            userId: "u1",
-            email: "safety@example.com",
-            companyId: "co_1",
-            role: "SAFETY_OFFICER",
-          },
-        },
-        "settings:manage"
-      )
-    ).toBe(true);
+    expect(hasPermission(ctx, "settings:manage")).toBe(true);
   });
 
   it("forbiddenResponse renvoie 403 JSON", async () => {
