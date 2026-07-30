@@ -227,6 +227,7 @@ model Invitation {
 model PasswordResetToken {
   id        String    @id @default(cuid())
   email     String
+  /// SHA-256 hex of the raw token emailed to the user (never store plaintext).
   token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?

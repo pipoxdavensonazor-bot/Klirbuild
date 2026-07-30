@@ -25,6 +25,8 @@
     Cross-Origin-Opener-Policy = "same-origin-allow-popups"
     Cross-Origin-Resource-Policy = "same-site"
     X-DNS-Prefetch-Control = "off"
+    # Archive baseline — live CSP is set in src/middleware.ts via securityHeaders()
+    Content-Security-Policy = "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 
 [[headers]]
   for = "/api/health"

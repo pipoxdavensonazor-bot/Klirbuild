@@ -306,10 +306,15 @@ export async function upsertEmployeeDossier(
       delete updateData.sinMasked;
     }
 
-    const row = await prisma.employeeProfile.update({
-      where: { id: input.id },
+    const updated = await prisma.employeeProfile.updateMany({
+      where: { id: input.id, companyId },
       data: updateData,
     });
+    if (updated.count === 0) return { error: "Employé introuvable." as const };
+    const row = await prisma.employeeProfile.findFirst({
+      where: { id: input.id, companyId },
+    });
+    if (!row) return { error: "Employé introuvable." as const };
     const companyTax = await getCompanyTaxDefaults(companyId);
     return { employee: mapEmployee(row, companyTax, true) };
   }

@@ -340,23 +340,24 @@ export async function stopLiveSession(
   if (!canApp(role, "live:host")) {
     return { error: "Permission live refusée." as const };
   }
-  const existing = await prisma.liveSession.findFirst({
+  const updated = await prisma.liveSession.updateMany({
     where: { id: liveId, companyId },
-  });
-  if (!existing) return { error: "Live introuvable." as const };
-
-  const live = await prisma.liveSession.update({
-    where: { id: liveId },
     data: {
       status: "ended",
       endedAt: new Date(),
       ...(recordingUrl ? { recordingUrl } : {}),
     },
   });
+  if (updated.count === 0) return { error: "Live introuvable." as const };
+
+  const live = await prisma.liveSession.findFirst({
+    where: { id: liveId, companyId },
+  });
+  if (!live) return { error: "Live introuvable." as const };
 
   if (recordingUrl) {
     await prisma.feedPost.updateMany({
-      where: { liveSessionId: liveId },
+      where: { liveSessionId: liveId, companyId },
       data: { recordingUrl },
     });
   }

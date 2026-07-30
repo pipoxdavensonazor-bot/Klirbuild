@@ -5,7 +5,16 @@ import {
   databaseRequiredResponse,
   hasDatabaseUrl,
 } from "@/lib/api/database-guard";
+import { securityHeaders } from "@/lib/security/csp";
 import { can, type Permission, type Role } from "@/types";
+
+function withSecurityHeaders(response: NextResponse) {
+  const headers = securityHeaders();
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
 
 const PUBLIC_PATHS = [
   "/login",
@@ -60,11 +69,17 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (apiRequiresDatabase(pathname) && !hasDatabaseUrl()) {
-    return withApiCors(request, databaseRequiredResponse());
+    return withApiCors(
+      request,
+      withSecurityHeaders(databaseRequiredResponse())
+    );
   }
 
   if (pathname.startsWith("/api/") && request.method === "OPTIONS") {
-    return withApiCors(request, new NextResponse(null, { status: 204 }));
+    return withApiCors(
+      request,
+      withSecurityHeaders(new NextResponse(null, { status: 204 }))
+    );
   }
 
   if (
@@ -73,13 +88,13 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.includes(".")
   ) {
-    const response = NextResponse.next();
+    const response = withSecurityHeaders(NextResponse.next());
     if (pathname.startsWith("/api/")) return withApiCors(request, response);
     return response;
   }
 
   if (DEMO_AUTH_BYPASS) {
-    const response = NextResponse.next();
+    const response = withSecurityHeaders(NextResponse.next());
     response.headers.set("x-klirline-role", "COMPANY_ADMIN");
     return response;
   }
@@ -90,14 +105,14 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    const response = NextResponse.redirect(url);
+    const response = withSecurityHeaders(NextResponse.redirect(url));
     if (session?.value) {
       response.cookies.set("klirline_session", "", { path: "/", maxAge: 0 });
     }
     return response;
   }
 
-  const response = NextResponse.next();
+  const response = withSecurityHeaders(NextResponse.next());
   response.headers.set("x-klirline-role", parsed.role);
   return response;
 }

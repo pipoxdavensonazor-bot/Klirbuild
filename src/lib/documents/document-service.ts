@@ -2,6 +2,7 @@ import { hasDatabase } from "@/lib/auth/auth-service";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
 import { prisma } from "@/lib/db";
 import { putUpload, uploadsEnabled, publicUploadUrl } from "@/lib/storage/blobs";
+import { normalizeUploadContentType } from "@/lib/security/upload-security";
 
 export type DocumentDto = {
   id: string;
@@ -75,7 +76,15 @@ export async function uploadDocument(
   const ext = safeName.includes(".") ? safeName.split(".").pop() : "bin";
   const key = `documents/${companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const buffer = await input.file.arrayBuffer();
-  await putUpload(key, buffer, input.file.type || "application/octet-stream");
+  const normalized = normalizeUploadContentType({
+    declaredType: input.file.type || "application/octet-stream",
+    key,
+    bytes: buffer,
+  });
+  if (!normalized.ok) {
+    return { error: normalized.error };
+  }
+  await putUpload(key, buffer, normalized.contentType);
 
   const folderName = input.folderName?.trim() || "Général";
   const existingFolder = await prisma.folder.findFirst({
@@ -90,7 +99,7 @@ export async function uploadDocument(
       companyId,
       folderId: folder.id,
       name: safeName,
-      type: input.file.type || ext || "file",
+      type: normalized.contentType || ext || "file",
       sizeBytes: input.file.size,
       storageKey: key,
       tags: input.tags ?? [],
@@ -118,16 +127,21 @@ export async function upsertDocument(
     (await prisma.folder.create({ data: { companyId, name: folderName } }));
 
   if (input.id) {
-    const row = await prisma.document.update({
-      where: { id: input.id },
+    const updated = await prisma.document.updateMany({
+      where: { id: input.id, companyId, deletedAt: null },
       data: {
         name,
         folderId: folder.id,
         type: input.type ?? undefined,
         tags: input.tags ?? undefined,
       },
+    });
+    if (updated.count === 0) return { error: "Document introuvable." as const };
+    const row = await prisma.document.findFirst({
+      where: { id: input.id, companyId, deletedAt: null },
       include: { folder: { select: { name: true } } },
     });
+    if (!row) return { error: "Document introuvable." as const };
     return { document: mapDoc(row) };
   }
 

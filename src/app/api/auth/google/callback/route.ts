@@ -6,6 +6,7 @@ import {
   loginOrRegisterGoogleUser,
 } from "@/lib/auth/google-oauth";
 import { sessionResponse } from "@/lib/auth/auth-service";
+import { verifySignedOAuthState } from "@/lib/auth/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -23,17 +24,13 @@ export async function GET(request: Request) {
   const error = url.searchParams.get("error");
   const stateRaw = url.searchParams.get("state");
 
-  let next = "/dashboard";
-  if (stateRaw) {
-    try {
-      const parsed = JSON.parse(Buffer.from(stateRaw, "base64url").toString()) as {
-        next?: string;
-      };
-      if (parsed.next?.startsWith("/")) next = parsed.next;
-    } catch {
-      /* default */
-    }
+  const state = verifySignedOAuthState(stateRaw);
+  if (!state.ok) {
+    return NextResponse.redirect(
+      `${appBaseUrl()}/login?error=${encodeURIComponent(state.error)}`
+    );
   }
+  const next = state.payload.next;
 
   if (error || !code) {
     return NextResponse.redirect(
