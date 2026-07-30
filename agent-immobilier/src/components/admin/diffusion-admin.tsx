@@ -64,8 +64,9 @@ export function DiffusionAdminClient() {
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-[#0F172A]">Canaux de partage</h2>
         <p className="text-sm text-slate-500">
-          Activez les réseaux. Pour Facebook / LinkedIn / X / WhatsApp, le site
-          ouvre le partage natif. Pour Zapier/Make, collez un webhook.
+          Activez les réseaux utilisés lors de « Publier sur les réseaux connectés »
+          (maisons & événements). Facebook / LinkedIn / X / WhatsApp ouvrent le partage
+          natif. Instagram / TikTok copient la légende. Pour Zapier/Make, collez un webhook.
         </p>
         {accounts.map((a) => (
           <div key={a.id} className="border border-slate-200 bg-white p-4">

@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
 import { SeminarAdminForm } from "@/components/admin/seminar-form";
+import { PublishShareButtons } from "@/components/admin/publish-share-buttons";
 import { DeleteButton } from "@/components/admin/delete-button";
 
 export const metadata = { title: "Événements · Admin" };
@@ -75,6 +76,7 @@ export default async function AdminEventsPage() {
                   >
                     Voir sur le site
                   </Link>
+                  <PublishShareButtons type="seminar" id={s.id} />
                   <DeleteButton
                     endpoint="/api/seminars"
                     id={s.id}

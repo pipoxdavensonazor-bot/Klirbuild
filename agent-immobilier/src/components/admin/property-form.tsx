@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
+import { SocialPublishPanel } from "@/components/admin/social-publish-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,8 @@ export function PropertyAdminForm({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(initial?.id || null);
+  const [autoSocial, setAutoSocial] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -60,12 +63,13 @@ export function PropertyAdminForm({
     setMessage(null);
     const fd = new FormData(e.currentTarget);
     const clearOh = fd.get("ohClear") === "on";
+    const publishSocial = fd.get("publishSocial") === "on";
     const gallery = String(fd.get("imageUrls") || "")
       .split("\n")
       .map((u) => u.trim())
       .filter(Boolean);
     const payload: Record<string, unknown> = {
-      id: initial?.id,
+      id: initial?.id || savedId || undefined,
       title: String(fd.get("title") || ""),
       slug: String(fd.get("slug") || ""),
       description: String(fd.get("description") || ""),
@@ -94,7 +98,7 @@ export function PropertyAdminForm({
     if (gallery.length) payload.images = gallery;
 
     const res = await fetch("/api/properties", {
-      method: initial?.id ? "PUT" : "POST",
+      method: initial?.id || savedId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -103,7 +107,15 @@ export function PropertyAdminForm({
       setMessage("Erreur à l'enregistrement.");
       return;
     }
-    setMessage("Propriété enregistrée.");
+    const data = await res.json();
+    const id = String(data.id || initial?.id || savedId || "");
+    setSavedId(id || null);
+    setMessage(
+      publishSocial
+        ? "Maison enregistrée sur le site. Préparation des réseaux…"
+        : "Maison enregistrée sur le site."
+    );
+    setAutoSocial(publishSocial);
     onSaved?.();
     router.refresh();
   }
@@ -122,7 +134,7 @@ export function PropertyAdminForm({
             name="slug"
             defaultValue={initial?.slug}
             placeholder="ex. maison-blainville-27e"
-            required={!initial?.id}
+            required={!initial?.id && !savedId}
           />
         </div>
       </div>
@@ -326,10 +338,39 @@ export function PropertyAdminForm({
         </div>
       </fieldset>
 
+      <fieldset className="space-y-3 border border-dashed border-slate-300 p-4">
+        <legend className="px-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+          Diffusion réseaux
+        </legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            id="publishSocial"
+            name="publishSocial"
+            type="checkbox"
+            className="mt-1"
+            defaultChecked
+          />
+          <span>
+            Après enregistrement, préparer la publication sur{" "}
+            <strong>Facebook, Instagram, LinkedIn, TikTok</strong> (boutons de
+            partage + légende).
+          </span>
+        </label>
+      </fieldset>
+
       <Button type="submit" variant="gold" disabled={pending}>
-        {pending ? "Enregistrement…" : "Enregistrer"}
+        {pending ? "Enregistrement…" : "Enregistrer la maison sur le site"}
       </Button>
       {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+
+      {savedId ? (
+        <SocialPublishPanel
+          key={`${savedId}-${socialKey}`}
+          type="property"
+          id={savedId}
+          autoPublish={autoSocial}
+        />
+      ) : null}
     </form>
   );
 }

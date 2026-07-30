@@ -5,6 +5,7 @@ import {
   ensureDefaultSocialAccounts,
   publishArticleShare,
   publishPropertyShare,
+  publishSeminarShare,
 } from "@/lib/distribute";
 
 export async function GET() {
@@ -59,6 +60,14 @@ export async function POST(req: Request) {
   if (body.type === "property" && body.propertyId) {
     const result = await publishPropertyShare({
       propertyId: body.propertyId,
+      platforms: body.platforms,
+    });
+    return NextResponse.json(result);
+  }
+
+  if (body.type === "seminar" && body.seminarId) {
+    const result = await publishSeminarShare({
+      seminarId: body.seminarId,
       platforms: body.platforms,
     });
     return NextResponse.json(result);

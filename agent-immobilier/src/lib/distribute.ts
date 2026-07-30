@@ -302,4 +302,134 @@ export async function publishPropertyShare(opts: {
   return { propertyId: property.id, url, caption, results };
 }
 
+export async function publishSeminarShare(opts: {
+  seminarId: string;
+  platforms?: string[];
+}) {
+  const seminar = await prisma.seminar.findUnique({
+    where: { id: opts.seminarId },
+  });
+  if (!seminar) throw new Error("Événement introuvable");
+
+  await ensureDefaultSocialAccounts();
+  const accounts = await prisma.socialAccount.findMany({
+    where: { enabled: true },
+  });
+
+  const url = `${siteUrl()}/seminaires/${seminar.slug}`;
+  const title = seminar.title;
+  const when = seminar.startsAt.toLocaleString("fr-CA", {
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+  const body = `${when} · ${seminar.location} — ${url}`;
+  const links = buildShareLinks({ title, url, text: `${title} — ${body}` });
+
+  const selected = opts.platforms?.length
+    ? accounts.filter((a) => opts.platforms!.includes(a.platform))
+    : accounts;
+
+  const plainDesc = seminar.description
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 220);
+
+  const caption = [
+    `📅 ÉVÉNEMENT — ${title}`,
+    "",
+    `🗓 ${when}`,
+    `📍 ${seminar.location}`,
+    plainDesc ? `\n${plainDesc}` : "",
+    "",
+    `👉 Infos & inscription : ${url}`,
+    "",
+    `Léonne Bien-Aimé · PROPRIO DIRECT · (514) 574-8712`,
+    `#immobilier #événement #séminaire #PROPRIODIRECT`,
+  ]
+    .filter((line) => line !== undefined)
+    .join("\n");
+
+  const results: Array<{
+    platform: string;
+    status: string;
+    shareUrl?: string;
+    caption?: string;
+    error?: string;
+  }> = [];
+
+  for (const account of selected) {
+    const shareUrl = links[account.platform as keyof typeof links];
+    const needsCaption =
+      account.platform === "TIKTOK" || account.platform === "INSTAGRAM";
+
+    try {
+      if (account.platform === "WEBHOOK" && account.webhookUrl) {
+        const res = await fetch(account.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "seminar",
+            title,
+            location: seminar.location,
+            startsAt: seminar.startsAt.toISOString(),
+            url,
+            imageUrl: seminar.imageUrl,
+          }),
+        });
+        await prisma.socialPost.create({
+          data: {
+            socialAccountId: account.id,
+            platform: account.platform,
+            status: res.ok ? "SENT" : "FAILED",
+            title,
+            body,
+            url,
+            errorMessage: res.ok ? null : `HTTP ${res.status}`,
+            sentAt: res.ok ? new Date() : null,
+          },
+        });
+        results.push({
+          platform: account.platform,
+          status: res.ok ? "SENT" : "FAILED",
+          error: res.ok ? undefined : `HTTP ${res.status}`,
+        });
+      } else {
+        await prisma.socialPost.create({
+          data: {
+            socialAccountId: account.id,
+            platform: account.platform,
+            status: "READY",
+            title,
+            body,
+            url: shareUrl || url,
+          },
+        });
+        results.push({
+          platform: account.platform,
+          status: "READY",
+          shareUrl,
+          caption: needsCaption ? caption : undefined,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erreur";
+      await prisma.socialPost.create({
+        data: {
+          socialAccountId: account.id,
+          platform: account.platform,
+          status: "FAILED",
+          title,
+          body,
+          url,
+          errorMessage: msg,
+        },
+      });
+      results.push({ platform: account.platform, status: "FAILED", error: msg });
+    }
+  }
+
+  return { seminarId: seminar.id, url, caption, results };
+}
+
 export { slugify };

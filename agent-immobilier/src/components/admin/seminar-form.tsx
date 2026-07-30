@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ImageUploadField } from "@/components/admin/image-upload-field";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
+import { SocialPublishPanel } from "@/components/admin/social-publish-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,15 +37,19 @@ export function SeminarAdminForm({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(initial?.id || null);
+  const [autoSocial, setAutoSocial] = useState(false);
+  const [socialKey, setSocialKey] = useState(0);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPending(true);
     setMessage(null);
     const fd = new FormData(e.currentTarget);
+    const publishSocial = fd.get("publishSocial") === "on";
 
     const payload = {
-      id: initial?.id,
+      id: initial?.id || savedId || undefined,
       title: String(fd.get("title") || ""),
       slug: String(fd.get("slug") || ""),
       description: String(fd.get("description") || ""),
@@ -56,7 +61,7 @@ export function SeminarAdminForm({
     };
 
     const res = await fetch("/api/seminars", {
-      method: initial?.id ? "PUT" : "POST",
+      method: initial?.id || savedId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -68,10 +73,17 @@ export function SeminarAdminForm({
       return;
     }
 
-    setMessage(initial?.id ? "Événement mis à jour." : "Événement créé.");
-    if (!initial?.id) {
-      (e.target as HTMLFormElement).reset();
-    }
+    const data = await res.json();
+    const id = String(data.id || initial?.id || savedId || "");
+    setSavedId(id || null);
+    setAutoSocial(publishSocial);
+    setMessage(
+      publishSocial
+        ? "Événement publié sur le site. Préparation des réseaux…"
+        : initial?.id
+          ? "Événement mis à jour sur le site."
+          : "Événement créé sur le site."
+    );
     router.refresh();
   }
 
@@ -152,14 +164,41 @@ export function SeminarAdminForm({
         />
         Inscriptions ouvertes
       </label>
+
+      <fieldset className="space-y-3 border border-dashed border-[#C9A227]/50 p-4">
+        <legend className="px-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#C9A227]">
+          Diffusion
+        </legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="publishSocial"
+            className="mt-1"
+            defaultChecked
+          />
+          <span>
+            Publier aussi sur les réseaux (Facebook, Instagram, LinkedIn, TikTok)
+            après la mise en ligne sur le site.
+          </span>
+        </label>
+      </fieldset>
+
       <Button type="submit" variant="gold" disabled={pending}>
         {pending
           ? "Enregistrement…"
           : initial?.id
-            ? "Mettre à jour"
-            : "Créer l'événement"}
+            ? "Mettre à jour + diffuser"
+            : "Créer l'événement sur le site"}
       </Button>
       {message ? <p className="text-sm text-slate-600">{message}</p> : null}
+
+      {savedId ? (
+        <SocialPublishPanel
+          type="seminar"
+          id={savedId}
+          autoPublish={autoSocial}
+        />
+      ) : null}
     </form>
   );
 }
