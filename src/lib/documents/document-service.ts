@@ -118,16 +118,21 @@ export async function upsertDocument(
     (await prisma.folder.create({ data: { companyId, name: folderName } }));
 
   if (input.id) {
-    const row = await prisma.document.update({
-      where: { id: input.id },
+    const updated = await prisma.document.updateMany({
+      where: { id: input.id, companyId, deletedAt: null },
       data: {
         name,
         folderId: folder.id,
         type: input.type ?? undefined,
         tags: input.tags ?? undefined,
       },
+    });
+    if (updated.count === 0) return { error: "Document introuvable." as const };
+    const row = await prisma.document.findFirst({
+      where: { id: input.id, companyId, deletedAt: null },
       include: { folder: { select: { name: true } } },
     });
+    if (!row) return { error: "Document introuvable." as const };
     return { document: mapDoc(row) };
   }
 

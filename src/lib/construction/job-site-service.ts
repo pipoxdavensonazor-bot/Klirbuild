@@ -88,11 +88,8 @@ export async function updateJobSite(
 ) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const existing = await prisma.jobSite.findFirst({ where: { id, companyId } });
-  if (!existing) return { error: "Chantier introuvable." as const };
-
-  const row = await prisma.jobSite.update({
-    where: { id },
+  const updated = await prisma.jobSite.updateMany({
+    where: { id, companyId },
     data: {
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
       ...(input.address !== undefined ? { address: input.address || null } : {}),
@@ -102,15 +99,16 @@ export async function updateJobSite(
       ...(input.radiusM !== undefined ? { radiusM: input.radiusM } : {}),
     },
   });
+  if (updated.count === 0) return { error: "Chantier introuvable." as const };
+  const row = await prisma.jobSite.findFirst({ where: { id, companyId } });
+  if (!row) return { error: "Chantier introuvable." as const };
   return { jobSite: mapRow(row) };
 }
 
 export async function deleteJobSite(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const existing = await prisma.jobSite.findFirst({ where: { id, companyId } });
-  if (!existing) return { error: "Chantier introuvable." as const };
-
-  await prisma.jobSite.delete({ where: { id } });
+  const deleted = await prisma.jobSite.deleteMany({ where: { id, companyId } });
+  if (deleted.count === 0) return { error: "Chantier introuvable." as const };
   return { ok: true as const };
 }

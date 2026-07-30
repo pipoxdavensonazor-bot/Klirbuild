@@ -211,14 +211,11 @@ export async function connectSocialAccountViaKlirline(
 export async function disconnectSocialAccount(companyId: string, accountId: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
 
-  const row = await prisma.socialAccountConnection.findFirst({
+  const updated = await prisma.socialAccountConnection.updateMany({
     where: { id: accountId, companyId },
-  });
-  if (!row) return { error: "Compte introuvable." as const };
-  await prisma.socialAccountConnection.update({
-    where: { id: accountId },
     data: { status: "disconnected", adAccountId: null, zernioAccountId: null, connectedAt: null },
   });
+  if (updated.count === 0) return { error: "Compte introuvable." as const };
   return { ok: true as const };
 }
 
