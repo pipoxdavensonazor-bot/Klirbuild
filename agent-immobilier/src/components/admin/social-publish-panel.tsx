@@ -61,7 +61,11 @@ export function SocialPublishPanel({
       );
       setAccounts(enabled);
       const platforms = enabled.map((a) => a.platform);
-      setSelected((prev) => prev.filter((p) => platforms.includes(p)));
+      setSelected((prev) => {
+        const next = prev.filter((p) => platforms.includes(p));
+        return next.length ? next : DEFAULT_SELECTED.filter((p) => platforms.includes(p));
+      });
+      // Le webhook Zapier part toujours côté serveur s'il est configuré.
     })();
     return () => {
       cancelled = true;
@@ -106,7 +110,7 @@ export function SocialPublishPanel({
     setCaption(data.caption || null);
     setUrl(data.url || null);
     setMsg(
-      "Prêt. Cliquez chaque réseau pour publier (légende copiée pour Instagram / TikTok)."
+      "Prêt. Zapier reçoit le webhook (si configuré). Cliquez aussi un réseau pour le partage manuel."
     );
 
     // Ouvre Facebook + LinkedIn automatiquement (partage natif)

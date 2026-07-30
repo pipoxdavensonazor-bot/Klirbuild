@@ -46,11 +46,36 @@ const DEFAULT_ACCOUNTS = [
   { platform: "WHATSAPP", label: "WhatsApp", enabled: true },
   {
     platform: "WEBHOOK",
-    label: "Zapier / Make (webhook)",
-    enabled: false,
+    label: "Zapier / Make (webhook auto)",
+    enabled: true,
     webhookUrl: "",
   },
 ] as const;
+
+function absoluteMediaUrl(url?: string | null) {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const base = siteUrl().replace(/\/$/, "");
+  return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+/** Always include webhook account when a URL is configured. */
+function selectAccounts(
+  accounts: Array<{
+    id: string;
+    platform: string;
+    enabled: boolean;
+    webhookUrl: string | null;
+  }>,
+  platforms?: string[]
+) {
+  if (!platforms?.length) return accounts;
+  return accounts.filter(
+    (a) =>
+      platforms.includes(a.platform) ||
+      (a.platform === "WEBHOOK" && Boolean(a.webhookUrl))
+  );
+}
 
 export async function ensureDefaultSocialAccounts() {
   for (const account of DEFAULT_ACCOUNTS) {
@@ -100,9 +125,7 @@ export async function publishArticleShare(opts: {
     text: `${article.title} — ${article.excerpt}`,
   });
 
-  const selected = opts.platforms?.length
-    ? accounts.filter((a) => opts.platforms!.includes(a.platform))
-    : accounts;
+  const selected = selectAccounts(accounts, opts.platforms);
 
   const caption = `${article.title}\n\n${article.excerpt}\n${url}`;
   const results: Array<{
@@ -128,8 +151,9 @@ export async function publishArticleShare(opts: {
             type: "article",
             title: article.title,
             excerpt: article.excerpt,
+            caption,
             url,
-            coverUrl: article.coverUrl,
+            imageUrl: absoluteMediaUrl(article.coverUrl),
             publishedAt: new Date().toISOString(),
           }),
         });
@@ -223,9 +247,7 @@ export async function publishPropertyShare(opts: {
   const body = `${property.city} · ${priceLabel}${specs ? ` · ${specs}` : ""} — ${url}`;
   const links = buildShareLinks({ title, url, text: body });
 
-  const selected = opts.platforms?.length
-    ? accounts.filter((a) => opts.platforms!.includes(a.platform))
-    : accounts;
+  const selected = selectAccounts(accounts, opts.platforms);
 
   const caption = [
     `🏠 À VENDRE — ${title}`,
@@ -238,64 +260,93 @@ export async function publishPropertyShare(opts: {
     `Léonne Bien-Aimé · PROPRIO DIRECT · (514) 574-8712`,
     `#immobilier #${property.city.replace(/[^a-zA-ZàâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ]/g, "")} #àvendre #PROPRIODIRECT`,
   ].join("\n");
+  const imageUrl = absoluteMediaUrl(property.images[0]?.url);
   const results: Array<{
     platform: string;
     status: string;
     shareUrl?: string;
     caption?: string;
+    error?: string;
   }> = [];
   for (const account of selected) {
     const shareUrl = links[account.platform as keyof typeof links];
     const needsCaption =
       account.platform === "TIKTOK" || account.platform === "INSTAGRAM";
-    if (account.platform === "WEBHOOK" && account.webhookUrl) {
-      const res = await fetch(account.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "property",
-          title,
-          city: property.city,
-          price: property.price,
-          url,
-          imageUrl: property.images[0]?.url,
-        }),
-      });
-      await prisma.socialPost.create({
-        data: {
-          propertyId: property.id,
-          socialAccountId: account.id,
+    try {
+      if (account.platform === "WEBHOOK" && account.webhookUrl) {
+        const res = await fetch(account.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "property",
+            title,
+            address: property.address,
+            city: property.city,
+            price: property.price,
+            priceLabel,
+            specs,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            areaSqft: property.areaSqft,
+            caption,
+            message: caption,
+            url,
+            imageUrl,
+            platforms: ["facebook", "instagram", "linkedin"],
+          }),
+        });
+        await prisma.socialPost.create({
+          data: {
+            propertyId: property.id,
+            socialAccountId: account.id,
+            platform: account.platform,
+            status: res.ok ? "SENT" : "FAILED",
+            title,
+            body: caption,
+            url,
+            errorMessage: res.ok ? null : `HTTP ${res.status}`,
+            sentAt: res.ok ? new Date() : null,
+          },
+        });
+        results.push({
           platform: account.platform,
           status: res.ok ? "SENT" : "FAILED",
-          title,
-          body,
-          url,
-          errorMessage: res.ok ? null : `HTTP ${res.status}`,
-          sentAt: res.ok ? new Date() : null,
-        },
-      });
-      results.push({
-        platform: account.platform,
-        status: res.ok ? "SENT" : "FAILED",
-      });
-    } else {
+          error: res.ok ? undefined : `HTTP ${res.status}`,
+        });
+      } else {
+        await prisma.socialPost.create({
+          data: {
+            propertyId: property.id,
+            socialAccountId: account.id,
+            platform: account.platform,
+            status: "READY",
+            title,
+            body,
+            url: shareUrl || url,
+          },
+        });
+        results.push({
+          platform: account.platform,
+          status: "READY",
+          shareUrl,
+          caption: needsCaption ? caption : caption,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erreur";
       await prisma.socialPost.create({
         data: {
           propertyId: property.id,
           socialAccountId: account.id,
           platform: account.platform,
-          status: "READY",
+          status: "FAILED",
           title,
-          body,
-          url: shareUrl || url,
+          body: caption,
+          url,
+          errorMessage: msg,
         },
       });
-      results.push({
-        platform: account.platform,
-        status: "READY",
-        shareUrl,
-        caption: needsCaption ? caption : undefined,
-      });
+      results.push({ platform: account.platform, status: "FAILED", error: msg });
     }
   }
 
@@ -325,9 +376,7 @@ export async function publishSeminarShare(opts: {
   const body = `${when} · ${seminar.location} — ${url}`;
   const links = buildShareLinks({ title, url, text: `${title} — ${body}` });
 
-  const selected = opts.platforms?.length
-    ? accounts.filter((a) => opts.platforms!.includes(a.platform))
-    : accounts;
+  const selected = selectAccounts(accounts, opts.platforms);
 
   const plainDesc = seminar.description
     .replace(/<[^>]+>/g, " ")
@@ -350,6 +399,7 @@ export async function publishSeminarShare(opts: {
     .filter((line) => line !== undefined)
     .join("\n");
 
+  const imageUrl = absoluteMediaUrl(seminar.imageUrl);
   const results: Array<{
     platform: string;
     status: string;
@@ -373,8 +423,12 @@ export async function publishSeminarShare(opts: {
             title,
             location: seminar.location,
             startsAt: seminar.startsAt.toISOString(),
+            when,
+            caption,
+            message: caption,
             url,
-            imageUrl: seminar.imageUrl,
+            imageUrl,
+            platforms: ["facebook", "instagram", "linkedin"],
           }),
         });
         await prisma.socialPost.create({
@@ -383,7 +437,7 @@ export async function publishSeminarShare(opts: {
             platform: account.platform,
             status: res.ok ? "SENT" : "FAILED",
             title,
-            body,
+            body: caption,
             url,
             errorMessage: res.ok ? null : `HTTP ${res.status}`,
             sentAt: res.ok ? new Date() : null,
@@ -409,7 +463,7 @@ export async function publishSeminarShare(opts: {
           platform: account.platform,
           status: "READY",
           shareUrl,
-          caption: needsCaption ? caption : undefined,
+          caption: needsCaption ? caption : caption,
         });
       }
     } catch (e) {
@@ -420,7 +474,7 @@ export async function publishSeminarShare(opts: {
           platform: account.platform,
           status: "FAILED",
           title,
-          body,
+          body: caption,
           url,
           errorMessage: msg,
         },
