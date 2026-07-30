@@ -56,6 +56,7 @@ export function PropertyAdminForm({
   const [message, setMessage] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(initial?.id || null);
   const [autoSocial, setAutoSocial] = useState(false);
+  const [socialKey, setSocialKey] = useState(0);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -116,6 +117,7 @@ export function PropertyAdminForm({
         : "Maison enregistrée sur le site."
     );
     setAutoSocial(publishSocial);
+    if (publishSocial) setSocialKey((k) => k + 1);
     onSaved?.();
     router.refresh();
   }

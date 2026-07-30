@@ -77,6 +77,7 @@ export function SeminarAdminForm({
     const id = String(data.id || initial?.id || savedId || "");
     setSavedId(id || null);
     setAutoSocial(publishSocial);
+    if (publishSocial) setSocialKey((k) => k + 1);
     setMessage(
       publishSocial
         ? "Événement publié sur le site. Préparation des réseaux…"
@@ -194,6 +195,7 @@ export function SeminarAdminForm({
 
       {savedId ? (
         <SocialPublishPanel
+          key={`${savedId}-${socialKey}`}
           type="seminar"
           id={savedId}
           autoPublish={autoSocial}

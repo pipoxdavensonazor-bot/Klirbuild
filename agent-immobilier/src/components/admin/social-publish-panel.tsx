@@ -25,7 +25,8 @@ const PLATFORM_LABEL: Record<string, string> = {
   WHATSAPP: "WhatsApp",
   INSTAGRAM: "Instagram",
   TIKTOK: "TikTok",
-  WEBHOOK: "Zapier / webhook",
+  WEBHOOK: "Zapier",
+  WEBHOOK_MAKE: "Make.com",
 };
 
 const DEFAULT_SELECTED = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "TIKTOK"];
@@ -57,7 +58,7 @@ export function SocialPublishPanel({
       if (!res.ok || cancelled) return;
       const data = await res.json();
       const enabled: Account[] = (data.accounts || []).filter(
-        (a: Account) => a.enabled && a.platform !== "WEBHOOK"
+        (a: Account) => a.enabled && !a.platform.startsWith("WEBHOOK")
       );
       setAccounts(enabled);
       const platforms = enabled.map((a) => a.platform);
@@ -65,7 +66,7 @@ export function SocialPublishPanel({
         const next = prev.filter((p) => platforms.includes(p));
         return next.length ? next : DEFAULT_SELECTED.filter((p) => platforms.includes(p));
       });
-      // Le webhook Zapier part toujours côté serveur s'il est configuré.
+      // Les webhooks Zapier/Make partent toujours côté serveur s'ils sont configurés.
     })();
     return () => {
       cancelled = true;
@@ -109,14 +110,27 @@ export function SocialPublishPanel({
     setResults(list);
     setCaption(data.caption || null);
     setUrl(data.url || null);
-    setMsg(
-      "Prêt. Zapier reçoit le webhook (si configuré). Cliquez aussi un réseau pour le partage manuel."
-    );
+    const sent = list.filter((r) => r.status === "SENT").map((r) => r.platform);
+    const failed = list.filter((r) => r.status === "FAILED");
+    if (sent.length) {
+      setMsg(
+        `Publié automatiquement : ${sent.map((p) => PLATFORM_LABEL[p] || p).join(", ")}.`
+      );
+    } else if (failed.length) {
+      setMsg(
+        `Échec auto : ${failed.map((r) => `${PLATFORM_LABEL[r.platform] || r.platform}${r.error ? ` (${r.error})` : ""}`).join(" · ")}. Utilisez le partage manuel ci-dessous.`
+      );
+    } else {
+      setMsg(
+        "Prêt. Webhook / API si configurés. Cliquez un réseau pour le partage manuel."
+      );
+    }
 
-    // Ouvre Facebook + LinkedIn automatiquement (partage natif)
+    // Ouvre Facebook + LinkedIn manuellement seulement si pas déjà SENT
     for (const link of list) {
       if (
         (link.platform === "FACEBOOK" || link.platform === "LINKEDIN") &&
+        link.status === "READY" &&
         link.shareUrl
       ) {
         window.open(link.shareUrl, "_blank", "noopener,noreferrer");
@@ -219,9 +233,8 @@ export function SocialPublishPanel({
 
       {results.length > 0 ? (
         <div className={`flex flex-wrap gap-2 ${compact ? "justify-end" : ""}`}>
-          {results
-            .filter((r) => r.shareUrl)
-            .map((r) => (
+          {results.map((r) =>
+            r.shareUrl && r.status === "READY" ? (
               <button
                 key={r.platform}
                 type="button"
@@ -230,7 +243,21 @@ export function SocialPublishPanel({
               >
                 {PLATFORM_LABEL[r.platform] || r.platform}
               </button>
-            ))}
+            ) : (
+              <span
+                key={r.platform}
+                className={`px-3 py-1.5 text-xs font-medium ${
+                  r.status === "SENT"
+                    ? "border border-emerald-300 bg-emerald-50 text-emerald-800"
+                    : r.status === "FAILED"
+                      ? "border border-red-200 bg-red-50 text-red-700"
+                      : "border border-slate-200 bg-slate-50 text-slate-600"
+                }`}
+              >
+                {PLATFORM_LABEL[r.platform] || r.platform} · {r.status}
+              </span>
+            )
+          )}
         </div>
       ) : null}
 
