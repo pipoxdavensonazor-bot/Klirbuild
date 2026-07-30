@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiUrl, parseApiResponse } from "@/lib/api-client";
+import { sanitizeEmailHtml } from "@/lib/security/sanitize-html";
 import { formatDate } from "@/lib/utils";
 import type { EmailRecord } from "@/lib/email/email-service";
 import type { Client } from "@/types";
@@ -247,7 +248,9 @@ export function InboxPageClient() {
                   {selected.bodyHtml ? (
                     <div
                       className="prose prose-sm max-w-none dark:prose-invert"
-                      dangerouslySetInnerHTML={{ __html: selected.bodyHtml }}
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeEmailHtml(selected.bodyHtml),
+                      }}
                     />
                   ) : (
                     <p className="whitespace-pre-wrap">

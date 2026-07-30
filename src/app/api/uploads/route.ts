@@ -5,11 +5,14 @@ import {
   putUpload,
   uploadsEnabled,
 } from "@/lib/storage/blobs";
+import {
+  MARKETING_UPLOAD_TYPES,
+  normalizeUploadContentType,
+} from "@/lib/security/upload-security";
 
 export const runtime = "nodejs";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function appBaseUrl() {
   return (
@@ -39,22 +42,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Fichier requis." }, { status: 400 });
   }
 
-  if (!ALLOWED.has(file.type)) {
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Taille max 5 Mo." }, { status: 400 });
+  }
+
+  const buffer = await file.arrayBuffer();
+  const extGuess = (file.type.split("/")[1] || "bin").replace(/[^a-z0-9]/gi, "");
+  const key = `marketing/${session.companyId}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${extGuess || "bin"}`;
+
+  const normalized = normalizeUploadContentType({
+    declaredType: file.type,
+    key,
+    bytes: buffer,
+    allowed: MARKETING_UPLOAD_TYPES,
+  });
+  if (!normalized.ok) {
     return NextResponse.json(
       { error: "Format accepté : JPEG, PNG, WebP, GIF." },
       { status: 400 }
     );
   }
 
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Taille max 5 Mo." }, { status: 400 });
-  }
+  const ext = normalized.contentType.split("/")[1] ?? "bin";
+  const finalKey = `marketing/${session.companyId}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${ext}`;
 
-  const ext = file.type.split("/")[1] ?? "bin";
-  const key = `marketing/${session.companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const buffer = await file.arrayBuffer();
-  await putUpload(key, buffer, file.type);
+  await putUpload(finalKey, buffer, normalized.contentType);
 
-  const url = publicUploadUrl(key, appBaseUrl());
-  return NextResponse.json({ url, key });
+  const url = publicUploadUrl(finalKey, appBaseUrl());
+  return NextResponse.json({ url, key: finalKey });
 }

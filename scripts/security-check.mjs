@@ -88,11 +88,6 @@ const codeFiles = files.filter((f) => {
 
 for (const file of codeFiles) {
   const rel = path.relative(root, file).replace(/\\/g, "/");
-  const allowDangerousHtml =
-    rel.includes("/inbox/") ||
-    rel.includes("email") ||
-    rel.includes("templates");
-
   let text;
   try {
     text = fs.readFileSync(file, "utf8");
@@ -101,7 +96,18 @@ for (const file of codeFiles) {
   }
 
   for (const rule of dangerous) {
-    if (rule.msg.includes("dangerouslySetInnerHTML") && allowDangerousHtml) {
+    if (rule.msg.includes("dangerouslySetInnerHTML")) {
+      if (!rule.re.test(text)) continue;
+      rule.re.lastIndex = 0;
+      // Allowed only when paired with sanitizeEmailHtml / sanitizeHtml
+      if (
+        text.includes("sanitizeEmailHtml") ||
+        text.includes("sanitizeHtml(") ||
+        text.includes("DOMPurify.sanitize")
+      ) {
+        continue;
+      }
+      errors.push(`${rel}: dangerouslySetInnerHTML sans sanitization`);
       continue;
     }
     if (rule.re.test(text)) {
@@ -123,6 +129,7 @@ if (fs.existsSync(netlifyPath)) {
     "Referrer-Policy",
     "Permissions-Policy",
     "Strict-Transport-Security",
+    "Content-Security-Policy",
   ]) {
     if (!toml.includes(header)) {
       errors.push(`netlify.toml: header manquant « ${header} »`);
@@ -130,6 +137,20 @@ if (fs.existsSync(netlifyPath)) {
   }
 } else {
   errors.push("netlify.toml introuvable");
+}
+
+/** 3b) Live Cloudflare path must set CSP in middleware / csp module */
+const cspModule = path.join(root, "src/lib/security/csp.ts");
+const middlewarePath = path.join(root, "src/middleware.ts");
+if (!fs.existsSync(cspModule)) {
+  errors.push("src/lib/security/csp.ts manquant");
+} else if (!fs.existsSync(middlewarePath)) {
+  errors.push("src/middleware.ts manquant");
+} else {
+  const mw = fs.readFileSync(middlewarePath, "utf8");
+  if (!mw.includes("securityHeaders") && !mw.includes("Content-Security-Policy")) {
+    errors.push("src/middleware.ts: Content-Security-Policy non appliqué");
+  }
 }
 
 /** 4) Cron routes must authorize */
