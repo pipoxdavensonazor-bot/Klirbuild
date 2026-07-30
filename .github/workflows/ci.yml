@@ -55,7 +55,7 @@ jobs:
       - name: Secret scan (Gitleaks)
         run: |
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" | tar xz
-          ./gitleaks detect --source . --verbose --redact --no-banner
+          ./gitleaks detect --source . --config .gitleaks.toml --verbose --redact --no-banner
 
       - name: KlirBuild security checks
         run: npm run security:check
