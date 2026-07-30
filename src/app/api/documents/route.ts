@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession, requireSession } from "@/lib/auth/auth-service";
+import { requireSession } from "@/lib/auth/auth-service";
 import {
   getDocumentsStorageBytes,
   listDocuments,
@@ -9,18 +9,12 @@ import {
 
 export const runtime = "nodejs";
 
-async function companyId() {
-  const session = await getRequestSession();
-  if (!session) return null;
-  return (await enrichSession(session)).companyId;
-}
-
 export async function GET() {
-  const cid = await companyId();
-  if (!cid) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
   const [documents, storageBytes] = await Promise.all([
-    listDocuments(cid),
-    getDocumentsStorageBytes(cid),
+    listDocuments(session.companyId),
+    getDocumentsStorageBytes(session.companyId),
   ]);
   return NextResponse.json({ documents, storageBytes });
 }
@@ -39,14 +33,16 @@ export async function POST(request: Request) {
     }
     const folderName =
       typeof form?.get("folderName") === "string"
-        ? (form.get("folderName") as string)
+        ? String(form.get("folderName"))
         : undefined;
     const tagsRaw = form?.get("tags");
     const tags =
       typeof tagsRaw === "string"
-        ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
+        ? tagsRaw
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
         : undefined;
-
     const result = await uploadDocument(session.companyId, { file, folderName, tags });
     if ("error" in result && result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });
@@ -60,7 +56,9 @@ export async function POST(request: Request) {
     name: typeof body.name === "string" ? body.name : "",
     folderName: typeof body.folderName === "string" ? body.folderName : undefined,
     type: typeof body.type === "string" ? body.type : undefined,
-    tags: Array.isArray(body.tags) ? body.tags.filter((t: unknown) => typeof t === "string") : undefined,
+    tags: Array.isArray(body.tags)
+      ? body.tags.filter((t: unknown) => typeof t === "string")
+      : undefined,
   });
   if ("error" in result && result.error) {
     return NextResponse.json({ error: result.error }, { status: 400 });

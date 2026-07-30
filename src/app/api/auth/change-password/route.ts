@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { enrichSession, getRequestSession } from "@/lib/auth/auth-service";
+import {
+  bumpSessionVersion,
+  enrichSession,
+  getRequestSession,
+  sessionResponse,
+} from "@/lib/auth/auth-service";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { rateLimitResponse } from "@/lib/auth/rate-limit";
 import { DATABASE_REQUIRED_MESSAGE } from "@/lib/api/database-guard";
@@ -38,6 +43,12 @@ export async function POST(request: Request) {
   }
 
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   const user = await prisma.user.findUnique({
     where: { email: enriched.email },
     select: { id: true, passwordHash: true },
@@ -54,8 +65,14 @@ export async function POST(request: Request) {
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, sessionVersion: { increment: 1 } },
   });
 
-  return NextResponse.json({ ok: true });
+  // Issue a fresh cookie with the new sessionVersion.
+  return sessionResponse({
+    email: enriched.email,
+    companyId: enriched.companyId,
+    role: enriched.role,
+    isPlatformAdmin: enriched.isPlatformAdmin,
+  });
 }

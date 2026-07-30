@@ -27,7 +27,9 @@ export function MarketingSetupChecklist({ error, provider, onRetry }: Props) {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch(apiUrl("/api/health"));
+        const res = await fetch(apiUrl("/api/health?detail=1"), {
+          credentials: "include",
+        });
         const data = await res.json();
         setChecks(data.checks ?? {});
       } catch {

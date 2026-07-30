@@ -11,6 +11,12 @@ export async function GET(_request: Request, ctx: Ctx) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   const { id } = await ctx.params;
 
   if (!canApp(enriched.role, "payroll:read") && !canApp(enriched.role, "accounting:read")) {

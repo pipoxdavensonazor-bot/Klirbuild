@@ -10,8 +10,11 @@ export const runtime = "nodejs";
  */
 export async function POST(request: Request) {
   const secret = process.env.DAILY_WEBHOOK_SECRET?.trim();
+  const allowInsecure =
+    process.env.ALLOW_INSECURE_WEBHOOKS === "true" &&
+    process.env.NODE_ENV !== "production";
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
+    if (!allowInsecure) {
       return NextResponse.json(
         { error: "DAILY_WEBHOOK_SECRET non configuré" },
         { status: 503 }

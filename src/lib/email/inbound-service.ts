@@ -31,7 +31,13 @@ export function verifyResendWebhook(
   }
 ) {
   const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
-  if (!secret) return process.env.NODE_ENV !== "production";
+  if (!secret) {
+    // Fail-closed unless explicit local override.
+    return (
+      process.env.ALLOW_INSECURE_WEBHOOKS === "true" &&
+      process.env.NODE_ENV !== "production"
+    );
+  }
 
   const svixId = headers["svix-id"];
   const svixTimestamp = headers["svix-timestamp"];

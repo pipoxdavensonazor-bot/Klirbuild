@@ -26,6 +26,14 @@ async function requireUser() {
     };
   }
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return {
+      error: NextResponse.json(
+        { error: "Session expirée — reconnectez-vous." },
+        { status: 401 }
+      ),
+    };
+  }
   const user = await prisma.user.findUnique({
     where: { email: enriched.email },
     select: {

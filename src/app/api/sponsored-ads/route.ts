@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/auth-service";
+import { isSafeHttpUrl } from "@/lib/auth/safe-url";
 import {
   createSponsoredCampaign,
   listSponsoredCampaigns,
@@ -34,6 +35,12 @@ export async function POST(request: Request) {
   if (!title || !headline || !bodyText || !ctaUrl) {
     return NextResponse.json(
       { error: "title, headline, body, ctaUrl requis" },
+      { status: 400 }
+    );
+  }
+  if (!isSafeHttpUrl(ctaUrl)) {
+    return NextResponse.json(
+      { error: "ctaUrl doit être une URL http(s) valide." },
       { status: 400 }
     );
   }

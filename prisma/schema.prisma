@@ -117,6 +117,8 @@ model User {
   role         Role      @default(EMPLOYEE)
   /// Admin Klirline Inc. — voit toutes les entreprises (tableau de bord plateforme)
   isPlatformAdmin Boolean @default(false)
+  /// Bumped on password change / reset to invalidate existing HMAC session cookies.
+  sessionVersion Int       @default(0)
   image        String?
   // TOTP 2FA (secret chiffré au repos)
   totpSecret   String?

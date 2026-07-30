@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enrichSession, requireSession } from "@/lib/auth/auth-service";
+import { requireSession } from "@/lib/auth/auth-service";
 import { canApp } from "@/lib/workforce/types";
 import { prisma } from "@/lib/db";
 import {
@@ -22,19 +22,18 @@ export const runtime = "nodejs";
 async function hostContext() {
   const session = await requireSession();
   if (session instanceof NextResponse) return { error: session };
-  const enriched = await enrichSession(session);
-  if (!canApp(enriched.role, "live:host") && !canApp(enriched.role, "meetings:host")) {
+  if (!canApp(session.role, "live:host") && !canApp(session.role, "meetings:host")) {
     return {
       error: NextResponse.json({ error: "Permission refusée." }, { status: 403 }),
     };
   }
   let companyName = "Mon entreprise";
   const company = await prisma.company.findUnique({
-    where: { id: enriched.companyId },
+    where: { id: session.companyId },
     select: { name: true },
   });
   if (company?.name) companyName = company.name;
-  return { enriched, companyName };
+  return { enriched: session, companyName };
 }
 
 export async function GET() {

@@ -43,7 +43,9 @@ export function ProductionSetupChecklist() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/health"));
+      const res = await fetch(apiUrl("/api/health?detail=1"), {
+        credentials: "include",
+      });
       const data = (await res.json()) as HealthPayload;
       setHealth(data);
     } catch {

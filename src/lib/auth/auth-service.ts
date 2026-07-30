@@ -54,6 +54,7 @@ export async function authenticateUser(email: string, password: string) {
     role: user.role,
     totpEnabled: Boolean(user.totpEnabled),
     isPlatformAdmin,
+    sessionVersion: user.sessionVersion ?? 0,
   };
 }
 
@@ -120,16 +121,32 @@ export async function sessionResponse(
     role: DemoSession["role"];
     isPlatformAdmin?: boolean;
     homeCompanyId?: string;
+    sessionVersion?: number;
   },
   maxAge?: number
 ) {
+  let sessionVersion = profile.sessionVersion;
+  let isPlatformAdmin = profile.isPlatformAdmin;
+  if (hasDatabase() && (sessionVersion === undefined || isPlatformAdmin === undefined)) {
+    const user = await prisma.user.findUnique({
+      where: { email: profile.email },
+      select: { sessionVersion: true, isPlatformAdmin: true, role: true },
+    });
+    if (user) {
+      sessionVersion = user.sessionVersion ?? 0;
+      isPlatformAdmin =
+        Boolean(user.isPlatformAdmin) || user.role === "SUPER_ADMIN";
+    }
+  }
+
   const { token, session, maxAge: age } = await createDemoSession(
     profile.email,
     profile.role,
     profile.companyId,
     {
-      isPlatformAdmin: profile.isPlatformAdmin,
+      isPlatformAdmin,
       homeCompanyId: profile.homeCompanyId,
+      sessionVersion: sessionVersion ?? 0,
     }
   );
   const res = NextResponse.json({
@@ -143,28 +160,50 @@ export async function sessionResponse(
   return res;
 }
 
-/** Sessions anciennes peuvent manquer companyId / isPlatformAdmin — résout depuis la DB. */
-export async function enrichSession(session: DemoSession): Promise<DemoSession> {
+/**
+ * Revalidate privilege claims against the DB on every request.
+ * Rejects cookies whose sessionVersion no longer matches (password reset/change).
+ */
+export async function enrichSession(
+  session: DemoSession
+): Promise<DemoSession | null> {
   let next = { ...session };
 
-  if (!next.companyId?.trim() || next.isPlatformAdmin === undefined) {
-    if (hasDatabase()) {
-      const user = await prisma.user.findUnique({
-        where: { email: session.email },
-        select: { companyId: true, isPlatformAdmin: true, role: true },
-      });
-      if (user) {
-        if (!next.companyId?.trim()) next.companyId = user.companyId;
-        if (next.isPlatformAdmin === undefined) {
-          next.isPlatformAdmin =
-            Boolean(user.isPlatformAdmin) || user.role === "SUPER_ADMIN";
-        }
-      }
-    }
+  if (hasDatabase()) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.email },
+      select: {
+        companyId: true,
+        isPlatformAdmin: true,
+        role: true,
+        sessionVersion: true,
+        company: { select: { suspended: true } },
+      },
+    });
+    if (!user) return null;
+
+    const dbVersion = user.sessionVersion ?? 0;
+    if ((session.sessionVersion ?? 0) !== dbVersion) return null;
+
+    next.companyId = user.companyId;
+    next.role = user.role as DemoSession["role"];
+    next.isPlatformAdmin =
+      Boolean(user.isPlatformAdmin) || user.role === "SUPER_ADMIN";
+    next.sessionVersion = dbVersion;
+
+    if (user.company?.suspended && !next.isPlatformAdmin) return null;
   }
 
   if (!next.companyId?.trim()) next.companyId = DEMO_COMPANY_ID;
   return next;
+}
+
+export async function bumpSessionVersion(userId: string) {
+  if (!hasDatabase()) return;
+  await prisma.user.update({
+    where: { id: userId },
+    data: { sessionVersion: { increment: 1 } },
+  });
 }
 
 export async function requireSession(): Promise<DemoSession | NextResponse> {
@@ -172,5 +211,12 @@ export async function requireSession(): Promise<DemoSession | NextResponse> {
   if (!session) {
     return NextResponse.json({ error: "Connexion requise" }, { status: 401 });
   }
-  return enrichSession(session);
+  const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
+  return enriched;
 }

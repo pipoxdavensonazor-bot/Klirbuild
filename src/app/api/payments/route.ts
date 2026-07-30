@@ -12,6 +12,12 @@ export async function GET(request: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   if (!canApp(enriched.role, "billing:manage")) {
     return NextResponse.json({ error: "Permission refusée" }, { status: 403 });
   }
@@ -24,6 +30,12 @@ export async function POST(request: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
   if (!canApp(enriched.role, "billing:manage")) {
     return NextResponse.json({ error: "Permission refusée" }, { status: 403 });
   }

@@ -1,6 +1,5 @@
 /**
- * Simple in-memory rate limiter (per instance). Enough to blunt brute-force
- * on serverless; not a shared store.
+ * In-memory rate limiter (per isolate). Prefer CF-Connecting-IP over spoofable XFF.
  */
 import { NextResponse } from "next/server";
 
@@ -29,12 +28,22 @@ export function rateLimit(input: {
   return { ok: true };
 }
 
+/** Prefer Cloudflare edge IP; never trust the first XFF hop alone. */
 export function clientIp(request: Request) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown"
-  );
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+
+  // Last hop of XFF is typically the trusted proxy-added value.
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1]!;
+  }
+
+  return "unknown";
 }
 
 /** Returns a 429 response when the bucket is exhausted; otherwise null. */

@@ -59,6 +59,7 @@ export function securityHeaders(): Record<string, string> {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(self), microphone=(self), geolocation=(self)",
     "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    "Cross-Origin-Resource-Policy": "same-site",
     "X-DNS-Prefetch-Control": "off",
     ...(process.env.NODE_ENV === "production"
       ? {

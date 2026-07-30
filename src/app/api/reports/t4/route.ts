@@ -13,6 +13,12 @@ export async function GET(request: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
 
   if (!canApp(enriched.role, "payroll:read")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });

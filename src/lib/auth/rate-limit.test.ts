@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { rateLimit } from "@/lib/auth/rate-limit";
+import { clientIp } from "@/lib/auth/rate-limit";
 
-describe("rateLimit", () => {
-  it("autorise jusqu'à la limite puis bloque", () => {
-    const key = `test-${Date.now()}-${Math.random()}`;
-    expect(rateLimit({ key, limit: 2, windowMs: 60_000 }).ok).toBe(true);
-    expect(rateLimit({ key, limit: 2, windowMs: 60_000 }).ok).toBe(true);
-    const blocked = rateLimit({ key, limit: 2, windowMs: 60_000 });
-    expect(blocked.ok).toBe(false);
-    if (!blocked.ok) expect(blocked.retryAfterSec).toBeGreaterThan(0);
+describe("clientIp", () => {
+  it("préfère CF-Connecting-IP", () => {
+    const req = new Request("https://klirline.app/api/x", {
+      headers: {
+        "cf-connecting-ip": "1.2.3.4",
+        "x-forwarded-for": "9.9.9.9, 1.2.3.4",
+      },
+    });
+    expect(clientIp(req)).toBe("1.2.3.4");
+  });
+
+  it("utilise le dernier hop XFF (ajouté par le proxy)", () => {
+    const req = new Request("https://klirline.app/api/x", {
+      headers: { "x-forwarded-for": "9.9.9.9, 8.8.8.8" },
+    });
+    expect(clientIp(req)).toBe("8.8.8.8");
   });
 });

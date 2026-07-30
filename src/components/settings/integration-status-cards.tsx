@@ -44,7 +44,7 @@ export function IntegrationStatusCards() {
   const [checks, setChecks] = useState<Record<string, HealthCheck>>({});
 
   useEffect(() => {
-    void fetch(apiUrl("/api/health"))
+    void fetch(apiUrl("/api/health?detail=1"), { credentials: "include" })
       .then((r) => r.json())
       .then((data: HealthPayload) => setChecks(data.checks ?? {}))
       .catch(() => setChecks({}));

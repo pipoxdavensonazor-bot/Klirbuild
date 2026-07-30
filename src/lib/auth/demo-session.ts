@@ -19,6 +19,8 @@ export type DemoSession = {
   isPlatformAdmin?: boolean;
   /** Entreprise d'origine quand on « entre » dans un tenant */
   homeCompanyId?: string;
+  /** Must match User.sessionVersion or the cookie is rejected. */
+  sessionVersion?: number;
 };
 
 export type Pending2fa = {
@@ -148,6 +150,7 @@ export async function createDemoSession(
   extras?: {
     isPlatformAdmin?: boolean;
     homeCompanyId?: string;
+    sessionVersion?: number;
   }
 ) {
   const payload: DemoSession = {
@@ -155,6 +158,7 @@ export async function createDemoSession(
     companyId: companyId || DEMO_COMPANY_ID,
     role,
     exp: Date.now() + MAX_AGE * 1000,
+    sessionVersion: extras?.sessionVersion ?? 0,
     ...(extras?.isPlatformAdmin ? { isPlatformAdmin: true } : {}),
     ...(extras?.homeCompanyId ? { homeCompanyId: extras.homeCompanyId } : {}),
   };

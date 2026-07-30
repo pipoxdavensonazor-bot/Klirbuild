@@ -11,6 +11,12 @@ export async function GET() {
   }
 
   const enriched = await enrichSession(session);
+  if (!enriched) {
+    return NextResponse.json(
+      { error: "Session expirée — reconnectez-vous." },
+      { status: 401 }
+    );
+  }
 
   if (hasDatabase()) {
     const user = await prisma.user.findUnique({

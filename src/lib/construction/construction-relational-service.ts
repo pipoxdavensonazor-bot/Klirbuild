@@ -164,11 +164,21 @@ export async function upsertConstructionJob(
     trades: input.data.trades ?? base?.trades ?? [],
   };
 
-  const row = await prisma.constructionJob.upsert({
-    where: { id: merged.id },
-    create: jobToCreate(companyId, merged),
-    update: jobToCreate(companyId, merged),
-  });
+  let row;
+  if (existing) {
+    await prisma.constructionJob.updateMany({
+      where: { id: merged.id, companyId },
+      data: jobToCreate(companyId, merged),
+    });
+    row = await prisma.constructionJob.findFirst({
+      where: { id: merged.id, companyId },
+    });
+    if (!row) return { error: "Élément introuvable." as const };
+  } else {
+    row = await prisma.constructionJob.create({
+      data: jobToCreate(companyId, merged),
+    });
+  }
 
   // Sync GPS JobSite for timeclock geofence (best-effort, respect maxJobs).
   try {
@@ -230,11 +240,21 @@ export async function upsertConstructionLead(
     city: input.data.city ?? base?.city ?? "",
   };
 
-  const row = await prisma.constructionLead.upsert({
-    where: { id: merged.id },
-    create: leadToCreate(companyId, merged),
-    update: leadToCreate(companyId, merged),
-  });
+  let row;
+  if (existing) {
+    await prisma.constructionLead.updateMany({
+      where: { id: merged.id, companyId },
+      data: leadToCreate(companyId, merged),
+    });
+    row = await prisma.constructionLead.findFirst({
+      where: { id: merged.id, companyId },
+    });
+    if (!row) return { error: "Élément introuvable." as const };
+  } else {
+    row = await prisma.constructionLead.create({
+      data: leadToCreate(companyId, merged),
+    });
+  }
 
   return { item: leadFromRow(row) };
 }
