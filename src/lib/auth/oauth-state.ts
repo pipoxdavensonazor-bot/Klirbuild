@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { authSecret } from "@/lib/auth/demo-session";
+import { sanitizeNextPath } from "@/lib/auth/safe-next";
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -8,6 +9,8 @@ export type OAuthStatePayload = {
   nonce: string;
   exp: number;
 };
+
+export { sanitizeNextPath as sanitizeOAuthNext } from "@/lib/auth/safe-next";
 
 function requireSecret() {
   const secret = authSecret();
@@ -38,21 +41,10 @@ function signBody(body: string, secret: string) {
   return createHmac("sha256", secret).update(body).digest();
 }
 
-/** Only same-origin relative paths — blocks //evil.com open redirects. */
-export function sanitizeOAuthNext(next: string | null | undefined): string {
-  const value = (next || "/dashboard").trim() || "/dashboard";
-  if (!value.startsWith("/")) return "/dashboard";
-  if (value.startsWith("//")) return "/dashboard";
-  if (value.includes("\\") || value.includes("\0")) return "/dashboard";
-  // Reject scheme-relative or absolute URLs smuggled after /
-  if (/^\/[a-z][a-z0-9+.-]*:/i.test(value)) return "/dashboard";
-  return value;
-}
-
 export function createSignedOAuthState(next?: string | null): string {
   const secret = requireSecret();
   const payload: OAuthStatePayload = {
-    next: sanitizeOAuthNext(next),
+    next: sanitizeNextPath(next),
     nonce: randomBytes(16).toString("hex"),
     exp: Date.now() + STATE_TTL_MS,
   };
@@ -117,6 +109,6 @@ export function verifySignedOAuthState(
     return { ok: false, error: "State OAuth expiré." };
   }
 
-  payload.next = sanitizeOAuthNext(payload.next);
+  payload.next = sanitizeNextPath(payload.next);
   return { ok: true, payload };
 }
