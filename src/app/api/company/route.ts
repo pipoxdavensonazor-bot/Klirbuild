@@ -1,5 +1,9 @@
-import { hasDatabase } from "@/lib/auth/auth-service";
-import { requireSession } from "@/lib/auth/auth-service";
+import { hasDatabase, requireSession } from "@/lib/auth/auth-service";
+import {
+  forbiddenResponse,
+  hasPermission,
+  requirePermission,
+} from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/db";
 import { ensureCompanyInboxEmail } from "@/lib/email/company-email";
 import { NextResponse } from "next/server";
@@ -46,8 +50,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await requireSession();
-  if (session instanceof NextResponse) return session;
+  const auth = await requirePermission("company:manage");
+  if (auth instanceof NextResponse) return auth;
 
   if (!hasDatabase()) {
     return NextResponse.json({ error: "Base de données requise." }, { status: 503 });
@@ -75,6 +79,10 @@ export async function PATCH(request: Request) {
   }
 
   if (Array.isArray(body.enabledModules)) {
+    // Module toggles are more sensitive — require modules:manage as well.
+    if (!hasPermission(auth, "modules:manage")) {
+      return forbiddenResponse("Permission refusée pour les modules.");
+    }
     data.enabledModules = body.enabledModules.filter(
       (m: unknown) => typeof m === "string" && m.trim()
     );
@@ -84,10 +92,10 @@ export async function PATCH(request: Request) {
   if (typeof data.emailFrom === "string") data.emailFrom = data.emailFrom.toLowerCase();
 
   // inboxEmail is platform-managed — never accept client writes
-  await ensureCompanyInboxEmail(session.companyId);
+  await ensureCompanyInboxEmail(auth.companyId);
 
   const company = await prisma.company.update({
-    where: { id: session.companyId },
+    where: { id: auth.companyId },
     data,
     select: companySelect,
   });
