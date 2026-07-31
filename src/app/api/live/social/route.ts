@@ -14,7 +14,7 @@ import {
   publishViaZernio,
 } from "@/lib/social-ads/zernio-service";
 import { ensureConnectionSlot } from "@/lib/social-ads/zernio-connections-service";
-import { klirlineOAuthUrl } from "@/lib/social-ads/klirline-marketing";
+import { connectSocialAccountViaKlirline } from "@/lib/social-ads/social-ads-service";
 import type { SocialPlatform } from "@/lib/reports/types";
 
 export const runtime = "nodejs";
@@ -43,7 +43,7 @@ export async function GET() {
   const destinations = await listLiveSocialDestinations(ctx.enriched.companyId);
   return NextResponse.json({
     destinations,
-    provider: isZernioEnabled() ? "zernio" : "klirline",
+    provider: isZernioEnabled() ? "zernio" : "in_app",
     platforms: ["facebook", "instagram", "tiktok", "youtube"],
   });
 }
@@ -77,14 +77,48 @@ export async function POST(request: Request) {
       );
       return NextResponse.json({ oauthUrl: authUrl, provider: "zernio" });
     }
+    // Do NOT redirect to klirline.ca — that hub errors for KlirBuild partners.
+    // Client should use action=connect_account (in-app form) instead.
+    return NextResponse.json(
+      {
+        error:
+          "Connexion via klirline.ca indisponible. Liez le compte ici (nom de page) ou configurez ZERNIO_API_KEY pour OAuth natif Facebook / YouTube / TikTok / Instagram.",
+        code: "USE_IN_APP_CONNECT",
+        provider: "in_app",
+      },
+      { status: 400 }
+    );
+  }
+
+  if (action === "connect_account") {
+    const platform =
+      typeof body.platform === "string" ? body.platform.trim() : "";
+    if (!isLiveSocialPlatform(platform)) {
+      return NextResponse.json({ error: "Plateforme invalide." }, { status: 400 });
+    }
+    const accountName =
+      typeof body.accountName === "string" && body.accountName.trim()
+        ? body.accountName.trim()
+        : `Page ${platform}`;
+    const handle =
+      typeof body.handle === "string" ? body.handle.trim() : undefined;
+    const result = await connectSocialAccountViaKlirline(
+      companyId,
+      platform as SocialPlatform,
+      {
+        accountName,
+        handle,
+        klirlineRef: `in-app/${companyId}/${platform}`,
+      }
+    );
+    if ("error" in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
     return NextResponse.json({
-      oauthUrl: klirlineOAuthUrl({
-        companyId,
-        companyName,
-        platform: platform as SocialPlatform,
-        returnUrl: `${callbackUrl}?return=/feed`,
-      }),
-      provider: "klirline",
+      ok: true,
+      account: result.account,
+      destinations: await listLiveSocialDestinations(companyId),
+      provider: isZernioEnabled() ? "zernio" : "in_app",
     });
   }
 

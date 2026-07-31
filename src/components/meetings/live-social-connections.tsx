@@ -25,12 +25,7 @@ type PendingAnnounce = {
 type Props = {
   liveUrl?: string;
   title?: string;
-  /** Compact mode for meeting room side panel */
   compact?: boolean;
-  /**
-   * When true and liveUrl is set: clicking Connect on an already-connected
-   * account immediately announces/go-lives on that network.
-   */
   autoGoLive?: boolean;
 };
 
@@ -41,24 +36,26 @@ export function LiveSocialConnections({
   autoGoLive,
 }: Props) {
   const [destinations, setDestinations] = useState<LiveSocialDestination[]>([]);
+  const [provider, setProvider] = useState<"zernio" | "in_app">("in_app");
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [linking, setLinking] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState("");
+  const [handle, setHandle] = useState("");
   const [rtmpUrl, setRtmpUrl] = useState("");
   const [streamKey, setStreamKey] = useState("");
 
   const announcePlatforms = useCallback(
-    async (platforms: string[], opts?: { silent?: boolean }) => {
+    async (platforms: string[]) => {
       if (!liveUrl) {
-        if (!opts?.silent) {
-          setError("Démarrez le live pour obtenir un lien à partager.");
-        }
+        setError("Démarrez le live pour obtenir un lien à partager.");
         return false;
       }
       if (!platforms.length) {
-        if (!opts?.silent) setError("Sélectionnez au moins un réseau connecté.");
+        setError("Sélectionnez au moins un réseau connecté.");
         return false;
       }
       setBusy(true);
@@ -108,6 +105,7 @@ export function LiveSocialConnections({
       }
       const dests: LiveSocialDestination[] = data.destinations ?? [];
       setDestinations(dests);
+      setProvider(data.provider === "zernio" ? "zernio" : "in_app");
       setSelected(
         dests
           .filter((d) => d.status === "connected")
@@ -115,7 +113,6 @@ export function LiveSocialConnections({
       );
       setError("");
 
-      // After OAuth return: auto-announce if moderator started connect during a live
       if (autoGoLive && liveUrl && typeof window !== "undefined") {
         const raw = sessionStorage.getItem(PENDING_KEY);
         if (raw) {
@@ -129,7 +126,7 @@ export function LiveSocialConnections({
               void announcePlatforms(ready);
             }
           } catch {
-            /* ignore bad pending */
+            /* ignore */
           }
         }
       }
@@ -147,9 +144,16 @@ export function LiveSocialConnections({
     setMessage("");
     setError("");
     try {
-      // Already connected + live running → go live / announce on that network
       if (connected && autoGoLive && liveUrl) {
         await announcePlatforms([platform]);
+        return;
+      }
+
+      // In-app link (no klirline.ca redirect)
+      if (provider !== "zernio") {
+        setLinking(platform);
+        setAccountName("");
+        setHandle("");
         return;
       }
 
@@ -161,22 +165,65 @@ export function LiveSocialConnections({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data.code === "USE_IN_APP_CONNECT") {
+          setProvider("in_app");
+          setLinking(platform);
+          setAccountName("");
+          setHandle("");
+          return;
+        }
         setError(data.error || "Connexion impossible.");
         return;
       }
       if (data.oauthUrl) {
         if (autoGoLive && liveUrl) {
-          const pending: PendingAnnounce = {
-            platforms: [platform],
-            liveUrl,
-            title: title || "Live",
-          };
-          sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+          sessionStorage.setItem(
+            PENDING_KEY,
+            JSON.stringify({
+              platforms: [platform],
+              liveUrl,
+              title: title || "Live",
+            } satisfies PendingAnnounce)
+          );
         }
         window.location.href = data.oauthUrl;
         return;
       }
       setError("URL OAuth manquante.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveInAppConnect(platform: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/live/social"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "connect_account",
+          platform,
+          accountName: accountName || LABELS[platform] || platform,
+          handle,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Liaison impossible.");
+        return;
+      }
+      setDestinations(data.destinations ?? []);
+      setSelected((prev) =>
+        prev.includes(platform) ? prev : [...prev, platform]
+      );
+      setLinking(null);
+      setMessage(`${LABELS[platform] || platform} lié.`);
+      if (autoGoLive && liveUrl) {
+        await announcePlatforms([platform]);
+      }
     } finally {
       setBusy(false);
     }
@@ -228,15 +275,17 @@ export function LiveSocialConnections({
           </p>
           {!compact ? (
             <p className="text-xs text-muted-foreground">
-              Connectez les comptes <strong>entreprise</strong> YouTube,
-              Facebook, TikTok et Instagram (page officielle du réseau). Pendant
-              un live, <strong>Connecter</strong> sur un compte déjà lié le
-              diffuse automatiquement.
+              Liez vos pages entreprise YouTube, Facebook, TikTok et Instagram.
+              {provider === "zernio"
+                ? " Connexion OAuth via Zernio."
+                : " Saisissez le nom de la page ici (plus de redirection klirline.ca)."}{" "}
+              Pendant un live, <strong>Diffuser</strong> annonce automatiquement
+              le lien.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
               {autoGoLive && liveUrl
-                ? "Compte connecté → Diffuser le live. Sinon → page du réseau."
+                ? "Compte lié → Diffuser. Sinon → lier la page."
                 : "Comptes entreprise pour le live."}
             </p>
           )}
@@ -278,7 +327,9 @@ export function LiveSocialConnections({
                   <Button
                     type="button"
                     size="sm"
-                    variant={goLiveNow ? "default" : connected ? "outline" : "default"}
+                    variant={
+                      goLiveNow ? "default" : connected ? "outline" : "default"
+                    }
                     disabled={busy}
                     onClick={() => void connectOrGoLive(d.platform, connected)}
                   >
@@ -290,7 +341,9 @@ export function LiveSocialConnections({
                     {goLiveNow
                       ? "Diffuser"
                       : connected
-                        ? "Reconnecter"
+                        ? provider === "zernio"
+                          ? "Reconnecter"
+                          : "Modifier"
                         : "Connecter"}
                   </Button>
                   <Button
@@ -308,6 +361,45 @@ export function LiveSocialConnections({
                   </Button>
                 </div>
               </div>
+
+              {linking === d.platform ? (
+                <div className="mt-2 space-y-2 border-t border-border pt-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Nom de la page / chaîne sur {LABELS[d.platform]} (comme sur le
+                    réseau). Ajoutez ensuite la clé RTMP pour OBS si besoin.
+                  </p>
+                  <Input
+                    placeholder={`Nom de la page ${LABELS[d.platform]}`}
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
+                  <Input
+                    placeholder="@handle (optionnel)"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy || !accountName.trim()}
+                      onClick={() => void saveInAppConnect(d.platform)}
+                    >
+                      Lier le compte
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setLinking(null)}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
               {editing === d.platform ? (
                 <div className="mt-2 space-y-2 border-t border-border pt-2">
                   <Input
@@ -326,8 +418,8 @@ export function LiveSocialConnections({
                     onChange={(e) => setStreamKey(e.target.value)}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Collez la clé Live depuis YouTube Studio / Meta Live /
-                    TikTok Live Producer pour OBS ou un encodeur.
+                    YouTube Studio → En direct → Encodeur / Meta Live Producer /
+                    TikTok Live.
                   </p>
                   <Button
                     type="button"
