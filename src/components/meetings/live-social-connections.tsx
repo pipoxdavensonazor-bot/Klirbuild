@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Link2, Megaphone, Radio } from "lucide-react";
+import { Link2, Megaphone, Radio, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
@@ -14,14 +14,32 @@ const LABELS: Record<string, string> = {
   youtube: "YouTube",
 };
 
+const PENDING_KEY = "klir_live_social_pending";
+
+type PendingAnnounce = {
+  platforms: string[];
+  liveUrl: string;
+  title: string;
+};
+
 type Props = {
   liveUrl?: string;
   title?: string;
   /** Compact mode for meeting room side panel */
   compact?: boolean;
+  /**
+   * When true and liveUrl is set: clicking Connect on an already-connected
+   * account immediately announces/go-lives on that network.
+   */
+  autoGoLive?: boolean;
 };
 
-export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
+export function LiveSocialConnections({
+  liveUrl,
+  title,
+  compact,
+  autoGoLive,
+}: Props) {
   const [destinations, setDestinations] = useState<LiveSocialDestination[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,6 +48,53 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [rtmpUrl, setRtmpUrl] = useState("");
   const [streamKey, setStreamKey] = useState("");
+
+  const announcePlatforms = useCallback(
+    async (platforms: string[], opts?: { silent?: boolean }) => {
+      if (!liveUrl) {
+        if (!opts?.silent) {
+          setError("Démarrez le live pour obtenir un lien à partager.");
+        }
+        return false;
+      }
+      if (!platforms.length) {
+        if (!opts?.silent) setError("Sélectionnez au moins un réseau connecté.");
+        return false;
+      }
+      setBusy(true);
+      setMessage("");
+      try {
+        const res = await fetch(apiUrl("/api/live/social"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "announce",
+            platforms,
+            liveUrl,
+            title: title || "Live",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "Publication impossible.");
+          return false;
+        }
+        setError("");
+        setMessage(
+          data.simulated
+            ? data.message
+            : `Live diffusé / annoncé sur ${platforms
+                .map((p) => LABELS[p] || p)
+                .join(", ")}.`
+        );
+        return true;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [liveUrl, title]
+  );
 
   const load = useCallback(async () => {
     try {
@@ -41,26 +106,53 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
         setError(data.error || "Chargement des comptes impossible.");
         return;
       }
-      setDestinations(data.destinations ?? []);
+      const dests: LiveSocialDestination[] = data.destinations ?? [];
+      setDestinations(dests);
       setSelected(
-        (data.destinations ?? [])
-          .filter((d: LiveSocialDestination) => d.status === "connected")
-          .map((d: LiveSocialDestination) => d.platform)
+        dests
+          .filter((d) => d.status === "connected")
+          .map((d) => d.platform)
       );
       setError("");
+
+      // After OAuth return: auto-announce if moderator started connect during a live
+      if (autoGoLive && liveUrl && typeof window !== "undefined") {
+        const raw = sessionStorage.getItem(PENDING_KEY);
+        if (raw) {
+          sessionStorage.removeItem(PENDING_KEY);
+          try {
+            const pending = JSON.parse(raw) as PendingAnnounce;
+            const ready = pending.platforms.filter((p) =>
+              dests.some((d) => d.platform === p && d.status === "connected")
+            );
+            if (ready.length && pending.liveUrl === liveUrl) {
+              void announcePlatforms(ready);
+            }
+          } catch {
+            /* ignore bad pending */
+          }
+        }
+      }
     } catch {
       setError("Réseau indisponible.");
     }
-  }, []);
+  }, [announcePlatforms, autoGoLive, liveUrl]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  async function connect(platform: string) {
+  async function connectOrGoLive(platform: string, connected: boolean) {
     setBusy(true);
     setMessage("");
+    setError("");
     try {
+      // Already connected + live running → go live / announce on that network
+      if (connected && autoGoLive && liveUrl) {
+        await announcePlatforms([platform]);
+        return;
+      }
+
       const res = await fetch(apiUrl("/api/live/social"), {
         method: "POST",
         credentials: "include",
@@ -73,6 +165,14 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
         return;
       }
       if (data.oauthUrl) {
+        if (autoGoLive && liveUrl) {
+          const pending: PendingAnnounce = {
+            platforms: [platform],
+            liveUrl,
+            title: title || "Live",
+          };
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+        }
         window.location.href = data.oauthUrl;
         return;
       }
@@ -110,45 +210,6 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
     }
   }
 
-  async function announce() {
-    if (!liveUrl) {
-      setError("Démarrez le live pour obtenir un lien à partager.");
-      return;
-    }
-    if (!selected.length) {
-      setError("Sélectionnez au moins un réseau connecté.");
-      return;
-    }
-    setBusy(true);
-    setMessage("");
-    try {
-      const res = await fetch(apiUrl("/api/live/social"), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "announce",
-          platforms: selected,
-          liveUrl,
-          title: title || "Live",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Publication impossible.");
-        return;
-      }
-      setError("");
-      setMessage(
-        data.simulated
-          ? data.message
-          : `Annonce live publiée sur ${selected.length} réseau(x).`
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function toggle(platform: string) {
     setSelected((prev) =>
       prev.includes(platform)
@@ -168,12 +229,15 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
           {!compact ? (
             <p className="text-xs text-muted-foreground">
               Connectez les comptes <strong>entreprise</strong> YouTube,
-              Facebook, TikTok et Instagram. Ajoutez la clé RTMP pour OBS /
-              encodeur, puis annoncez le lien du live.
+              Facebook, TikTok et Instagram (page officielle du réseau). Pendant
+              un live, <strong>Connecter</strong> sur un compte déjà lié le
+              diffuse automatiquement.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Comptes entreprise pour le live.
+              {autoGoLive && liveUrl
+                ? "Compte connecté → Diffuser le live. Sinon → page du réseau."
+                : "Comptes entreprise pour le live."}
             </p>
           )}
         </div>
@@ -182,6 +246,7 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
       <div className="space-y-2">
         {destinations.map((d) => {
           const connected = d.status === "connected";
+          const goLiveNow = Boolean(connected && autoGoLive && liveUrl);
           return (
             <div
               key={d.platform}
@@ -213,12 +278,20 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
                   <Button
                     type="button"
                     size="sm"
-                    variant={connected ? "outline" : "default"}
+                    variant={goLiveNow ? "default" : connected ? "outline" : "default"}
                     disabled={busy}
-                    onClick={() => void connect(d.platform)}
+                    onClick={() => void connectOrGoLive(d.platform, connected)}
                   >
-                    <Link2 className="mr-1 h-3.5 w-3.5" />
-                    {connected ? "Reconnecter" : "Connecter"}
+                    {goLiveNow ? (
+                      <Zap className="mr-1 h-3.5 w-3.5" />
+                    ) : (
+                      <Link2 className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {goLiveNow
+                      ? "Diffuser"
+                      : connected
+                        ? "Reconnecter"
+                        : "Connecter"}
                   </Button>
                   <Button
                     type="button"
@@ -252,6 +325,10 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
                     value={streamKey}
                     onChange={(e) => setStreamKey(e.target.value)}
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Collez la clé Live depuis YouTube Studio / Meta Live /
+                    TikTok Live Producer pour OBS ou un encodeur.
+                  </p>
                   <Button
                     type="button"
                     size="sm"
@@ -271,7 +348,7 @@ export function LiveSocialConnections({ liveUrl, title, compact }: Props) {
         type="button"
         className="w-full"
         disabled={busy || !liveUrl || !selected.length}
-        onClick={() => void announce()}
+        onClick={() => void announcePlatforms(selected)}
       >
         <Megaphone className="mr-2 h-4 w-4" />
         Annoncer le live sur les réseaux sélectionnés
