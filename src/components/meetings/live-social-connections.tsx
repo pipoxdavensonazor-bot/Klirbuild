@@ -36,7 +36,9 @@ export function LiveSocialConnections({
   autoGoLive,
 }: Props) {
   const [destinations, setDestinations] = useState<LiveSocialDestination[]>([]);
-  const [provider, setProvider] = useState<"zernio" | "in_app">("in_app");
+  const [provider, setProvider] = useState<"zernio" | "postiz" | "in_app">(
+    "in_app"
+  );
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -105,7 +107,11 @@ export function LiveSocialConnections({
       }
       const dests: LiveSocialDestination[] = data.destinations ?? [];
       setDestinations(dests);
-      setProvider(data.provider === "zernio" ? "zernio" : "in_app");
+      setProvider(
+        data.provider === "zernio" || data.provider === "postiz"
+          ? data.provider
+          : "in_app"
+      );
       setSelected(
         dests
           .filter((d) => d.status === "connected")
@@ -149,8 +155,8 @@ export function LiveSocialConnections({
         return;
       }
 
-      // In-app link (no klirline.ca redirect)
-      if (provider !== "zernio") {
+      // In-app link when no OAuth provider
+      if (provider === "in_app") {
         setLinking(platform);
         setAccountName("");
         setHandle("");
@@ -190,6 +196,30 @@ export function LiveSocialConnections({
         return;
       }
       setError("URL OAuth manquante.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function syncProviderAccounts() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/live/social"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_accounts" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Synchronisation impossible.");
+        return;
+      }
+      setDestinations(data.destinations ?? []);
+      setMessage(
+        `Comptes synchronisés (${data.synced ?? 0}).`
+      );
     } finally {
       setBusy(false);
     }
@@ -278,7 +308,9 @@ export function LiveSocialConnections({
               Liez vos pages entreprise YouTube, Facebook, TikTok et Instagram.
               {provider === "zernio"
                 ? " Connexion OAuth via Zernio."
-                : " Saisissez le nom de la page ici (plus de redirection klirline.ca)."}{" "}
+                : provider === "postiz"
+                  ? " Connexion OAuth via Postiz (gratuit self-host)."
+                  : " Saisissez le nom de la page ici (ou configurez POSTIZ_API_KEY)."}{" "}
               Pendant un live, <strong>Diffuser</strong> annonce automatiquement
               le lien.
             </p>
@@ -341,9 +373,9 @@ export function LiveSocialConnections({
                     {goLiveNow
                       ? "Diffuser"
                       : connected
-                        ? provider === "zernio"
-                          ? "Reconnecter"
-                          : "Modifier"
+                        ? provider === "in_app"
+                          ? "Modifier"
+                          : "Reconnecter"
                         : "Connecter"}
                   </Button>
                   <Button
@@ -435,6 +467,18 @@ export function LiveSocialConnections({
           );
         })}
       </div>
+
+      {provider === "postiz" ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={busy}
+          onClick={() => void syncProviderAccounts()}
+        >
+          Synchroniser les comptes Postiz
+        </Button>
+      ) : null}
 
       <Button
         type="button"
