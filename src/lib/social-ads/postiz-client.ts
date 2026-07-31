@@ -21,6 +21,16 @@ export function postizBaseUrl() {
   return raw.replace(/\/$/, "");
 }
 
+/** App origin for self-host (…railway.app), derived from public API base. */
+export function postizAppOrigin() {
+  const explicit = process.env.POSTIZ_APP_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+  return postizBaseUrl()
+    .replace(/\/api\/public\/v1\/?$/i, "")
+    .replace(/\/public\/v1\/?$/i, "")
+    .replace(/\/$/, "");
+}
+
 export class PostizApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -128,10 +138,102 @@ export function fromPostizPlatform(identifier: string): string | null {
   return null;
 }
 
+/**
+ * OAuth connect URL for a provider.
+ * Newer Postiz: GET /public/v1/social/{id}
+ * Postiz v2.11 (Railway template): session GET /api/integrations/social/{id}
+ */
 export async function postizGetConnectUrl(integration: string) {
   const key = TO_POSTIZ[integration] ?? integration;
-  const data = await postizFetch<{ url: string }>(`/social/${key}`);
-  if (!data?.url) throw new PostizApiError("URL OAuth Postiz manquante.", 502);
+
+  try {
+    const data = await postizFetch<{ url: string }>(`/social/${key}`);
+    if (data?.url) return data.url;
+  } catch (err) {
+    // Postiz v2.11 public API has no /social/{id} — use session fallback.
+    const msg = err instanceof Error ? err.message : "";
+    const missingRoute =
+      (err instanceof PostizApiError && err.status === 404) ||
+      /Cannot GET|Not Found/i.test(msg);
+    if (!missingRoute) throw err;
+  }
+
+  return postizGetConnectUrlViaSession(key);
+}
+
+let cachedPostizAuth: { token: string; expiresAt: number } | null = null;
+
+async function postizAdminAuthToken(): Promise<string> {
+  const now = Date.now();
+  if (cachedPostizAuth && cachedPostizAuth.expiresAt > now + 60_000) {
+    return cachedPostizAuth.token;
+  }
+
+  const email =
+    process.env.POSTIZ_ADMIN_EMAIL?.trim() ||
+    process.env.POSTIZ_EMAIL?.trim();
+  const password =
+    process.env.POSTIZ_ADMIN_PASSWORD?.trim() ||
+    process.env.POSTIZ_PASSWORD?.trim();
+  if (!email || !password) {
+    throw new PostizApiError(
+      "Connexion réseau indisponible (POSTIZ_ADMIN_EMAIL / POSTIZ_ADMIN_PASSWORD requis pour OAuth).",
+      503
+    );
+  }
+
+  const origin = postizAppOrigin();
+  const res = await fetch(`${origin}/api/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ email, password, provider: "LOCAL" }),
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  const token = res.headers.get("auth") || res.headers.get("Auth");
+  if (!res.ok || !token) {
+    throw new PostizApiError(
+      "Impossible d’ouvrir la connexion OAuth (auth Postiz).",
+      502
+    );
+  }
+
+  // JWT without exp parsing — cache ~6h
+  cachedPostizAuth = { token, expiresAt: now + 6 * 60 * 60 * 1000 };
+  return token;
+}
+
+async function postizGetConnectUrlViaSession(integration: string) {
+  const token = await postizAdminAuthToken();
+  const origin = postizAppOrigin();
+  const res = await fetch(
+    `${origin}/api/integrations/social/${encodeURIComponent(integration)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        auth: token,
+      },
+      signal: AbortSignal.timeout(20_000),
+    }
+  );
+  const text = await res.text();
+  let data: { url?: string; message?: string } = {};
+  try {
+    data = text ? (JSON.parse(text) as { url?: string; message?: string }) : {};
+  } catch {
+    data = {};
+  }
+  if (!res.ok || !data.url) {
+    throw new PostizApiError(
+      data.message ||
+        `Connexion ${integration} indisponible (vérifiez les clés OAuth côté serveur).`,
+      res.status || 502
+    );
+  }
   return data.url;
 }
 

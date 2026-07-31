@@ -23,6 +23,9 @@ Secrets KlirBuild :
 ```bash
 printf '%s' 'VOTRE_CLE' | npx wrangler secret put POSTIZ_API_KEY
 printf '%s' 'https://postiz-xxx.up.railway.app/api/public/v1' | npx wrangler secret put POSTIZ_API_BASE_URL
+# Requis sur Postiz v2.11 (template Railway) pour ouvrir OAuth :
+printf '%s' 'admin@example.com' | npx wrangler secret put POSTIZ_ADMIN_EMAIL
+printf '%s' 'motdepasse' | npx wrangler secret put POSTIZ_ADMIN_PASSWORD
 ```
 
 ### 2. Apps développeur (admin KlirBuild, pas les clients)
