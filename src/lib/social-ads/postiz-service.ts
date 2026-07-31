@@ -103,7 +103,7 @@ export async function publishViaPostiz(
     if (!fallback.length) {
       return {
         error:
-          "Aucun compte Postiz lié. Cliquez Connecter puis synchronisez les comptes." as const,
+          "Aucun compte lié. Cliquez Connecter sur le réseau, autorisez l’accès, puis réessayez." as const,
       };
     }
     accounts.push(...fallback);
@@ -138,7 +138,9 @@ export async function publishViaPostiz(
     });
 
   if (!posts.length) {
-    return { error: "Identifiants Postiz manquants — reconnectez les comptes." as const };
+    return {
+      error: "Compte non prêt — reconnectez le réseau puis réessayez." as const,
+    };
   }
 
   try {
@@ -152,7 +154,7 @@ export async function publishViaPostiz(
     const message =
       err instanceof PostizApiError
         ? err.message
-        : "Publication Postiz échouée.";
+        : "Publication sur le réseau échouée.";
     return { error: message };
   }
 }

@@ -103,19 +103,22 @@ export async function POST(request: Request) {
         return NextResponse.json({
           oauthUrl: authUrl,
           provider: "postiz",
-          hint: "Après autorisation, revenez au Feed — les comptes se synchronisent automatiquement.",
         });
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Connexion Postiz impossible.";
-        return NextResponse.json({ error: message, provider: "postiz" }, { status: 400 });
+          err instanceof Error
+            ? err.message
+            : "Connexion au réseau impossible pour le moment.";
+        return NextResponse.json(
+          { error: message, provider: "postiz" },
+          { status: 400 }
+        );
       }
     }
 
     return NextResponse.json(
       {
-        error:
-          "Liez le compte ici (nom de page), ou configurez POSTIZ_API_KEY (gratuit self-host) / ZERNIO_API_KEY pour OAuth natif.",
+        error: "Liez le compte avec le nom de votre page.",
         code: "USE_IN_APP_CONNECT",
         provider: "in_app",
       },
@@ -135,14 +138,19 @@ export async function POST(request: Request) {
         });
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Sync Postiz impossible.";
+          err instanceof Error
+            ? err.message
+            : "Mise à jour des comptes impossible.";
         return NextResponse.json({ error: message }, { status: 400 });
       }
     }
-    return NextResponse.json(
-      { error: "Sync disponible avec POSTIZ_API_KEY ou ZERNIO_API_KEY." },
-      { status: 400 }
-    );
+    // Zernio / in_app: just return current destinations (no remote sync needed)
+    return NextResponse.json({
+      ok: true,
+      synced: 0,
+      destinations: await listLiveSocialDestinations(companyId),
+      provider,
+    });
   }
 
   if (action === "connect_account") {
@@ -279,7 +287,7 @@ export async function POST(request: Request) {
       ok: true,
       simulated: true,
       message:
-        "Comptes prêts. Ajoutez POSTIZ_API_KEY (gratuit self-host) ou ZERNIO_API_KEY pour publier automatiquement l’annonce live.",
+        "Compte enregistré. La publication automatique n’est pas encore activée sur ce serveur.",
       content,
       accountIds: accounts.map((a) => a.id),
       destinations: await listLiveSocialDestinations(companyId),

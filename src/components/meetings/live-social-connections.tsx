@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Link2, Megaphone, Radio, Zap } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Megaphone, Radio, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
@@ -14,20 +14,16 @@ const LABELS: Record<string, string> = {
   youtube: "YouTube",
 };
 
-const PENDING_KEY = "klir_live_social_pending";
-
-type PendingAnnounce = {
-  platforms: string[];
-  liveUrl: string;
-  title: string;
-};
-
 type Props = {
   liveUrl?: string;
   title?: string;
   compact?: boolean;
   autoGoLive?: boolean;
 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function LiveSocialConnections({
   liveUrl,
@@ -40,7 +36,8 @@ export function LiveSocialConnections({
     "in_app"
   );
   const [selected, setSelected] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busyPlatform, setBusyPlatform] = useState<string | null>(null);
+  const [busyBulk, setBusyBulk] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -49,6 +46,28 @@ export function LiveSocialConnections({
   const [handle, setHandle] = useState("");
   const [rtmpUrl, setRtmpUrl] = useState("");
   const [streamKey, setStreamKey] = useState("");
+  const pollAbortRef = useRef(0);
+
+  const busy = Boolean(busyPlatform) || busyBulk;
+
+  const syncAccounts = useCallback(async () => {
+    const res = await fetch(apiUrl("/api/live/social"), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sync_accounts" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Sync may be unavailable for in_app — fall back to GET
+      const list = await fetch(apiUrl("/api/live/social"), {
+        credentials: "include",
+      });
+      const listData = await list.json().catch(() => ({}));
+      return (listData.destinations ?? []) as LiveSocialDestination[];
+    }
+    return (data.destinations ?? []) as LiveSocialDestination[];
+  }, []);
 
   const announcePlatforms = useCallback(
     async (platforms: string[]) => {
@@ -57,40 +76,36 @@ export function LiveSocialConnections({
         return false;
       }
       if (!platforms.length) {
-        setError("Sélectionnez au moins un réseau connecté.");
+        setError("Choisissez au moins un réseau.");
         return false;
       }
-      setBusy(true);
       setMessage("");
-      try {
-        const res = await fetch(apiUrl("/api/live/social"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "announce",
-            platforms,
-            liveUrl,
-            title: title || "Live",
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Publication impossible.");
-          return false;
-        }
-        setError("");
-        setMessage(
-          data.simulated
-            ? data.message
-            : `Live diffusé / annoncé sur ${platforms
-                .map((p) => LABELS[p] || p)
-                .join(", ")}.`
-        );
-        return true;
-      } finally {
-        setBusy(false);
+      const res = await fetch(apiUrl("/api/live/social"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "announce",
+          platforms,
+          liveUrl,
+          title: title || "Live",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Publication impossible.");
+        return false;
       }
+      setError("");
+      setMessage(
+        data.simulated
+          ? data.message
+          : `Publié sur ${platforms.map((p) => LABELS[p] || p).join(", ")}.`
+      );
+      if (Array.isArray(data.destinations)) {
+        setDestinations(data.destinations);
+      }
+      return true;
     },
     [liveUrl, title]
   );
@@ -113,120 +128,147 @@ export function LiveSocialConnections({
           : "in_app"
       );
       setSelected(
-        dests
-          .filter((d) => d.status === "connected")
-          .map((d) => d.platform)
+        dests.filter((d) => d.status === "connected").map((d) => d.platform)
       );
       setError("");
-
-      if (autoGoLive && liveUrl && typeof window !== "undefined") {
-        const raw = sessionStorage.getItem(PENDING_KEY);
-        if (raw) {
-          sessionStorage.removeItem(PENDING_KEY);
-          try {
-            const pending = JSON.parse(raw) as PendingAnnounce;
-            const ready = pending.platforms.filter((p) =>
-              dests.some((d) => d.platform === p && d.status === "connected")
-            );
-            if (ready.length && pending.liveUrl === liveUrl) {
-              void announcePlatforms(ready);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      }
     } catch {
       setError("Réseau indisponible.");
     }
-  }, [announcePlatforms, autoGoLive, liveUrl]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  async function connectOrGoLive(platform: string, connected: boolean) {
-    setBusy(true);
-    setMessage("");
-    setError("");
-    try {
-      if (connected && autoGoLive && liveUrl) {
-        await announcePlatforms([platform]);
-        return;
+  async function waitForConnected(
+    platform: string,
+    popup: Window | null
+  ): Promise<boolean> {
+    const token = ++pollAbortRef.current;
+    for (let i = 0; i < 60; i++) {
+      if (token !== pollAbortRef.current) return false;
+      if (popup && popup.closed && i > 2) {
+        // Give one last sync after close
+        const dests = await syncAccounts();
+        setDestinations(dests);
+        return dests.some(
+          (d) => d.platform === platform && d.status === "connected"
+        );
       }
+      await sleep(2000);
+      if (token !== pollAbortRef.current) return false;
+      try {
+        const dests = await syncAccounts();
+        setDestinations(dests);
+        if (
+          dests.some(
+            (d) => d.platform === platform && d.status === "connected"
+          )
+        ) {
+          try {
+            popup?.close();
+          } catch {
+            /* ignore */
+          }
+          return true;
+        }
+      } catch {
+        /* keep polling */
+      }
+    }
+    return false;
+  }
 
-      // In-app link when no OAuth provider
-      if (provider === "in_app") {
+  async function connectViaOauthPopup(platform: string) {
+    const res = await fetch(apiUrl("/api/live/social"), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "oauth_url", platform }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (data.code === "USE_IN_APP_CONNECT") {
+        setProvider("in_app");
         setLinking(platform);
         setAccountName("");
         setHandle("");
-        return;
+        return false;
       }
+      setError(data.error || "Connexion impossible.");
+      return false;
+    }
+    if (!data.oauthUrl) {
+      setError("Connexion impossible pour le moment.");
+      return false;
+    }
 
-      const res = await fetch(apiUrl("/api/live/social"), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "oauth_url", platform }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.code === "USE_IN_APP_CONNECT") {
-          setProvider("in_app");
+    const popup = window.open(
+      data.oauthUrl,
+      "klir_social_oauth",
+      "popup=yes,width=640,height=780"
+    );
+    if (!popup) {
+      // Popup blocked — same-tab fallback, stay on KlirBuild after manual return
+      setMessage(
+        "Autorisez la fenêtre, puis revenez ici — la page se met à jour seule."
+      );
+      window.location.href = data.oauthUrl;
+      return false;
+    }
+
+    setMessage(
+      `Autorisez ${LABELS[platform] || platform} dans la fenêtre…`
+    );
+    const ok = await waitForConnected(platform, popup);
+    if (!ok) {
+      setError(
+        `Connexion ${LABELS[platform] || platform} non terminée. Réessayez.`
+      );
+      return false;
+    }
+    setSelected((prev) =>
+      prev.includes(platform) ? prev : [...prev, platform]
+    );
+    setMessage(`${LABELS[platform] || platform} connecté.`);
+    return true;
+  }
+
+  /** One click: connect if needed, then publish when live. */
+  async function oneClickNetwork(platform: string, connected: boolean) {
+    setBusyPlatform(platform);
+    setMessage("");
+    setError("");
+    try {
+      let isConnected = connected;
+
+      if (!isConnected) {
+        if (provider === "in_app") {
           setLinking(platform);
           setAccountName("");
           setHandle("");
           return;
         }
-        setError(data.error || "Connexion impossible.");
-        return;
+        const linked = await connectViaOauthPopup(platform);
+        if (!linked) return;
+        isConnected = true;
       }
-      if (data.oauthUrl) {
-        if (autoGoLive && liveUrl) {
-          sessionStorage.setItem(
-            PENDING_KEY,
-            JSON.stringify({
-              platforms: [platform],
-              liveUrl,
-              title: title || "Live",
-            } satisfies PendingAnnounce)
-          );
-        }
-        window.location.href = data.oauthUrl;
-        return;
-      }
-      setError("URL OAuth manquante.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
-  async function syncProviderAccounts() {
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(apiUrl("/api/live/social"), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync_accounts" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Synchronisation impossible.");
-        return;
+      if (autoGoLive && liveUrl && isConnected) {
+        setMessage(`Publication sur ${LABELS[platform] || platform}…`);
+        await announcePlatforms([platform]);
+      } else if (isConnected) {
+        setMessage(
+          `${LABELS[platform] || platform} prêt. Lancez un live, puis recliquez pour publier.`
+        );
       }
-      setDestinations(data.destinations ?? []);
-      setMessage(
-        `Comptes synchronisés (${data.synced ?? 0}).`
-      );
     } finally {
-      setBusy(false);
+      setBusyPlatform(null);
     }
   }
 
   async function saveInAppConnect(platform: string) {
-    setBusy(true);
+    setBusyPlatform(platform);
     setError("");
     try {
       const res = await fetch(apiUrl("/api/live/social"), {
@@ -250,17 +292,18 @@ export function LiveSocialConnections({
         prev.includes(platform) ? prev : [...prev, platform]
       );
       setLinking(null);
-      setMessage(`${LABELS[platform] || platform} lié.`);
       if (autoGoLive && liveUrl) {
         await announcePlatforms([platform]);
+      } else {
+        setMessage(`${LABELS[platform] || platform} connecté.`);
       }
     } finally {
-      setBusy(false);
+      setBusyPlatform(null);
     }
   }
 
   async function saveRtmp(platform: string) {
-    setBusy(true);
+    setBusyPlatform(platform);
     try {
       const res = await fetch(apiUrl("/api/live/social"), {
         method: "POST",
@@ -283,7 +326,7 @@ export function LiveSocialConnections({
       setStreamKey("");
       setMessage(`Clé Live enregistrée pour ${LABELS[platform] || platform}.`);
     } finally {
-      setBusy(false);
+      setBusyPlatform(null);
     }
   }
 
@@ -300,25 +343,17 @@ export function LiveSocialConnections({
       <div className="flex items-start gap-2">
         <Radio className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
         <div>
-          <p className="text-sm font-semibold">
-            Diffuser / annoncer sur les réseaux
-          </p>
+          <p className="text-sm font-semibold">Publier le live sur vos réseaux</p>
           {!compact ? (
             <p className="text-xs text-muted-foreground">
-              Liez vos pages entreprise YouTube, Facebook, TikTok et Instagram.
-              {provider === "zernio"
-                ? " Connexion OAuth via Zernio."
-                : provider === "postiz"
-                  ? " Connexion OAuth via Postiz (gratuit self-host)."
-                  : " Saisissez le nom de la page ici (ou configurez POSTIZ_API_KEY)."}{" "}
-              Pendant un live, <strong>Diffuser</strong> annonce automatiquement
-              le lien.
+              Un clic suffit : connectez la page de votre entreprise, puis
+              publiez l’annonce du live.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
               {autoGoLive && liveUrl
-                ? "Compte lié → Diffuser. Sinon → lier la page."
-                : "Comptes entreprise pour le live."}
+                ? "Cliquez un réseau pour publier le live."
+                : "Cliquez un réseau pour connecter votre page."}
             </p>
           )}
         </div>
@@ -328,6 +363,7 @@ export function LiveSocialConnections({
         {destinations.map((d) => {
           const connected = d.status === "connected";
           const goLiveNow = Boolean(connected && autoGoLive && liveUrl);
+          const platformBusy = busyPlatform === d.platform;
           return (
             <div
               key={d.platform}
@@ -359,46 +395,43 @@ export function LiveSocialConnections({
                   <Button
                     type="button"
                     size="sm"
-                    variant={
-                      goLiveNow ? "default" : connected ? "outline" : "default"
-                    }
+                    variant={goLiveNow ? "default" : "outline"}
                     disabled={busy}
-                    onClick={() => void connectOrGoLive(d.platform, connected)}
+                    onClick={() => void oneClickNetwork(d.platform, connected)}
                   >
                     {goLiveNow ? (
                       <Zap className="mr-1 h-3.5 w-3.5" />
-                    ) : (
-                      <Link2 className="mr-1 h-3.5 w-3.5" />
-                    )}
-                    {goLiveNow
-                      ? "Diffuser"
-                      : connected
-                        ? provider === "in_app"
-                          ? "Modifier"
-                          : "Reconnecter"
-                        : "Connecter"}
+                    ) : null}
+                    {platformBusy
+                      ? "…"
+                      : goLiveNow
+                        ? "Publier"
+                        : connected
+                          ? "Prêt"
+                          : "Connecter"}
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditing(editing === d.platform ? null : d.platform);
-                      setRtmpUrl(d.rtmpUrl || "");
-                      setStreamKey("");
-                    }}
-                  >
-                    RTMP
-                  </Button>
+                  {!compact ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditing(editing === d.platform ? null : d.platform);
+                        setRtmpUrl(d.rtmpUrl || "");
+                        setStreamKey("");
+                      }}
+                    >
+                      OBS
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
               {linking === d.platform ? (
                 <div className="mt-2 space-y-2 border-t border-border pt-2">
                   <p className="text-[11px] text-muted-foreground">
-                    Nom de la page / chaîne sur {LABELS[d.platform]} (comme sur le
-                    réseau). Ajoutez ensuite la clé RTMP pour OBS si besoin.
+                    Nom de votre page / chaîne {LABELS[d.platform]}.
                   </p>
                   <Input
                     placeholder={`Nom de la page ${LABELS[d.platform]}`}
@@ -417,7 +450,7 @@ export function LiveSocialConnections({
                       disabled={busy || !accountName.trim()}
                       onClick={() => void saveInAppConnect(d.platform)}
                     >
-                      Lier le compte
+                      Confirmer
                     </Button>
                     <Button
                       type="button"
@@ -435,7 +468,7 @@ export function LiveSocialConnections({
               {editing === d.platform ? (
                 <div className="mt-2 space-y-2 border-t border-border pt-2">
                   <Input
-                    placeholder="URL RTMP (ex. rtmps://a.rtmp.youtube.com/live2)"
+                    placeholder="URL RTMP (optionnel, pour OBS)"
                     value={rtmpUrl}
                     onChange={(e) => setRtmpUrl(e.target.value)}
                   />
@@ -443,23 +476,19 @@ export function LiveSocialConnections({
                     type="password"
                     placeholder={
                       d.hasStreamKey
-                        ? "Nouvelle clé de stream (laisser vide pour garder)"
+                        ? "Nouvelle clé de stream"
                         : "Clé de stream Live"
                     }
                     value={streamKey}
                     onChange={(e) => setStreamKey(e.target.value)}
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    YouTube Studio → En direct → Encodeur / Meta Live Producer /
-                    TikTok Live.
-                  </p>
                   <Button
                     type="button"
                     size="sm"
                     disabled={busy}
                     onClick={() => void saveRtmp(d.platform)}
                   >
-                    Enregistrer la clé Live
+                    Enregistrer
                   </Button>
                 </div>
               ) : null}
@@ -468,27 +497,24 @@ export function LiveSocialConnections({
         })}
       </div>
 
-      {provider === "postiz" ? (
+      {autoGoLive && liveUrl && selected.length > 1 ? (
         <Button
           type="button"
-          variant="outline"
           className="w-full"
-          disabled={busy}
-          onClick={() => void syncProviderAccounts()}
+          disabled={busy || !selected.length}
+          onClick={async () => {
+            setBusyBulk(true);
+            try {
+              await announcePlatforms(selected);
+            } finally {
+              setBusyBulk(false);
+            }
+          }}
         >
-          Synchroniser les comptes Postiz
+          <Megaphone className="mr-2 h-4 w-4" />
+          Publier sur tous les réseaux sélectionnés
         </Button>
       ) : null}
-
-      <Button
-        type="button"
-        className="w-full"
-        disabled={busy || !liveUrl || !selected.length}
-        onClick={() => void announcePlatforms(selected)}
-      >
-        <Megaphone className="mr-2 h-4 w-4" />
-        Annoncer le live sur les réseaux sélectionnés
-      </Button>
 
       {message ? (
         <p className="text-xs text-emerald-700 dark:text-emerald-300">{message}</p>
