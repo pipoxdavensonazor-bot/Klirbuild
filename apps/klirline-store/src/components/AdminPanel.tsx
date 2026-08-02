@@ -3,7 +3,7 @@ import {
   ArrowLeft, ShieldCheck, Clock, CheckCircle, XCircle,
   Eye, ChevronDown, ChevronUp, Search, CreditCard, Camera,
   Users, Store, AlertTriangle, RefreshCw, MapPin, FileCheck,
-  Scale, ShoppingBag,
+  Scale, ShoppingBag, Sparkles, Headset,
 } from 'lucide-react';
 import { supabase, type VendorApplication } from '../lib/supabase';
 import { resolveKycUrl } from '../lib/kyc-upload';
@@ -13,7 +13,7 @@ interface AdminPanelProps {
   onBack: () => void;
 }
 
-type Tab = 'kyc' | 'conflicts' | 'clients';
+type Tab = 'kyc' | 'conflicts' | 'clients' | 'sponsors';
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
 
 const STATUS_CONFIG = {
@@ -51,6 +51,24 @@ type ClientRow = {
   created_at: string;
 };
 
+type SponsorRow = {
+  id: string;
+  seller_id: string;
+  status: string;
+  amount_htg: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  priority_support: boolean;
+  admin_followup_status: string;
+  admin_followup_note: string | null;
+  admin_followup_at: string | null;
+  created_at: string;
+  business_name: string | null;
+  owner_name: string | null;
+  business_phone: string | null;
+  payout_wallet: string | null;
+};
+
 function DocThumb({ label, path, icon }: { label: string; path: string | null | undefined; icon: React.ReactNode }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -81,6 +99,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const [applications, setApplications] = useState<VendorApplication[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
+  const [sponsors, setSponsors] = useState<SponsorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,7 +116,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setActionError('');
-    const [appsRes, fulfillRes, profilesRes] = await Promise.all([
+    const [appsRes, fulfillRes, profilesRes, sponsorsRes] = await Promise.all([
       supabase.from('vendor_applications').select('*').order('created_at', { ascending: false }),
       supabase
         .from('order_fulfillments')
@@ -105,6 +124,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
         .order('created_at', { ascending: false })
         .limit(80),
       supabase.from('profiles').select('id, display_name, phone, is_admin, created_at').order('created_at', { ascending: false }).limit(100),
+      supabase.rpc('admin_list_sponsorships', { limit_count: 50 }),
     ]);
     if (appsRes.data) setApplications(appsRes.data as VendorApplication[]);
     if (fulfillRes.error) {
@@ -113,6 +133,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
       setConflicts(fulfillRes.data as ConflictRow[]);
     }
     if (profilesRes.data) setClients(profilesRes.data as ClientRow[]);
+    if (sponsorsRes.data) setSponsors(sponsorsRes.data as SponsorRow[]);
     setLoading(false);
   }, []);
 
@@ -123,6 +144,9 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
     approved: applications.filter(a => a.status === 'approved').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
     disputed: conflicts.filter(c => c.status === 'disputed').length,
+    sponsorsPending: sponsors.filter(
+      s => s.status === 'active' && s.admin_followup_status === 'pending',
+    ).length,
   };
 
   const filtered = applications.filter(a => {
@@ -203,8 +227,48 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
     setActionLoading(false);
   };
 
+  const triggerMoncashPayout = async (fulfillmentId: string) => {
+    setActionLoading(true);
+    setActionError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Session expirée');
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seller-payout`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fulfillmentId }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Échec versement MonCash');
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Échec versement');
+    }
+    await loadAll();
+    setActionLoading(false);
+  };
+
+  const markSponsorFollowup = async (id: string, status: string) => {
+    setActionLoading(true);
+    setActionError('');
+    const { error } = await supabase.rpc('admin_mark_sponsor_followup', {
+      p_id: id,
+      p_status: status,
+      p_note: null,
+    });
+    if (error) setActionError(error.message);
+    await loadAll();
+    setActionLoading(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-haiti-sand">
       <div className="bg-brand-dark text-white px-4 py-4 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center gap-4 flex-wrap">
           <button onClick={onBack} className="flex items-center gap-2 text-sm hover:text-accent">
@@ -221,6 +285,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
         <div className="max-w-5xl mx-auto flex gap-1 mt-3 overflow-x-auto">
           {([
             ['kyc', 'Vendeurs KYC', stats.pending],
+            ['sponsors', 'Sponsored', stats.sponsorsPending],
             ['conflicts', 'Litiges / commandes', stats.disputed],
             ['clients', 'Clients', clients.length],
           ] as const).map(([key, label, count]) => (
@@ -248,6 +313,77 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : tab === 'sponsors' ? (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+              <p className="font-semibold flex items-center gap-2">
+                <Headset className="w-4 h-4" /> Suivi immédiat Sponsored
+              </p>
+              <p className="text-xs mt-1">
+                Contactez ces vendeurs en priorité (24–48 h). Marquez « Contacté » puis « Terminé ».
+              </p>
+            </div>
+            {sponsors.length === 0 ? (
+              <div className="bg-white rounded-xl border py-16 text-center text-gray-500 text-sm">
+                Aucun abonnement Sponsored pour l’instant.
+              </div>
+            ) : (
+              sponsors.map(s => (
+                <div key={s.id} className="bg-white rounded-xl border shadow-sm p-4">
+                  <div className="flex flex-wrap justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-semibold text-slate-900 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        {s.business_name || 'Vendeur'} · {s.owner_name || '—'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {s.business_phone || s.payout_wallet || 'Pas de téléphone'} · {s.status}
+                        {s.ends_at ? ` · jusqu’au ${new Date(s.ends_at).toLocaleDateString('fr-HT')}` : ''}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      s.admin_followup_status === 'pending'
+                        ? 'bg-amber-100 text-amber-800'
+                        : s.admin_followup_status === 'contacted'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-green-100 text-green-800'
+                    }`}>
+                      {s.admin_followup_status === 'pending' && 'À contacter'}
+                      {s.admin_followup_status === 'contacted' && 'Contacté'}
+                      {s.admin_followup_status === 'done' && 'Terminé'}
+                    </span>
+                  </div>
+                  <p className="text-sm mb-3">{formatHtg(Number(s.amount_htg))} · plan Sponsored</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => markSponsorFollowup(s.id, 'contacted')}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand text-white hover:bg-brand-mid disabled:opacity-50"
+                    >
+                      Marquer contacté
+                    </button>
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => markSponsorFollowup(s.id, 'done')}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Suivi terminé
+                    </button>
+                    {(s.business_phone || s.payout_wallet) && (
+                      <a
+                        href={`https://wa.me/${(s.business_phone || s.payout_wallet || '').replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#25D366] text-white"
+                      >
+                        WhatsApp
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         ) : tab === 'clients' ? (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -326,10 +462,17 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
                     </button>
                     <button
                       disabled={actionLoading}
-                      onClick={() => setConflictStatus(row.id, 'paid_out', 'Clôturé par admin')}
+                      onClick={() => triggerMoncashPayout(row.id)}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Verser MonCash (API)
+                    </button>
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => setConflictStatus(row.id, 'paid_out', 'Clôturé par admin (manuel)')}
                       className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand text-white hover:bg-brand-mid disabled:opacity-50"
                     >
-                      Marquer versé / clos
+                      Marquer versé manuel
                     </button>
                   </div>
                 </div>

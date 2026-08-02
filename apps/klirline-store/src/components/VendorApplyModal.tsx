@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase, HAITI_DEPARTMENTS, VENDOR_CATEGORIES } from '../lib/supabase';
 import { DocUploadField } from './DocUploadField';
+import { SelfieCaptureField } from './SelfieCaptureField';
 
 interface VendorApplyModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ const EMPTY = {
   business_address: '',
   city: '',
   department: '',
+  payout_wallet: '',
   id_front_url: '',
   id_back_url: '',
   selfie_url: '',
@@ -59,7 +61,7 @@ export const VendorApplyModal = ({ isOpen, onClose, onSuccess }: VendorApplyModa
     }
     if (step === 3) {
       if (!form.id_front_url) return 'Envoyez la photo de votre pièce d’identité (recto).';
-      if (!form.selfie_url) return 'Envoyez un selfie avec votre pièce d’identité.';
+      if (!form.selfie_url) return 'Prenez un selfie de vérification avec la caméra (pièce d’identité visible).';
       if (!form.address_proof_url) {
         return 'Envoyez la preuve d’adresse délivrée par la Mairie.';
       }
@@ -93,6 +95,8 @@ export const VendorApplyModal = ({ isOpen, onClose, onSuccess }: VendorApplyModa
       business_address: form.business_address.trim() || null,
       city: form.city.trim(),
       department: form.department,
+      payout_method: 'moncash',
+      payout_wallet: (form.payout_wallet.trim() || form.business_phone.trim().replace(/\D/g, '')) || null,
       id_front_url: form.id_front_url,
       id_back_url: form.id_back_url || null,
       selfie_url: form.selfie_url,
@@ -253,6 +257,22 @@ export const VendorApplyModal = ({ isOpen, onClose, onSuccess }: VendorApplyModa
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Portefeuille MonCash (versement)
+                      </label>
+                      <input
+                        type="tel"
+                        value={form.payout_wallet}
+                        onChange={e => set('payout_wallet', e.target.value)}
+                        placeholder="509XXXXXXXX (défaut = téléphone)"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                      />
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Après livraison, Klirline verse le net sur ce numéro MonCash.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -337,7 +357,8 @@ export const VendorApplyModal = ({ isOpen, onClose, onSuccess }: VendorApplyModa
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
                       <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-amber-800">
-                        Obligatoire : CIN / passeport / permis, selfie avec la pièce, et
+                        Obligatoire : CIN / passeport / permis, <strong>selfie live</strong> avec la pièce
+                        (caméra frontale), et
                         <strong> attestation ou certificat de résidence de la Mairie</strong> de votre commune.
                       </p>
                     </div>
@@ -361,15 +382,12 @@ export const VendorApplyModal = ({ isOpen, onClose, onSuccess }: VendorApplyModa
                       capture="environment"
                     />
 
-                    <DocUploadField
-                      label="Selfie avec la pièce d’identité"
-                      hint="Tenez la pièce à côté de votre visage, bien visible"
+                    <SelfieCaptureField
+                      label="Selfie de vérification (caméra)"
+                      hint="Tenez la pièce d’identité à côté de votre visage — capture live obligatoire, pas depuis la galerie"
                       required
-                      docType="selfie"
                       value={form.selfie_url}
                       onChange={v => set('selfie_url', v)}
-                      capture="user"
-                      acceptPdf={false}
                     />
 
                     <DocUploadField

@@ -82,6 +82,7 @@ function scoreProduct(p: Product, s: ActivityState): number {
   if (recentIdx >= 0) score += Math.max(0, 8 - recentIdx);
   if (p.badge === 'best_seller') score += 1.5;
   if (p.badge === 'limited_deal' || p.deal_price != null) score += 2;
+  if (p.sponsored) score += 40;
   if (p.featured) score += 1;
   score += Math.min(p.rating, 5) * 0.3;
   return score;
@@ -95,7 +96,12 @@ export function getPersonalizedRails(products: Product[], activity = loadActivit
     .filter((p): p is Product => Boolean(p))
     .slice(0, 10);
 
-  const exclude = new Set(continueBrowsing.map(p => p.id));
+  const sponsored = products.filter(p => p.sponsored).slice(0, 12);
+
+  const exclude = new Set([
+    ...continueBrowsing.map(p => p.id),
+    ...sponsored.map(p => p.id),
+  ]);
 
   const recommended = [...products]
     .filter(p => !exclude.has(p.id))
@@ -129,6 +135,7 @@ export function getPersonalizedRails(products: Product[], activity = loadActivit
 
   return {
     continueBrowsing,
+    sponsored,
     recommended,
     deals,
     bestSellers,

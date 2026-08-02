@@ -26,7 +26,7 @@ export const StarRating = (props: Props) => {
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} type="button" onClick={() => props.onChange(n)} className="focus:outline-none">
-            <Star className={`${s} transition-colors ${n <= value ? 'fill-orange-400 text-orange-400' : 'text-gray-300'}`} />
+            <Star className={`${s} transition-colors ${n <= value ? 'fill-accent text-accent' : 'text-gray-300'}`} />
           </button>
         ))}
       </div>
@@ -36,8 +36,8 @@ export const StarRating = (props: Props) => {
   const stars = [];
   const full = Math.floor(value);
   const half = value % 1 >= 0.5;
-  for (let i = 0; i < full; i++) stars.push(<Star key={`f${i}`} className={`${s} fill-orange-400 text-orange-400`} />);
-  if (half) stars.push(<StarHalf key="h" className={`${s} fill-orange-400 text-orange-400`} />);
+  for (let i = 0; i < full; i++) stars.push(<Star key={`f${i}`} className={`${s} fill-accent text-accent`} />);
+  if (half) stars.push(<StarHalf key="h" className={`${s} fill-accent text-accent`} />);
   for (let i = 0; i < 5 - full - (half ? 1 : 0); i++) stars.push(<Star key={`e${i}`} className={`${s} text-gray-300`} />);
 
   return <div className="flex items-center gap-0.5">{stars}</div>;

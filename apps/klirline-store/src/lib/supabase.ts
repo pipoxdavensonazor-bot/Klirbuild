@@ -40,8 +40,14 @@ export type Product = {
   in_stock: boolean;
   badge: string | null;
   featured: boolean;
+  /** Paid Sponsored subscription — boosted on home feed */
+  sponsored?: boolean;
   view_count: number;
   brand: string | null;
+  /** True when seller has an approved Klirline KYC application. */
+  seller_verified?: boolean | null;
+  /** Shop / commerce name from approved vendor application. */
+  seller_shop_name?: string | null;
   created_at: string;
 };
 
@@ -61,6 +67,12 @@ export type Order = {
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
   moncash_order_id: string | null;
   moncash_transaction_id: string | null;
+  payment_method?: 'moncash' | 'stripe' | 'natcash' | null;
+  stripe_session_id?: string | null;
+  stripe_payment_intent_id?: string | null;
+  stripe_amount_usd_cents?: number | null;
+  natcash_order_id?: string | null;
+  natcash_transaction_id?: string | null;
   shipping_full_name?: string | null;
   shipping_phone?: string | null;
   shipping_street?: string | null;
@@ -99,6 +111,8 @@ export type VendorApplication = {
   business_address: string | null;
   city: string | null;
   department: string | null;
+  payout_method?: 'moncash' | 'natcash' | null;
+  payout_wallet?: string | null;
   id_front_url: string;
   id_back_url: string | null;
   selfie_url: string;
@@ -146,10 +160,10 @@ export type WishlistItem = {
 };
 
 export const BADGE_CONFIG: Record<string, { label: string; classes: string }> = {
-  best_seller:    { label: 'Best Seller',       classes: 'bg-brand text-white' },
-  amazons_choice: { label: "Klir's Choice",     classes: 'bg-teal-700 text-white' },
-  new:            { label: 'New',               classes: 'bg-blue-600 text-white' },
-  limited_deal:   { label: 'Limited Time Deal', classes: 'bg-red-700 text-white' },
+  best_seller:    { label: 'Meilleure vente',   classes: 'bg-brand text-white' },
+  amazons_choice: { label: 'Choix Klirline',    classes: 'bg-haiti-blue text-white' },
+  new:            { label: 'Nouveau',           classes: 'bg-haiti-blue text-white' },
+  limited_deal:   { label: 'Offre limitée',     classes: 'bg-haiti-red text-white' },
 };
 
 export const DEPARTMENTS = [

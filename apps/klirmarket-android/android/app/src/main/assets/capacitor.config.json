@@ -1,0 +1,38 @@
+{
+	"appId": "app.klirline.klirmarket",
+	"appName": "KlirMarket",
+	"webDir": "www",
+	"server": {
+		"url": "https://klirline.com",
+		"cleartext": false,
+		"allowNavigation": [
+			"klirline.com",
+			"*.klirline.com",
+			"*.supabase.co",
+			"checkout.stripe.com",
+			"*.stripe.com",
+			"moncashbutton.digicelgroup.com",
+			"*.digicelgroup.com"
+		]
+	},
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#004F6E"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 1800,
+			"launchAutoHide": true,
+			"backgroundColor": "#004F6E",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER",
+			"showSpinner": false,
+			"immersive": false
+		},
+		"StatusBar": {
+			"overlaysWebView": false,
+			"style": "DARK",
+			"backgroundColor": "#004F6E"
+		}
+	}
+}

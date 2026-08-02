@@ -1,6 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    @apply text-slate-900 antialiased;
+    background-color: #00145c;
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(0, 20, 92, 0.82) 0%,
+        rgba(230, 240, 242, 0.94) 26%,
+        rgba(245, 240, 230, 0.97) 68%,
+        rgba(230, 240, 242, 0.98) 100%
+      ),
+      url('/monuments/citadelle-bg.jpg');
+    background-size: cover, cover;
+    background-position: center, center top;
+    background-attachment: scroll, fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      background-attachment: scroll, scroll;
+    }
+  }
+
+  h1, h2, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+  }
+}
+
+@layer components {
+  .haiti-flag-bar {
+    background: linear-gradient(90deg, #00209f 0 50%, #d21034 50% 100%);
+    height: 4px;
+  }
+
+  .haiti-hero-wash {
+    background:
+      linear-gradient(
+        105deg,
+        rgba(0, 20, 92, 0.84) 0%,
+        rgba(0, 32, 159, 0.55) 40%,
+        rgba(10, 122, 140, 0.32) 72%,
+        rgba(210, 16, 52, 0.22) 100%
+      );
+  }
+
+  .surface-page {
+    @apply bg-haiti-sand/90;
+  }
+
+  .surface-card {
+    @apply bg-white/95 border border-brand/10 shadow-sm;
+  }
+}
 
 @layer utilities {
   @keyframes slide-in {
@@ -17,5 +80,13 @@
   }
   .animate-fade-in {
     animation: fade-in 0.2s ease-out;
+  }
+
+  @keyframes float-soft {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .animate-float-soft {
+    animation: float-soft 5s ease-in-out infinite;
   }
 }

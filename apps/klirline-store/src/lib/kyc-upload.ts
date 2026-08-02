@@ -2,13 +2,14 @@ import { supabase } from './supabase';
 
 const KYC_BUCKET = 'vendor-kyc';
 const DELIVERY_BUCKET = 'delivery-proofs';
+const PRODUCT_BUCKET = 'product-images';
 const MAX_EDGE = 1280;
 const JPEG_QUALITY = 0.72;
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export type KycDocType = 'id-front' | 'id-back' | 'selfie' | 'mairie';
 
-type UploadBucket = typeof KYC_BUCKET | typeof DELIVERY_BUCKET;
+type UploadBucket = typeof KYC_BUCKET | typeof DELIVERY_BUCKET | typeof PRODUCT_BUCKET;
 
 /** Stored value: storage path inside bucket (or legacy http URL). */
 export function isStoragePath(value: string): boolean {
@@ -38,6 +39,14 @@ export async function resolveDeliveryUrl(pathOrUrl: string | null | undefined): 
   const url = await signedUrl(DELIVERY_BUCKET, pathOrUrl);
   if (url) return url;
   return signedUrl(KYC_BUCKET, pathOrUrl);
+}
+
+/** Public product image URL (http or storage path in product-images). */
+export function resolveProductImageUrl(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) return null;
+  if (!isStoragePath(pathOrUrl)) return pathOrUrl;
+  const { data } = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(pathOrUrl);
+  return data.publicUrl || null;
 }
 
 async function compressImage(file: File): Promise<Blob> {
@@ -113,4 +122,16 @@ export async function uploadKycDocument(docType: KycDocType, file: File): Promis
 
 export async function uploadDeliveryProof(file: File): Promise<string> {
   return uploadToBucket(DELIVERY_BUCKET, 'delivery', file);
+}
+
+export async function uploadDeliverySignature(file: File): Promise<string> {
+  return uploadToBucket(DELIVERY_BUCKET, 'signature', file);
+}
+
+/** Upload product photo → returns public HTTPS URL for catalog. */
+export async function uploadProductImage(file: File, slot = 0): Promise<string> {
+  const path = await uploadToBucket(PRODUCT_BUCKET, `photo-${slot}`, file);
+  const { data } = supabase.storage.from(PRODUCT_BUCKET).getPublicUrl(path);
+  if (!data.publicUrl) throw new Error('URL publique introuvable après upload.');
+  return data.publicUrl;
 }

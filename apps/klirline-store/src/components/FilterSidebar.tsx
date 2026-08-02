@@ -50,7 +50,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
         {activeCount > 0 && (
           <button
             onClick={() => onChange({ categoryId: '', department: '', minPrice: '', maxPrice: '', minRating: 0, inStockOnly: false, badge: '' })}
-            className="text-xs text-blue-600 hover:text-orange-500 underline"
+            className="text-xs text-brand hover:text-brand underline"
           >
             Clear all ({activeCount})
           </button>
@@ -65,7 +65,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
       >
         <button
           onClick={() => set({ categoryId: '' })}
-          className={`block w-full text-left text-sm py-0.5 hover:text-orange-600 transition-colors ${!filters.categoryId ? 'font-bold text-orange-600' : 'text-gray-700'}`}
+          className={`block w-full text-left text-sm py-0.5 hover:text-brand transition-colors ${!filters.categoryId ? 'font-bold text-brand' : 'text-gray-700'}`}
         >
           All Departments
         </button>
@@ -73,7 +73,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
           <button
             key={cat.id}
             onClick={() => set({ categoryId: cat.id })}
-            className={`block w-full text-left text-sm py-0.5 hover:text-orange-600 transition-colors ${filters.categoryId === cat.id ? 'font-bold text-orange-600' : 'text-gray-700'}`}
+            className={`block w-full text-left text-sm py-0.5 hover:text-brand transition-colors ${filters.categoryId === cat.id ? 'font-bold text-brand' : 'text-gray-700'}`}
           >
             {cat.name}
           </button>
@@ -91,7 +91,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
               onChange={e => set({ minPrice: e.target.value })}
               placeholder="0"
               min="0"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
           <span className="text-gray-400 mt-4">–</span>
@@ -103,7 +103,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
               onChange={e => set({ maxPrice: e.target.value })}
               placeholder="Any"
               min="0"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
         </div>
@@ -115,11 +115,11 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
           <button
             key={r}
             onClick={() => set({ minRating: filters.minRating === r ? 0 : r })}
-            className={`flex items-center gap-2 w-full text-left py-0.5 transition-colors group ${filters.minRating === r ? 'text-orange-600 font-semibold' : 'text-gray-700 hover:text-orange-600'}`}
+            className={`flex items-center gap-2 w-full text-left py-0.5 transition-colors group ${filters.minRating === r ? 'text-brand font-semibold' : 'text-gray-700 hover:text-brand'}`}
           >
             <div className="flex">
               {Array.from({ length: r }).map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
+                <Star key={i} className="w-3.5 h-3.5 fill-accent text-accent" />
               ))}
               {Array.from({ length: 5 - r }).map((_, i) => (
                 <Star key={i} className="w-3.5 h-3.5 text-gray-300" />
@@ -137,7 +137,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
             type="checkbox"
             checked={filters.inStockOnly}
             onChange={e => set({ inStockOnly: e.target.checked })}
-            className="rounded accent-orange-500"
+            className="rounded accent-brand"
           />
           <span className="text-sm text-gray-700">In Stock Only</span>
         </label>
@@ -149,7 +149,7 @@ export const FilterSidebar = ({ filters, onChange, categories, isOpen, onClose }
           <button
             key={b.value}
             onClick={() => set({ badge: filters.badge === b.value ? '' : b.value })}
-            className={`block w-full text-left text-sm py-0.5 hover:text-orange-600 transition-colors ${filters.badge === b.value ? 'font-bold text-orange-600' : 'text-gray-700'}`}
+            className={`block w-full text-left text-sm py-0.5 hover:text-brand transition-colors ${filters.badge === b.value ? 'font-bold text-brand' : 'text-gray-700'}`}
           >
             {b.label}
           </button>

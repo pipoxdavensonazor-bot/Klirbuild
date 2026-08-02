@@ -145,13 +145,13 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
   ] as const;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-haiti-sand">
       {/* Top bar */}
-      <div className="bg-[#131921] text-white px-4 py-4 sticky top-0 z-30">
+      <div className="bg-brand-dark text-white px-4 py-4 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-sm hover:text-orange-400 transition-colors"
+            className="flex items-center gap-2 text-sm hover:text-accent transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -163,7 +163,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Account overview card */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+          <div className="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
             {(profile?.display_name || user?.email || 'U')[0].toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -189,8 +189,8 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
             onClick={onMyOrdersClick}
             className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 hover:shadow-md transition-shadow text-left"
           >
-            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5 text-orange-500" />
+            <div className="w-10 h-10 bg-brand-50 rounded-full flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5 text-brand" />
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900">My Orders</p>
@@ -222,7 +222,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                 onClick={() => setTab(t.key)}
                 className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors flex-1 justify-center ${
                   tab === t.key
-                    ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50'
+                    ? 'text-brand border-b-2 border-brand bg-brand-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
@@ -244,7 +244,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
                     placeholder="Your full name"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                   />
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+509 __ __ __ __"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                   />
                 </div>
                 <button
@@ -273,7 +273,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                     profileSaved
                       ? 'bg-green-500 text-white'
-                      : 'bg-orange-500 hover:bg-orange-600 text-white'
+                      : 'bg-brand hover:bg-brand-mid text-white'
                   }`}
                 >
                   {profileSaved ? <><Check className="w-4 h-4" /> Saved!</> : profileLoading ? 'Saving...' : 'Save Changes'}
@@ -288,7 +288,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                   <h2 className="font-semibold text-gray-900">Delivery Addresses</h2>
                   <button
                     onClick={openNewAddress}
-                    className="flex items-center gap-1.5 text-sm bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
+                    className="flex items-center gap-1.5 text-sm bg-brand hover:bg-brand-mid text-white px-3 py-1.5 rounded-lg font-medium transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     Add Address
@@ -308,38 +308,38 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">Full Name *</label>
                         <input required value={addressForm.full_name} onChange={e => setAddr('full_name', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                           placeholder="Full name" />
                       </div>
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">Phone</label>
                         <input value={addressForm.phone ?? ''} onChange={e => setAddr('phone', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                           placeholder="+509 __ __ __ __" />
                       </div>
                       <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-gray-600 mb-1 block">Street Address *</label>
                         <input required value={addressForm.street} onChange={e => setAddr('street', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                           placeholder="Street address, apartment, etc." />
                       </div>
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">City *</label>
                         <input required value={addressForm.city} onChange={e => setAddr('city', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                           placeholder="City" />
                       </div>
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1 block">State / Department</label>
                         <input value={addressForm.state_dept ?? ''} onChange={e => setAddr('state_dept', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                           placeholder="e.g. Ouest" />
                       </div>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={addressForm.is_default}
                         onChange={e => setAddr('is_default', e.target.checked)}
-                        className="rounded accent-orange-500" />
+                        className="rounded accent-brand" />
                       <span className="text-sm text-gray-700">Set as default address</span>
                     </label>
                     <div className="flex gap-2 pt-1">
@@ -348,7 +348,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                         Cancel
                       </button>
                       <button type="submit" disabled={addressLoading}
-                        className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-lg text-sm font-semibold transition-colors">
+                        className="flex-1 py-2 bg-brand hover:bg-brand-mid disabled:bg-brand/40 text-white rounded-lg text-sm font-semibold transition-colors">
                         {addressLoading ? 'Saving...' : editingAddress ? 'Update' : 'Add Address'}
                       </button>
                     </div>
@@ -363,13 +363,13 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                 ) : (
                   <div className="space-y-3">
                     {addresses.map(addr => (
-                      <div key={addr.id} className={`border rounded-xl p-4 ${addr.is_default ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                      <div key={addr.id} className={`border rounded-xl p-4 ${addr.is_default ? 'border-brand bg-brand-50' : 'border-gray-200 bg-white'}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-sm font-semibold text-gray-900">{addr.full_name}</p>
                               {addr.is_default && (
-                                <span className="text-[11px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">
+                                <span className="text-[11px] font-bold text-brand bg-brand-50 px-1.5 py-0.5 rounded">
                                   Default
                                 </span>
                               )}
@@ -384,7 +384,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {!addr.is_default && (
                               <button onClick={() => handleSetDefault(addr.id)}
-                                className="text-xs text-blue-600 hover:text-orange-500 underline px-1">
+                                className="text-xs text-brand hover:text-brand underline px-1">
                                 Set default
                               </button>
                             )}
@@ -423,7 +423,7 @@ export const AccountPage = ({ onBack, onMyOrdersClick, onWishlistClick }: Accoun
                 </div>
                 <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
                   <div className="flex items-start gap-3">
-                    <Star className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                    <Star className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-gray-900">Account Email</p>
                       <p className="text-xs text-gray-500 mt-0.5 break-all">{user?.email}</p>
