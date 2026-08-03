@@ -22,6 +22,16 @@ apps/android/android/local.properties
 apps/android/android/keystore.properties
 apps/android/*.keystore
 apps/android/*.jks
+# KlirMarket Capacitor Android (signing + local SDK paths)
+apps/klirmarket-android/android/.gradle/
+apps/klirmarket-android/android/app/build/
+apps/klirmarket-android/android/build/
+apps/klirmarket-android/android/captures/
+apps/klirmarket-android/android/local.properties
+apps/klirmarket-android/android/keystore.properties
+apps/klirmarket-android/**/*.keystore
+apps/klirmarket-android/**/*.jks
+apps/klirmarket-android/node_modules/
 *.apk
 *.aab
 # Hosted installers for /download

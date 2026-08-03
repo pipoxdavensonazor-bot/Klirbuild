@@ -1,0 +1,23 @@
+# Dependencies / Capacitor
+node_modules/
+.capacitor/
+dist/
+www/dist/
+
+# Secrets & local machine config
+*.keystore
+*.jks
+android/keystore.properties
+android/local.properties
+
+# Gradle / Android Studio
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
