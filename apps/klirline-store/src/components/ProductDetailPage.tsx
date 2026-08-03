@@ -10,6 +10,8 @@ import { StarRating } from './StarRating';
 import { VerifiedSellerBadge } from './VerifiedSellerBadge';
 import { ProductCard } from './ProductCard';
 import { productAbsoluteUrl } from '../lib/routing';
+import { labelDepartment } from '../lib/brand';
+import { useI18n } from '../i18n';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -33,6 +35,7 @@ export const ProductDetailPage = ({
   onWishlistToggle,
 }: ProductDetailPageProps) => {
   const { user } = useAuth();
+  const { locale } = useI18n();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
@@ -278,7 +281,7 @@ export const ProductDetailPage = ({
           <span>/</span>
           {product.department && (
             <>
-              <span className="text-gray-400">{product.department}</span>
+              <span className="text-gray-400">{labelDepartment(product.department, locale)}</span>
               <span>/</span>
             </>
           )}

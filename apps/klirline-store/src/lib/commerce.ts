@@ -46,12 +46,12 @@ export const FULFILLMENT_LABELS_FR: Record<FulfillmentStatus, string> = {
   disputed: 'Litige',
 };
 
+/** Always prefix with HTG — Intl often renders the gourde as bare « G ». */
 export function formatHtg(amount: number): string {
-  return new Intl.NumberFormat('fr-HT', {
-    style: 'currency',
-    currency: 'HTG',
+  const n = new Intl.NumberFormat('fr-HT', {
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(Number.isFinite(amount) ? amount : 0);
+  return `HTG ${n}`;
 }
 
 export function sellerNetFromGross(gross: number, rate = KLIRLINE_COMMISSION_RATE): number {
