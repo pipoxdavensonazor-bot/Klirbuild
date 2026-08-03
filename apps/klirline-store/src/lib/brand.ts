@@ -55,6 +55,29 @@ export const CATEGORY_TO_DEPARTMENT: Record<string, string> = {
   Food: 'Home & Kitchen',
 };
 
+/** Display labels for catalog department keys (DB values stay English). */
+export const DEPARTMENT_LABELS: Record<string, { fr: string; ht: string }> = {
+  Electronics: { fr: 'Électronique', ht: 'Elektwonik' },
+  Books: { fr: 'Livres', ht: 'Liv' },
+  'Clothing & Fashion': { fr: 'Mode & Vêtements', ht: 'Mòd ak Rad' },
+  'Home & Kitchen': { fr: 'Maison & Cuisine', ht: 'Kay & Kwizin' },
+  'Sports & Outdoors': { fr: 'Sport & Plein air', ht: 'Espò & Deyò' },
+  'Toys & Games': { fr: 'Jeux & Jouets', ht: 'Jwèt' },
+  'Beauty & Personal Care': { fr: 'Beauté & Soins', ht: 'Bote & Swen' },
+  Automotive: { fr: 'Auto', ht: 'Oto' },
+  Garden: { fr: 'Jardin', ht: 'Jaden' },
+  Health: { fr: 'Santé', ht: 'Sante' },
+};
+
+export function labelDepartment(
+  department: string,
+  locale: 'fr' | 'ht' = 'fr',
+): string {
+  const entry = DEPARTMENT_LABELS[department];
+  if (!entry) return department;
+  return locale === 'ht' ? entry.ht : entry.fr;
+}
+
 /** Heuristic: throwaway / test listings that should not appear in the catalog. */
 export function isJunkProductName(name: string): boolean {
   const n = name.trim();

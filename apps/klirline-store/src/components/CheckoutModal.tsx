@@ -452,7 +452,7 @@ export const CheckoutModal = ({
                         <p className="text-xs text-gray-500">Qté : {item.quantity}</p>
                       </div>
                       <p className="text-sm font-semibold text-slate-800">
-                        HTG {(unit * item.quantity).toFixed(0)}
+                        {formatHtg(unit * item.quantity)}
                       </p>
                     </div>
                   );

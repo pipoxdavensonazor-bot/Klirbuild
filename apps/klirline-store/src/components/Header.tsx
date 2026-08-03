@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DEPARTMENTS, getDisplayPrice, type Product } from '../lib/supabase';
-import { BRAND, NAV_DEPT_MAP, PAYMENTS, SOFT_LAUNCH } from '../lib/brand';
+import { BRAND, NAV_DEPT_MAP, PAYMENTS, SOFT_LAUNCH, labelDepartment } from '../lib/brand';
 import { useI18n } from '../i18n';
 
 export type VendorStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -133,7 +133,9 @@ export const Header = ({
                 onClick={() => setDeptOpen(v => !v)}
                 className="hidden sm:flex items-center gap-1 bg-gray-200 text-gray-800 px-2 text-xs font-medium whitespace-nowrap hover:bg-gray-300 transition-colors flex-shrink-0"
               >
-                <span className="max-w-[80px] truncate">{selectedDept || t('all')}</span>
+                <span className="max-w-[80px] truncate">
+                  {selectedDept ? labelDepartment(selectedDept, locale) : t('all')}
+                </span>
                 <ChevronDown className="w-3 h-3" />
               </button>
               <input
@@ -188,7 +190,7 @@ export const Header = ({
                     onClick={() => { onDeptChange(d); setDeptOpen(false); }}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-50 transition-colors ${selectedDept === d ? 'font-bold text-brand' : ''}`}
                   >
-                    {d}
+                    {labelDepartment(d, locale)}
                   </button>
                 ))}
               </div>
@@ -437,7 +439,7 @@ export const Header = ({
               <MobileItem
                 key={d}
                 icon={<ChevronRight className="w-4 h-4" />}
-                label={d}
+                label={labelDepartment(d, locale)}
                 onClick={() => { onDeptChange(d); setMobileMenuOpen(false); }}
               />
             ))}

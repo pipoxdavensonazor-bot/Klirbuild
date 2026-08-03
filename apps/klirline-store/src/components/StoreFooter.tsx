@@ -112,8 +112,8 @@ export function StoreFooter({ onLegalNavigate }: StoreFooterProps = {}) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-left">
           <div>
             <p className="font-display font-semibold text-xl mb-1">
-              Klir<span className="text-accent">line</span>
-              <span className="text-gray-400 font-sans font-normal text-sm ml-2">Store · Haiti</span>
+              Klir<span className="text-accent">Market</span>
+              <span className="text-gray-400 font-sans font-normal text-sm ml-2">Haiti</span>
             </p>
             <p className="text-sm text-slate-400 mt-2">
               Marketplace multi-vendeurs — MonCash, NatCash et carte. Livraison dans les 10 départements.

@@ -4,7 +4,7 @@ import { HAITI_DEPARTMENTS } from '../lib/supabase';
 import { ProductCard } from './ProductCard';
 import { getPersonalizedRails } from '../lib/activity';
 import { useI18n } from '../i18n';
-import { BRAND } from '../lib/brand';
+import { BRAND, labelDepartment } from '../lib/brand';
 import { HAITI_MONUMENTS, HAITI_MONUMENT_CREDIT } from '../lib/haiti-media';
 
 interface HomeFeedProps {
@@ -108,7 +108,7 @@ export function HomeFeed({
   onWishlistToggle,
   signedIn,
 }: HomeFeedProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const rails = getPersonalizedRails(products);
 
   const depts = [
@@ -343,7 +343,7 @@ export function HomeFeed({
           {rails.deptRails.map(rail => (
             <ProductRail
               key={rail.department}
-              title={`${t('moreInDept')} ${rail.department}`}
+              title={`${t('moreInDept')} ${labelDepartment(rail.department, locale)}`}
               subtitle={t('moreInDeptSub')}
               products={rail.products}
               onAddToCart={onAddToCart}
