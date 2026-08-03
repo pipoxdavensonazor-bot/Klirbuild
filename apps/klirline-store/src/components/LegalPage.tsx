@@ -1,5 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
+import { useEffect } from 'react';
 import type { LegalSlug } from '../lib/routing';
+import { applyHomeSeo, applyLegalSeo } from '../lib/seo';
 
 const PAGES: Record<
   LegalSlug,
@@ -58,6 +60,13 @@ type LegalPageProps = {
 export function LegalPage({ slug, onBack, onNavigateLegal }: LegalPageProps) {
   const page = PAGES[slug];
   const others = (Object.keys(PAGES) as LegalSlug[]).filter(s => s !== slug);
+
+  useEffect(() => {
+    applyLegalSeo(slug, page.title);
+    return () => {
+      applyHomeSeo();
+    };
+  }, [slug, page.title]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">

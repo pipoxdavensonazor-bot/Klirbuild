@@ -1,0 +1,26 @@
+# KlirMarket (klirline.com) — marketplace Haïti
+User-agent: *
+Allow: /
+Allow: /produit/
+Allow: /cgv
+Allow: /confidentialite
+Allow: /litiges
+Allow: /retours
+Allow: /sequestre
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://klirline.com/sitemap.xml
+
+# Prefer indexing search & citation; training bots can follow Cloudflare managed rules.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
