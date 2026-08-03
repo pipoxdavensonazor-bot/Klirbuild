@@ -50,7 +50,11 @@ export async function searchCatalog(
     return localRank(catalog.length ? catalog : DEMO_PRODUCTS, q).slice(0, limit);
   }
 
-  const pattern = `%${q.replace(/%/g, '\\%')}%`;
+  // Escape LIKE metacharacters: backslash first, then % and _
+  const pattern = `%${q
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_')}%`;
 
   // Prefer RPC if migration applied; ignore failure
   const rpc = await supabase.rpc('search_products', { q, lim: limit });
