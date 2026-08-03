@@ -22,12 +22,12 @@ export const BRAND = {
 
 /**
  * Soft-launch payment flags (build-time via Cloudflare / .env).
- * MonCash & NatCash stay off until Digicel/Natcom secrets are live — then set
- * VITE_ENABLE_MONCASH=true / VITE_ENABLE_NATCASH=true and redeploy.
+ * MonCash is on — Digicel Rest API wired in moncash-payment (see docs/moncash/).
+ * Set VITE_ENABLE_MONCASH=false to hide it. NatCash stays off until secrets exist.
  */
 export const PAYMENTS = {
   stripe: true,
-  moncash: import.meta.env.VITE_ENABLE_MONCASH === 'true',
+  moncash: import.meta.env.VITE_ENABLE_MONCASH !== 'false',
   natcash: import.meta.env.VITE_ENABLE_NATCASH === 'true',
 } as const;
 

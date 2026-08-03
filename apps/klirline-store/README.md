@@ -78,8 +78,25 @@ Env optionnel : `VITE_WHATSAPP_SUPPORT=509XXXXXXXX`
 Redeploy the edge function after pulling:
 
 ```bash
-npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc
+npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 ```
+
+## MonCash (Digicel) — doc + flux
+
+Documentation Digicel Rest API (copie locale) :
+
+- [`docs/moncash/MONCASH.md`](./docs/moncash/MONCASH.md) — résumé hosts / oauth / CreatePayment / verify / Transfert
+- [`docs/moncash/RestAPI_MonCash_doc.pdf`](./docs/moncash/RestAPI_MonCash_doc.pdf) — PDF officiel Digicel
+
+Flux acheteur (`moncash-payment`) aligné sur la doc :
+
+1. `POST /oauth/token` (Basic client_id:secret)
+2. `POST /v1/CreatePayment` `{ amount, orderId }` → redirect `…/Payment/Redirect?token=…`
+3. `POST /v1/RetrieveOrderPayment` (ou `RetrieveTransactionPayment` si `transactionId`)
+
+Front : MonCash **activé** par défaut. Mettre `VITE_ENABLE_MONCASH=false` au build pour le masquer.
+
+Secrets Edge : `MONCASH_CLIENT_ID`, `MONCASH_CLIENT_SECRET`, `MONCASH_ENV=sandbox|live`.
 
 ## Stripe (carte + Link)
 

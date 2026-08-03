@@ -19,6 +19,7 @@ function corsHeadersFor(req: Request): Record<string, string> {
   };
 }
 
+/** Digicel RestAPI_MonCash_doc.pdf — HOST_REST_API + GATEWAY_BASE */
 const IS_LIVE = Deno.env.get("MONCASH_ENV") === "live";
 const HOST_REST_API = IS_LIVE
   ? "moncashbutton.digicelgroup.com/Api"
@@ -26,6 +27,15 @@ const HOST_REST_API = IS_LIVE
 const GATEWAY_BASE = IS_LIVE
   ? "https://moncashbutton.digicelgroup.com/Moncash-middleware"
   : "https://sandbox.moncashbutton.digicelgroup.com/Moncash-middleware";
+
+/** Digicel samples use whole HTG amounts (e.g. 10). */
+function toMoncashAmountHtg(total: number): number {
+  const amount = Math.round(Number(total));
+  if (!Number.isFinite(amount) || amount < 1) {
+    throw new Error("Invalid MonCash amount (min 1 HTG)");
+  }
+  return amount;
+}
 
 async function getMoncashToken(): Promise<string> {
   const clientId = Deno.env.get("MONCASH_CLIENT_ID");
@@ -37,6 +47,7 @@ async function getMoncashToken(): Promise<string> {
     );
   }
 
+  // Doc: POST https://client_id:client_secret@HOST_REST_API/oauth/token
   const credentials = btoa(`${clientId}:${clientSecret}`);
   const res = await fetch(`https://${HOST_REST_API}/oauth/token`, {
     method: "POST",
@@ -54,7 +65,38 @@ async function getMoncashToken(): Promise<string> {
   }
 
   const data = await res.json();
-  return data.access_token as string;
+  const accessToken = data.access_token as string | undefined;
+  if (!accessToken) {
+    throw new Error(`MonCash oauth/token missing access_token: ${JSON.stringify(data)}`);
+  }
+  return accessToken;
+}
+
+async function moncashJson(
+  path: string,
+  token: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://${HOST_REST_API}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? JSON.parse(text) as Record<string, unknown> : {};
+  } catch {
+    throw new Error(`MonCash ${path} non-JSON (${res.status}): ${text}`);
+  }
+  if (!res.ok) {
+    throw new Error(`MonCash ${path} failed (${res.status}): ${text}`);
+  }
+  return data;
 }
 
 async function requireUser(req: Request) {
@@ -152,8 +194,10 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      const amount = Number(order.total);
-      if (!Number.isFinite(amount) || amount <= 0) {
+      let amount: number;
+      try {
+        amount = toMoncashAmountHtg(order.total);
+      } catch {
         return new Response(JSON.stringify({ error: "Invalid order total" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -161,37 +205,31 @@ Deno.serve(async (req: Request) => {
       }
 
       const token = await getMoncashToken();
-      const res = await fetch(`https://${HOST_REST_API}/v1/CreatePayment`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ amount, orderId }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`MonCash CreatePayment failed (${res.status}): ${text}`);
-      }
-
-      const data = await res.json();
-      const paymentToken = data.payment_token?.token;
+      // Doc: POST /v1/CreatePayment — { amount, orderId }
+      const data = await moncashJson("/v1/CreatePayment", token, { amount, orderId });
+      const paymentTokenObj = data.payment_token as { token?: string } | undefined;
+      const paymentToken = paymentTokenObj?.token;
       if (!paymentToken) {
         throw new Error(`MonCash did not return a payment token. Response: ${JSON.stringify(data)}`);
       }
 
-      const paymentUrl = `${GATEWAY_BASE}/Payment/Redirect?token=${paymentToken}`;
+      // Doc: GATEWAY_BASE + /Payment/Redirect?token=<payment-token>
+      const paymentUrl = `${GATEWAY_BASE}/Payment/Redirect?token=${encodeURIComponent(paymentToken)}`;
 
       await admin
         .from("orders")
-        .update({ moncash_order_id: orderId })
+        .update({ moncash_order_id: orderId, payment_method: "moncash" })
         .eq("id", orderId);
 
-      return new Response(JSON.stringify({ paymentUrl, paymentToken }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          paymentUrl,
+          paymentToken,
+          amount,
+          mode: data.mode ?? (IS_LIVE ? "live" : "sandbox"),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     if ((path === "/verify" || path.endsWith("/verify")) && req.method === "POST") {
@@ -233,29 +271,26 @@ Deno.serve(async (req: Request) => {
       }
 
       const token = await getMoncashToken();
-      const res = await fetch(`https://${HOST_REST_API}/v1/RetrieveOrderPayment`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ orderId }),
-      });
+      const transactionId = (body.transactionId as string | undefined)?.trim() || null;
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`MonCash RetrieveOrderPayment failed (${res.status}): ${text}`);
-      }
+      // Doc: RetrieveOrderPayment by orderId, or RetrieveTransactionPayment by transactionId
+      const data = transactionId
+        ? await moncashJson("/v1/RetrieveTransactionPayment", token, { transactionId })
+        : await moncashJson("/v1/RetrieveOrderPayment", token, { orderId });
 
-      const data = await res.json();
-      const payment = data.payment;
+      const payment = data.payment as {
+        message?: string;
+        cost?: number | string;
+        transaction_id?: string;
+        reference?: string;
+        payer?: string;
+      } | undefined;
       const successful = payment?.message === "successful";
 
       if (successful && payment?.cost != null) {
         const paid = Number(payment.cost);
-        const expected = Number(order.total);
-        if (Number.isFinite(paid) && Math.abs(paid - expected) > 0.01) {
+        const expected = Math.round(Number(order.total));
+        if (Number.isFinite(paid) && Number.isFinite(expected) && Math.abs(paid - expected) > 0.01) {
           return new Response(
             JSON.stringify({ success: false, error: "Payment amount mismatch" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
