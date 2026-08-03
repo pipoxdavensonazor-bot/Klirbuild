@@ -35,6 +35,7 @@ import {
   type LegalSlug,
 } from './lib/routing';
 import { searchCatalog } from './lib/searchCatalog';
+import { applyHomeSeo } from './lib/seo';
 import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
 
 const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v2';
@@ -128,9 +129,20 @@ function ShopApp() {
     return () => window.removeEventListener('popstate', openFromPath);
   }, [products]);
 
+  useEffect(() => {
+    if (view === 'shop' || view === 'wishlist' || view === 'account' || view === 'orders' || view === 'dashboard' || view === 'admin') {
+      if (view === 'shop' && !selectedProduct) applyHomeSeo();
+    }
+  }, [view, selectedProduct]);
+
   // Stripe / NatCash return (?checkout=…&order_id=…)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q && q.trim()) {
+      setSearchQuery(q.trim());
+      setBrowseAll(true);
+    }
     const checkout = params.get('checkout');
     const orderId = params.get('order_id');
     if (checkout === 'stripe_success' && orderId) {

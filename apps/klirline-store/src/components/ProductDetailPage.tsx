@@ -12,6 +12,7 @@ import { ProductCard } from './ProductCard';
 import { productAbsoluteUrl } from '../lib/routing';
 import { labelDepartment } from '../lib/brand';
 import { useI18n } from '../i18n';
+import { applyHomeSeo, applyProductSeo } from '../lib/seo';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -58,82 +59,26 @@ export const ProductDetailPage = ({
   const badge = product.badge ? BADGE_CONFIG[product.badge] : null;
 
   useEffect(() => {
-    const title = `${product.name} · KlirMarket`;
-    document.title = title;
-    const desc = (product.description || product.name).slice(0, 160);
-    const pageUrl = productAbsoluteUrl(product.id);
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'description');
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', desc);
-
-    const setOg = (property: string, content: string) => {
-      let el = document.querySelector(`meta[property="${property}"]`);
-      if (!el) {
-        el = document.createElement('meta');
-        el.setAttribute('property', property);
-        document.head.appendChild(el);
-      }
-      el.setAttribute('content', content);
-    };
-    setOg('og:title', title);
-    setOg('og:description', desc);
-    setOg('og:image', product.image_url);
-    setOg('og:type', 'product');
-    setOg('og:url', pageUrl);
-
-    const images = [product.image_url, ...(product.images ?? [])].filter(Boolean);
-    const jsonLd = {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
+    applyProductSeo({
+      id: product.id,
       name: product.name,
-      description: product.description || product.name,
-      image: images.length <= 1 ? images[0] : images,
-      sku: product.id,
-      productID: product.id,
-      brand: product.brand
-        ? { '@type': 'Brand', name: product.brand }
-        : undefined,
-      offers: {
-        '@type': 'Offer',
-        url: pageUrl,
-        priceCurrency: 'HTG',
-        price: displayPrice,
-        availability: product.in_stock
-          ? 'https://schema.org/InStock'
-          : 'https://schema.org/OutOfStock',
-        seller: product.seller_shop_name
-          ? { '@type': 'Organization', name: product.seller_shop_name }
-          : { '@type': 'Organization', name: 'KlirMarket' },
-      },
-      ...(product.review_count > 0 && product.rating > 0
-        ? {
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: product.rating,
-              reviewCount: product.review_count,
-            },
-          }
-        : {}),
-    };
-
-    let script = document.getElementById('product-jsonld') as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement('script');
-      script.id = 'product-jsonld';
-      script.type = 'application/ld+json';
-      document.head.appendChild(script);
-    }
-    script.textContent = JSON.stringify(jsonLd);
-
+      description: product.description,
+      image_url: product.image_url,
+      images: product.images,
+      brand: product.brand,
+      in_stock: product.in_stock,
+      rating: product.rating,
+      review_count: product.review_count,
+      seller_shop_name: product.seller_shop_name,
+      seller_department: product.seller_department,
+      department: product.department,
+      price: displayPrice,
+      pageUrl: productAbsoluteUrl(product.id),
+    });
     return () => {
-      document.title = 'KlirMarket — Haiti';
-      document.getElementById('product-jsonld')?.remove();
+      applyHomeSeo();
     };
-  }, [product.id, product.name, product.description, product.image_url, product.images, product.brand, product.in_stock, product.rating, product.review_count, product.seller_shop_name, displayPrice]);
+  }, [product.id, product.name, product.description, product.image_url, product.images, product.brand, product.in_stock, product.rating, product.review_count, product.seller_shop_name, product.seller_department, product.department, displayPrice]);
 
   useEffect(() => {
     setQuantity(1);
