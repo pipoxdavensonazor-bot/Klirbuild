@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingBag, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ChevronDown, ChevronUp, Package, Truck, PenLine } from 'lucide-react';
 import { supabase, type Order, type OrderItem, type Product } from '../lib/supabase';
+import { FULFILLMENT_LABELS_FR, type FulfillmentStatus } from '../lib/commerce';
 
 interface OrderWithItems extends Order {
   order_items: (OrderItem & { product: Product | null })[];
@@ -16,6 +17,58 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   failed:    { label: 'Échoué',    classes: 'bg-red-100 text-red-600' },
   cancelled: { label: 'Annulé', classes: 'bg-gray-100 text-gray-500' },
 };
+
+type BuyerFulfillment = {
+  status: FulfillmentStatus;
+  delivery_method: string | null;
+  delivery_route: string | null;
+  delivery_carrier: string | null;
+  delivery_tracking_code: string | null;
+  estimated_delivery_at: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  client_signed_name: string | null;
+};
+
+function BuyerDeliveryStatus({ orderId }: { orderId: string }) {
+  const [rows, setRows] = useState<BuyerFulfillment[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.rpc('get_buyer_order_fulfillments', { p_order_id: orderId });
+      if (data) setRows(data as BuyerFulfillment[]);
+    })();
+  }, [orderId]);
+
+  if (!rows.length) return null;
+
+  return (
+    <div className="space-y-2">
+      {rows.map((f, i) => (
+        <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700">
+          <p className="font-semibold flex items-center gap-1.5 mb-1">
+            <Truck className="w-3.5 h-3.5 text-brand" />
+            Suivi vendeur · {FULFILLMENT_LABELS_FR[f.status] ?? f.status}
+          </p>
+          {f.delivery_route && <p className="mb-0.5">Itinéraire : {f.delivery_route}</p>}
+          {f.delivery_carrier && <p className="mb-0.5">Transporteur : {f.delivery_carrier}</p>}
+          {f.delivery_tracking_code && <p className="mb-0.5">Suivi : {f.delivery_tracking_code}</p>}
+          {f.estimated_delivery_at && (
+            <p className="mb-0.5">Estimée : {new Date(f.estimated_delivery_at).toLocaleString('fr-FR')}</p>
+          )}
+          {f.shipped_at && <p className="mb-0.5">Expédié : {new Date(f.shipped_at).toLocaleString('fr-FR')}</p>}
+          {f.delivered_at && (
+            <p className="text-emerald-700 font-medium flex items-center gap-1">
+              <PenLine className="w-3 h-3" />
+              Livré
+              {f.client_signed_name ? ` · signé par ${f.client_signed_name}` : ''}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const MyOrders = ({ onBack }: MyOrdersProps) => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -45,13 +98,13 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
   const toggle = (id: string) => setExpandedId(prev => (prev === id ? null : id));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-slate-900 text-white sticky top-0 z-30 shadow-lg">
+    <div className="min-h-screen bg-haiti-sand">
+      <div className="bg-brand-dark text-white sticky top-0 z-30 shadow-lg">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={onBack} className="hover:text-orange-400 transition-colors p-1">
+          <button onClick={onBack} className="hover:text-accent transition-colors p-1">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <ShoppingBag className="w-6 h-6 text-orange-400" />
+          <ShoppingBag className="w-6 h-6 text-accent" />
           <h1 className="text-xl font-bold">Mes commandes</h1>
         </div>
       </div>
@@ -59,12 +112,12 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500" />
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-brand" />
           </div>
         ) : orders.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 py-20 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-4">
-              <Package className="w-8 h-8 text-orange-400" />
+            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-4">
+              <Package className="w-8 h-8 text-accent" />
             </div>
             <h2 className="text-lg font-bold text-slate-800 mb-1">Aucune commande</h2>
             <p className="text-gray-500 text-sm">
@@ -72,7 +125,7 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
             </p>
             <button
               onClick={onBack}
-              className="mt-5 bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              className="mt-5 bg-brand hover:bg-brand-mid text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
             >
               Commencer à acheter
             </button>
@@ -97,8 +150,8 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
                     className="w-full text-left px-5 py-4 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <ShoppingBag className="w-5 h-5 text-orange-500" />
+                      <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <ShoppingBag className="w-5 h-5 text-brand" />
                       </div>
                       <div>
                         <p className="font-semibold text-slate-800 text-sm">
@@ -172,6 +225,8 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
                         </div>
                       )}
 
+                      {order.status === 'completed' && <BuyerDeliveryStatus orderId={order.id} />}
+
                       <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
                         <span className="text-sm text-gray-500">Total</span>
                         <span className="font-bold text-slate-900">
@@ -189,6 +244,14 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
                           <p className="text-xs text-gray-400">Transaction MonCash</p>
                           <p className="text-xs font-mono text-gray-600 mt-0.5 break-all">
                             {order.moncash_transaction_id}
+                          </p>
+                        </div>
+                      )}
+                      {order.natcash_transaction_id && (
+                        <div className="bg-gray-50 rounded-lg px-3 py-2">
+                          <p className="text-xs text-gray-400">Transaction NatCash</p>
+                          <p className="text-xs font-mono text-gray-600 mt-0.5 break-all">
+                            {order.natcash_transaction_id}
                           </p>
                         </div>
                       )}

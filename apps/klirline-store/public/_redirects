@@ -1,2 +1,5 @@
-# SPA fallback — client-side routing
-/*    /index.html   200
+# Static assets & Pages Functions first; SPA fallback last
+/robots.txt    /robots.txt    200
+/sitemap.xml   /sitemap.xml   200
+/favicon.svg   /favicon.svg   200
+/*             /index.html    200

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { X, ShoppingBag, CheckCircle, AlertCircle, ExternalLink, Smartphone, ArrowRight, MapPin } from 'lucide-react';
+import {
+  X, ShoppingBag, CheckCircle, AlertCircle, ExternalLink, Smartphone,
+  ArrowRight, MapPin, CreditCard,
+} from 'lucide-react';
 import { HAITI_DEPARTMENTS, type Address, type CartItem, type Product } from '../lib/supabase';
 import { getDisplayPrice, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { KLIRLINE_COMMISSION_RATE, formatHtg, getShippingFee } from '../lib/commerce';
+import { PAYMENTS } from '../lib/brand';
 import { useI18n } from '../i18n';
 import { orderPaidWhatsAppUrl } from '../lib/whatsapp';
 
@@ -13,9 +17,19 @@ interface CheckoutModalProps {
   cartItems: (CartItem & { product: Product })[];
   cartTotal: number;
   onSuccess: () => void;
+  /** Returning from Stripe Checkout */
+  stripeReturn?: { orderId: string; sessionId: string | null; guestToken?: string | null } | null;
+  onStripeReturnHandled?: () => void;
+  /** Returning from NatCash callback */
+  natcashReturn?: { orderId: string; guestToken?: string | null } | null;
+  onNatcashReturnHandled?: () => void;
+  /** Resume MonCash/NatCash after same-window redirect */
+  walletResume?: { orderId: string; method: 'moncash' | 'natcash' } | null;
+  onWalletResumeHandled?: () => void;
 }
 
 type Step = 'summary' | 'processing' | 'awaiting' | 'success' | 'error';
+type PayMethod = 'moncash' | 'stripe' | 'natcash';
 
 type ShipForm = {
   shipping_full_name: string;
@@ -33,18 +47,38 @@ const EMPTY_SHIP: ShipForm = {
   shipping_department: '',
 };
 
-export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess }: CheckoutModalProps) => {
+/** Display estimate — server uses STRIPE_HTG_PER_USD (default 132). */
+const HTG_PER_USD_HINT = 132;
+
+export const CheckoutModal = ({
+  isOpen,
+  onClose,
+  cartItems,
+  cartTotal,
+  onSuccess,
+  stripeReturn = null,
+  onStripeReturnHandled,
+  natcashReturn = null,
+  onNatcashReturnHandled,
+  walletResume = null,
+  onWalletResumeHandled,
+}: CheckoutModalProps) => {
   const { session, user } = useAuth();
   const { t, locale } = useI18n();
   const [step, setStep] = useState<Step>('summary');
   const [errorMsg, setErrorMsg] = useState('');
   const [orderId, setOrderId] = useState('');
-  const [paymentWindow, setPaymentWindow] = useState<Window | null>(null);
   const [ship, setShip] = useState<ShipForm>(EMPTY_SHIP);
   const [waSellerUrl, setWaSellerUrl] = useState<string | null>(null);
+  const [payMethod, setPayMethod] = useState<PayMethod>(
+    PAYMENTS.moncash ? 'moncash' : 'stripe',
+  );
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestToken, setGuestToken] = useState<string | null>(null);
 
   const shippingFee = getShippingFee(ship.shipping_department);
   const grandTotal = cartTotal + shippingFee;
+  const usdEstimate = (grandTotal / HTG_PER_USD_HINT).toFixed(2);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -69,10 +103,117 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
     })();
   }, [isOpen, user]);
 
+  // Complete Stripe return (auth or guest token)
+  useEffect(() => {
+    if (!isOpen || !stripeReturn?.orderId) return;
+    const token = stripeReturn.guestToken || guestToken || sessionStorage.getItem('klirline_guest_token');
+    if (!session && !token) return;
+    let cancelled = false;
+    (async () => {
+      setOrderId(stripeReturn.orderId);
+      setPayMethod('stripe');
+      setStep('processing');
+      try {
+        const headers: HeadersInit = {
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        };
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout/verify`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              orderId: stripeReturn.orderId,
+              sessionId: stripeReturn.sessionId,
+              guestToken: token,
+            }),
+          },
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.success) {
+          sessionStorage.removeItem('klirline_guest_token');
+          await afterPaidSuccess(stripeReturn.orderId);
+        } else {
+          setErrorMsg(data.error || 'Paiement Stripe non confirmé.');
+          setStep('error');
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setErrorMsg(e instanceof Error ? e.message : 'Erreur vérification Stripe');
+          setStep('error');
+        }
+      } finally {
+        onStripeReturnHandled?.();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, stripeReturn, session]);
+
+  // Complete NatCash return (callback redirect)
+  useEffect(() => {
+    if (!isOpen || !natcashReturn?.orderId) return;
+    const token = natcashReturn.guestToken || guestToken || sessionStorage.getItem('klirline_guest_token');
+    if (!session && !token) return;
+    let cancelled = false;
+    (async () => {
+      setOrderId(natcashReturn.orderId);
+      setPayMethod('natcash');
+      setStep('processing');
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/natcash-payment/verify`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ orderId: natcashReturn.orderId, guestToken: token }),
+          },
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.success) {
+          sessionStorage.removeItem('klirline_guest_token');
+          await afterPaidSuccess(natcashReturn.orderId);
+        } else {
+          setErrorMsg(data.error || 'Paiement NatCash non confirmé.');
+          setStep('error');
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setErrorMsg(e instanceof Error ? e.message : 'Erreur vérification NatCash');
+          setStep('error');
+        }
+      } finally {
+        onNatcashReturnHandled?.();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, natcashReturn, session]);
+
+  // Resume wallet payment after same-window MonCash/NatCash redirect
+  useEffect(() => {
+    if (!isOpen || !walletResume?.orderId) return;
+    setOrderId(walletResume.orderId);
+    setPayMethod(walletResume.method);
+    setGuestToken(sessionStorage.getItem('klirline_guest_token'));
+    setStep('awaiting');
+    onWalletResumeHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, walletResume]);
+
   if (!isOpen) return null;
 
   const handleClose = () => {
     if (step === 'success') onSuccess();
+    sessionStorage.removeItem('klirline_pending_wallet');
     setStep('summary');
     setErrorMsg('');
     setOrderId('');
@@ -82,6 +223,12 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
   const setShipField = (k: keyof ShipForm, v: string) => setShip(s => ({ ...s, [k]: v }));
 
   const validateShip = (): string => {
+    if (!user) {
+      const email = guestEmail.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return 'Email obligatoire pour payer sans compte.';
+      }
+    }
     if (!ship.shipping_full_name.trim()) return 'Nom du destinataire obligatoire.';
     if (!ship.shipping_phone.trim()) return 'Téléphone de livraison obligatoire.';
     if (!ship.shipping_street.trim()) return 'Adresse (rue) obligatoire.';
@@ -90,14 +237,73 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
     return '';
   };
 
-  const authHeaders = (): HeadersInit => {
-    const token = session?.access_token;
-    if (!token) throw new Error('Connectez-vous pour payer.');
-    return {
-      Authorization: `Bearer ${token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-      'Content-Type': 'application/json',
-    };
+  const payHeaders = (): HeadersInit => ({
+    Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+    'Content-Type': 'application/json',
+  });
+
+  const afterPaidSuccess = async (paidOrderId: string) => {
+    try {
+      const sellerIds = [
+        ...new Set(
+          cartItems
+            .map(i => i.product.seller_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      if (sellerIds.length) {
+        const { data: apps } = await supabase
+          .from('vendor_applications')
+          .select('business_phone, user_id')
+          .eq('status', 'approved')
+          .in('user_id', sellerIds)
+          .limit(1);
+        const phone = apps?.[0]?.business_phone;
+        setWaSellerUrl(
+          orderPaidWhatsAppUrl({
+            sellerPhone: phone,
+            orderId: paidOrderId,
+            city: ship.shipping_city,
+            locale,
+          }),
+        );
+      }
+    } catch { /* ignore */ }
+    setStep('success');
+  };
+
+  const createPendingOrder = async (): Promise<{ orderId: string; guestToken: string | null }> => {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/checkout-create`,
+      {
+        method: 'POST',
+        headers: payHeaders(),
+        body: JSON.stringify({
+          items: cartItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+          })),
+          payment_method: payMethod,
+          guest_email: user ? undefined : guestEmail.trim().toLowerCase(),
+          shipping_full_name: ship.shipping_full_name.trim(),
+          shipping_phone: ship.shipping_phone.trim(),
+          shipping_street: ship.shipping_street.trim(),
+          shipping_city: ship.shipping_city.trim(),
+          shipping_department: ship.shipping_department,
+        }),
+      },
+    );
+    const data = await res.json();
+    if (!res.ok || !data.orderId) {
+      throw new Error(data.error || 'Impossible de créer la commande.');
+    }
+    const token = (data.guestToken as string | null) ?? null;
+    if (token) {
+      setGuestToken(token);
+      sessionStorage.setItem('klirline_guest_token', token);
+    }
+    return { orderId: data.orderId as string, guestToken: token };
   };
 
   const initiatePayment = async () => {
@@ -111,53 +317,58 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
     setErrorMsg('');
 
     try {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          total: grandTotal,
-          status: 'pending',
-          shipping_fee: shippingFee,
-          shipping_full_name: ship.shipping_full_name.trim(),
-          shipping_phone: ship.shipping_phone.trim(),
-          shipping_street: ship.shipping_street.trim(),
-          shipping_city: ship.shipping_city.trim(),
-          shipping_department: ship.shipping_department,
-        })
-        .select()
-        .maybeSingle();
+      const { orderId: newOrderId, guestToken: token } = await createPendingOrder();
+      setOrderId(newOrderId);
 
-      if (orderError || !order) throw new Error(orderError?.message || 'Impossible de créer la commande.');
+      if (payMethod === 'stripe') {
+        const origin = window.location.origin;
+        // guest_token stays in sessionStorage only — never in the return URL
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout/create`,
+          {
+            method: 'POST',
+            headers: payHeaders(),
+            body: JSON.stringify({
+              orderId: newOrderId,
+              guestToken: token,
+              successUrl: `${origin}/?checkout=stripe_success&order_id=${newOrderId}&session_id={CHECKOUT_SESSION_ID}`,
+              cancelUrl: `${origin}/?checkout=stripe_cancel&order_id=${newOrderId}`,
+            }),
+          },
+        );
+        const payData = await res.json();
+        if (!res.ok || payData.error || !payData.checkoutUrl) {
+          throw new Error(payData.error || 'Échec d’initialisation Stripe.');
+        }
+        window.location.href = payData.checkoutUrl as string;
+        return;
+      }
 
-      const { error: itemsError } = await supabase.from('order_items').insert(
-        cartItems.map(item => ({
-          order_id: order.id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          price: getDisplayPrice(item.product),
-        })),
-      );
-      if (itemsError) throw new Error(itemsError.message);
-
-      setOrderId(order.id);
+      const fn =
+        payMethod === 'natcash' ? 'natcash-payment/create' : 'moncash-payment/create';
+      const label = payMethod === 'natcash' ? 'NatCash' : 'MonCash';
 
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/moncash-payment/create`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`,
         {
           method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ orderId: order.id }),
+          headers: payHeaders(),
+          body: JSON.stringify({ orderId: newOrderId, guestToken: token }),
         },
       );
 
       const payData = await res.json();
       if (!res.ok || payData.error) {
-        throw new Error(payData.error || 'Échec d’initialisation MonCash.');
+        throw new Error(payData.error || `Échec d’initialisation ${label}.`);
       }
 
       const { paymentUrl } = payData;
-      const win = window.open(paymentUrl, '_blank', 'noopener,noreferrer');
-      setPaymentWindow(win);
-      setStep('awaiting');
+      // Same-window redirect (Capacitor-safe). Token already in sessionStorage.
+      sessionStorage.setItem(
+        'klirline_pending_wallet',
+        JSON.stringify({ orderId: newOrderId, method: payMethod }),
+      );
+      window.location.href = paymentUrl as string;
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur inattendue.');
       setStep('error');
@@ -167,59 +378,40 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
   const confirmPayment = async () => {
     setStep('processing');
     try {
-      if (paymentWindow && !paymentWindow.closed) paymentWindow.close();
+      const fn =
+        payMethod === 'natcash' ? 'natcash-payment/verify' : 'moncash-payment/verify';
+      const label = payMethod === 'natcash' ? 'NatCash' : 'MonCash';
+      const token = guestToken || sessionStorage.getItem('klirline_guest_token');
 
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/moncash-payment/verify`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`,
         {
           method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ orderId }),
+          headers: payHeaders(),
+          body: JSON.stringify({ orderId, guestToken: token }),
         },
       );
 
       const verifyData = await res.json();
       if (res.ok && verifyData.success) {
-        // Best-effort WhatsApp link to first seller with a business phone
-        try {
-          const sellerIds = [
-            ...new Set(
-              cartItems
-                .map(i => i.product.seller_id)
-                .filter((id): id is string => Boolean(id)),
-            ),
-          ];
-          if (sellerIds.length) {
-            const { data: apps } = await supabase
-              .from('vendor_applications')
-              .select('business_phone, user_id')
-              .eq('status', 'approved')
-              .in('user_id', sellerIds)
-              .limit(1);
-            const phone = apps?.[0]?.business_phone;
-            setWaSellerUrl(
-              orderPaidWhatsAppUrl({
-                sellerPhone: phone,
-                orderId,
-                city: ship.shipping_city,
-                locale,
-              }),
-            );
-          }
-        } catch { /* ignore */ }
-        setStep('success');
+        sessionStorage.removeItem('klirline_guest_token');
+        sessionStorage.removeItem('klirline_pending_wallet');
+        await afterPaidSuccess(orderId);
         return;
       }
 
       throw new Error(
         verifyData.error ||
-          'Paiement non confirmé. Terminez sur MonCash, puis réessayez.',
+          `Paiement non confirmé. Terminez sur ${label}, puis réessayez.`,
       );
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Échec de vérification.');
       setStep('error');
     }
   };
+
+  const walletLabel = payMethod === 'natcash' ? 'NatCash' : 'MonCash';
+  const isWallet = payMethod === 'moncash' || payMethod === 'natcash';
 
   return (
     <>
@@ -272,6 +464,19 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
                   <MapPin className="w-4 h-4 text-brand" />
                   <p className="text-sm font-semibold text-slate-800">Adresse de livraison</p>
                 </div>
+                {!user && (
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Email (reçu de commande)</label>
+                    <input
+                      type="email"
+                      value={guestEmail}
+                      onChange={e => setGuestEmail(e.target.value)}
+                      placeholder="vous@email.com"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">Paiement sans compte — un email suffit.</p>
+                  </div>
+                )}
                 {(
                   [
                     ['shipping_full_name', 'Nom complet', 'text'],
@@ -320,29 +525,107 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
                   <span className="text-2xl font-bold text-slate-900">{formatHtg(grandTotal)}</span>
                 </div>
                 <p className="text-[11px] text-gray-500 mt-2">
-                  Paiement MonCash sécurisé. Séquestre Klirline (commission {Math.round(KLIRLINE_COMMISSION_RATE * 100)} %)
+                  Séquestre KlirMarket (commission {Math.round(KLIRLINE_COMMISSION_RATE * 100)} %)
                   jusqu’à confirmation de livraison.
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-orange-200 rounded-xl p-4 mb-5">
-                <div className="flex items-center gap-3 mb-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Mode de paiement</p>
+              <div className="space-y-2 mb-5">
+                <button
+                  type="button"
+                  disabled={!PAYMENTS.moncash}
+                  onClick={() => PAYMENTS.moncash && setPayMethod('moncash')}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-colors ${
+                    !PAYMENTS.moncash
+                      ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed'
+                      : payMethod === 'moncash'
+                        ? 'border-haiti-red bg-red-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
                   <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <Smartphone className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-800">Payer avec MonCash</p>
-                    <p className="text-xs text-gray-500">Digicel Haïti</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 flex items-center gap-2">
+                      MonCash
+                      {!PAYMENTS.moncash && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                          Bientôt
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">Digicel Haïti · mobile money</p>
                   </div>
-                </div>
+                  <span className={`w-4 h-4 rounded-full border-2 ${payMethod === 'moncash' && PAYMENTS.moncash ? 'border-haiti-red bg-haiti-red' : 'border-gray-300'}`} />
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!PAYMENTS.natcash}
+                  onClick={() => PAYMENTS.natcash && setPayMethod('natcash')}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-colors ${
+                    !PAYMENTS.natcash
+                      ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed'
+                      : payMethod === 'natcash'
+                        ? 'border-amber-500 bg-amber-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Smartphone className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 flex items-center gap-2">
+                      NatCash
+                      {!PAYMENTS.natcash && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                          Bientôt
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">Natcom Haïti · mobile money</p>
+                  </div>
+                  <span className={`w-4 h-4 rounded-full border-2 ${payMethod === 'natcash' && PAYMENTS.natcash ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPayMethod('stripe')}
+                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-colors ${
+                    payMethod === 'stripe'
+                      ? 'border-brand bg-brand-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="w-10 h-10 bg-brand rounded-full flex items-center justify-center flex-shrink-0">
+                    <CreditCard className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800">Carte · Stripe Link</p>
+                    <p className="text-xs text-gray-500">
+                      Visa / Mastercard / Link · ~${usdEstimate} USD
+                    </p>
+                  </div>
+                  <span className={`w-4 h-4 rounded-full border-2 ${payMethod === 'stripe' ? 'border-brand bg-brand' : 'border-gray-300'}`} />
+                </button>
               </div>
 
               <button
                 onClick={initiatePayment}
-                className="w-full bg-red-600 hover:bg-red-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg"
+                className={`w-full text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg ${
+                  payMethod === 'stripe'
+                    ? 'bg-brand hover:bg-brand-mid'
+                    : payMethod === 'natcash'
+                      ? 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-red-600 hover:bg-red-700'
+                }`}
               >
-                <Smartphone className="w-5 h-5" />
-                Payer {formatHtg(grandTotal)}
+                {payMethod === 'stripe' ? <CreditCard className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+                {payMethod === 'stripe'
+                  ? `Payer par carte · ~$${usdEstimate}`
+                  : `Payer ${formatHtg(grandTotal)}`}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -357,10 +640,12 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
 
           {step === 'awaiting' && (
             <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ExternalLink className="w-8 h-8 text-red-600" />
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                payMethod === 'natcash' ? 'bg-amber-100' : 'bg-red-100'
+              }`}>
+                <ExternalLink className={`w-8 h-8 ${payMethod === 'natcash' ? 'text-amber-600' : 'text-red-600'}`} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Terminez sur MonCash</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Terminez sur {walletLabel}</h3>
               <p className="text-sm text-gray-600 mb-6">
                 Payez <span className="font-bold">{formatHtg(grandTotal)}</span> puis cliquez ci-dessous.
               </p>
@@ -413,7 +698,7 @@ export const CheckoutModal = ({ isOpen, onClose, cartItems, cartTotal, onSuccess
               <h3 className="text-xl font-bold text-slate-800 mb-2">Échec</h3>
               <p className="text-sm text-gray-600 mb-6">{errorMsg}</p>
               <button
-                onClick={() => { setErrorMsg(''); setStep(orderId ? 'awaiting' : 'summary'); }}
+                onClick={() => { setErrorMsg(''); setStep(orderId && isWallet ? 'awaiting' : 'summary'); }}
                 className="w-full bg-brand hover:bg-brand-mid text-white py-3 rounded-xl font-bold mb-3"
               >
                 Réessayer

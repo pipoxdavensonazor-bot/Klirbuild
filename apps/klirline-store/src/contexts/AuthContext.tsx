@@ -44,8 +44,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+    });
+    if (error) {
+      const msg = /rate limit|over_email/i.test(error.message)
+        ? 'Limite d’emails temporaire. Réessayez dans une minute, ou connectez-vous si le compte existe déjà.'
+        : error.message;
+      return { error: msg };
+    }
+    if (data.user && !data.session) {
+      return {
+        error:
+          'Compte créé. Si la connexion échoue, utilisez « Se connecter » avec le même email/mot de passe.',
+      };
+    }
+    return { error: null };
   };
 
   const signInWithPhone = async (phone: string) => {

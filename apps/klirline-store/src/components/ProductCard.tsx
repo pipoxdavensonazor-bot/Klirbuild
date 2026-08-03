@@ -2,22 +2,22 @@ import { Heart, MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { Product } from '../lib/supabase';
 import { BADGE_CONFIG, getDisplayPrice, getOriginalPrice, discountPct } from '../lib/supabase';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 import { StarRating } from './StarRating';
+import { VerifiedSellerBadge } from './VerifiedSellerBadge';
+import { useI18n } from '../i18n';
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
   onClick: (product: Product) => void;
   wishlisted?: boolean;
-  onWishlistToggle?: (product: Product) => void;
+  onWishlistToggle?: (product: Product) => void | Promise<void>;
 }
 
 export const ProductCard = ({
   product, onAddToCart, onClick, wishlisted = false, onWishlistToggle,
 }: ProductCardProps) => {
-  const { user } = useAuth();
+  const { t } = useI18n();
   const [inWishlist, setInWishlist] = useState(wishlisted);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
@@ -34,23 +34,22 @@ export const ProductCard = ({
 
   const handleWishlist = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user || wishlistLoading) return;
+    if (!onWishlistToggle || wishlistLoading) return;
     setWishlistLoading(true);
-    if (inWishlist) {
-      await supabase.from('wishlists').delete().eq('product_id', product.id);
-      setInWishlist(false);
-    } else {
-      await supabase.from('wishlists').insert({ product_id: product.id });
-      setInWishlist(true);
+    const next = !inWishlist;
+    setInWishlist(next);
+    try {
+      await onWishlistToggle(product);
+    } catch {
+      setInWishlist(!next);
     }
     setWishlistLoading(false);
-    onWishlistToggle?.(product);
   };
 
   return (
     <div
       onClick={() => onClick(product)}
-      className="bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-all duration-200 overflow-hidden group cursor-pointer flex flex-col"
+      className="bg-white rounded-lg border border-slate-200/80 hover:border-accent/50 transition-all duration-200 overflow-hidden group cursor-pointer flex flex-col"
     >
       {/* Image */}
       <div className="relative overflow-hidden bg-gray-50 aspect-square">
@@ -65,6 +64,11 @@ export const ProductCard = ({
         {badge && (
           <span className={`absolute top-2 left-0 text-[11px] font-bold px-2 py-0.5 rounded-r-full shadow ${badge.classes}`}>
             {badge.label}
+          </span>
+        )}
+        {product.sponsored && (
+          <span className={`absolute ${badge ? 'top-8' : 'top-2'} left-0 text-[11px] font-bold px-2 py-0.5 rounded-r-full shadow bg-amber-500 text-white`}>
+            Sponsorisé
           </span>
         )}
 
@@ -85,13 +89,14 @@ export const ProductCard = ({
         )}
 
         {/* Wishlist heart */}
-        {user && (
+        {onWishlistToggle && (
           <button
+            type="button"
             onClick={handleWishlist}
             className={`absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all ${
               inWishlist
                 ? 'bg-red-500 text-white'
-                : 'bg-white text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100'
+                : 'bg-white text-gray-400 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
             }`}
           >
             <Heart className={`w-4 h-4 ${inWishlist ? 'fill-white' : ''}`} />
@@ -104,14 +109,21 @@ export const ProductCard = ({
         {product.seller_department && (
           <p className="text-[11px] text-brand font-semibold mb-0.5 flex items-center gap-0.5">
             <MapPin className="w-3 h-3" />
-            Vendeur · {product.seller_department}
+            {product.seller_department}
           </p>
         )}
-        {product.brand && (
-          <p className="text-xs text-gray-500 mb-0.5 truncate">{product.brand}</p>
-        )}
+        {(product.seller_shop_name || product.seller_verified) ? (
+          <VerifiedSellerBadge
+            shopName={product.seller_shop_name}
+            verified={product.seller_verified}
+            size="sm"
+            className="mb-1"
+          />
+        ) : product.brand ? (
+          <p className="text-xs font-semibold text-brand-dark mb-0.5 truncate">{product.brand}</p>
+        ) : null}
 
-        <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug mb-1.5 group-hover:text-orange-600 transition-colors flex-1">
+        <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug mb-1.5 group-hover:text-brand transition-colors flex-1">
           {product.name}
         </h3>
 
@@ -119,7 +131,7 @@ export const ProductCard = ({
         {product.rating > 0 && (
           <div className="flex items-center gap-1 mb-1.5">
             <StarRating value={product.rating} size="sm" />
-            <span className="text-xs text-blue-600 hover:text-orange-500 cursor-pointer">
+            <span className="text-xs text-brand hover:text-brand cursor-pointer">
               {product.review_count.toLocaleString()}
             </span>
           </div>
@@ -127,7 +139,7 @@ export const ProductCard = ({
 
         {/* Deal label */}
         {isDealActive && (
-          <p className="text-xs text-red-600 font-semibold mb-1">Limited time deal</p>
+          <p className="text-xs text-red-600 font-semibold mb-1">{t('limitedDeal')}</p>
         )}
 
         {/* Price */}
@@ -144,11 +156,11 @@ export const ProductCard = ({
 
         <p className="text-xs text-gray-500 mb-2">
           {product.in_stock ? (
-            <span className="text-green-600 font-medium">In Stock</span>
+            <span className="text-green-600 font-medium">{t('inStock')}</span>
           ) : (
-            <span className="text-red-500">Out of Stock</span>
+            <span className="text-red-500">{t('outOfStock')}</span>
           )}
-          {' · '}Free delivery
+          {' · '}{t('shippingByDept')}
         </p>
 
         {/* Add to cart */}
@@ -157,7 +169,7 @@ export const ProductCard = ({
           disabled={!product.in_stock}
           className="w-full bg-amber-400 hover:bg-amber-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-gray-900 py-1.5 rounded-full text-sm font-semibold transition-colors shadow-sm"
         >
-          {product.in_stock ? 'Add to Cart' : 'Unavailable'}
+          {product.in_stock ? t('addToCart') : t('unavailable')}
         </button>
       </div>
     </div>

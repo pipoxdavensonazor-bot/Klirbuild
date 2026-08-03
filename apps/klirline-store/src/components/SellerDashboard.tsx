@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Package, TrendingUp, ShoppingBag, Clock, CreditCard as Edit2, Trash2, ToggleLeft, ToggleRight, Plus, AlertCircle, BarChart2, ArrowLeft, RefreshCw, Truck } from 'lucide-react';
+import { Package, TrendingUp, ShoppingBag, Clock, CreditCard as Edit2, Trash2, ToggleLeft, ToggleRight, Plus, AlertCircle, BarChart2, ArrowLeft, RefreshCw, Truck, Sparkles } from 'lucide-react';
 import { supabase, type Product } from '../lib/supabase';
 import { SellerFulfillmentsPanel } from './SellerFulfillmentsPanel';
+import { SellerPayoutSettings } from './SellerPayoutSettings';
+import { SellerSponsoredPanel } from './SellerSponsoredPanel';
 
 interface SellerStats {
   total_products: number;
@@ -27,6 +29,8 @@ interface SellerDashboardProps {
   onBack: () => void;
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
+  /** Open Sponsored tab (e.g. after Stripe return) */
+  initialTab?: 'overview' | 'products' | 'sales' | 'fulfillments' | 'sponsored';
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -36,13 +40,15 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-500',
 };
 
-export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerDashboardProps) => {
+export const SellerDashboard = ({
+  onBack, onAddProduct, onEditProduct, initialTab = 'fulfillments',
+}: SellerDashboardProps) => {
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<RecentSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'overview' | 'products' | 'sales' | 'fulfillments'>('fulfillments');
+  const [tab, setTab] = useState<'overview' | 'products' | 'sales' | 'fulfillments' | 'sponsored'>(initialTab);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,13 +80,33 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
   useEffect(() => { load(); }, [load]);
 
   const toggleStock = async (product: Product) => {
+    const next = !product.in_stock;
     await supabase
       .from('products')
-      .update({ in_stock: !product.in_stock })
+      .update({ in_stock: next })
       .eq('id', product.id);
     setProducts(prev =>
-      prev.map(p => p.id === product.id ? { ...p, in_stock: !p.in_stock } : p)
+      prev.map(p => p.id === product.id ? { ...p, in_stock: next } : p)
     );
+    if (next) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stock-notify`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ productId: product.id }),
+            },
+          );
+        }
+      } catch { /* ignore notify failures */ }
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -96,28 +122,28 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-haiti-sand">
       {/* Header */}
-      <div className="bg-slate-900 text-white sticky top-0 z-30 shadow-lg">
+      <div className="bg-brand-dark text-white sticky top-0 z-30 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="hover:text-orange-400 transition-colors p-1">
+            <button onClick={onBack} className="hover:text-accent transition-colors p-1">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <BarChart2 className="w-6 h-6 text-orange-400" />
-            <h1 className="text-xl font-bold">Seller Dashboard</h1>
+            <BarChart2 className="w-6 h-6 text-accent" />
+            <h1 className="text-xl font-bold">Espace vendeur</h1>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={load}
-              className="text-slate-400 hover:text-orange-400 transition-colors p-1"
+              className="text-slate-400 hover:text-accent transition-colors p-1"
               title="Refresh"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={onAddProduct}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              className="flex items-center gap-2 bg-brand hover:bg-brand-mid text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Product
@@ -129,6 +155,7 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
         <div className="max-w-7xl mx-auto px-4 flex gap-1 pb-0 overflow-x-auto">
           {([
             ['fulfillments', 'Livraisons'],
+            ['sponsored', 'Sponsored'],
             ['overview', 'Aperçu'],
             ['products', 'Produits'],
             ['sales', 'Ventes'],
@@ -143,6 +170,7 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
               }`}
             >
               {t === 'fulfillments' && <Truck className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />}
+              {t === 'sponsored' && <Sparkles className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-amber-400" />}
               {label}
             </button>
           ))}
@@ -151,10 +179,15 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {tab === 'fulfillments' ? (
-          <SellerFulfillmentsPanel />
+          <div>
+            <SellerPayoutSettings />
+            <SellerFulfillmentsPanel />
+          </div>
+        ) : tab === 'sponsored' ? (
+          <SellerSponsoredPanel onActivated={load} />
         ) : loading ? (
           <div className="flex items-center justify-center py-24">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500" />
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-brand" />
           </div>
         ) : (
           <>
@@ -173,7 +206,7 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
                     icon={<ShoppingBag className="w-6 h-6" />}
                     label="Total Orders"
                     value={stats?.total_orders ?? 0}
-                    color="orange"
+                    color="brand"
                   />
                   <StatCard
                     icon={<TrendingUp className="w-6 h-6" />}
@@ -195,7 +228,7 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
                     <h2 className="text-lg font-bold text-slate-900">Recent Sales</h2>
                     <button
                       onClick={() => setTab('sales')}
-                      className="text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors"
+                      className="text-sm text-brand hover:text-brand font-medium transition-colors"
                     >
                       View all
                     </button>
@@ -219,7 +252,7 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
                   </h2>
                   <button
                     onClick={onAddProduct}
-                    className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                    className="flex items-center gap-2 bg-brand hover:bg-brand-mid text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     New Product
@@ -297,8 +330,8 @@ export const SellerDashboard = ({ onBack, onAddProduct, onEditProduct }: SellerD
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const COLOR_MAP: Record<string, string> = {
-  blue:   'bg-blue-100 text-blue-600',
-  orange: 'bg-orange-100 text-orange-600',
+  blue:   'bg-brand-50 text-brand',
+  brand:  'bg-brand-50 text-brand',
   green:  'bg-green-100 text-green-600',
   amber:  'bg-amber-100 text-amber-600',
 };
@@ -337,12 +370,12 @@ function ProductCard({
       </div>
       <div className="p-4">
         <p className="font-semibold text-slate-800 truncate">{product.name}</p>
-        <p className="text-orange-600 font-bold text-lg mt-0.5">HTG {product.price.toLocaleString()}</p>
+        <p className="text-brand font-bold text-lg mt-0.5">HTG {product.price.toLocaleString()}</p>
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
           <div className="flex items-center gap-2">
             <button
               onClick={onEdit}
-              className="p-1.5 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-500 hover:text-brand hover:bg-brand-50 rounded-lg transition-colors"
               title="Edit"
             >
               <Edit2 className="w-4 h-4" />
@@ -357,7 +390,7 @@ function ProductCard({
           </div>
           <button onClick={onToggleStock} className="transition-colors" title="Toggle stock">
             {product.in_stock
-              ? <ToggleRight className="w-7 h-7 text-orange-500" />
+              ? <ToggleRight className="w-7 h-7 text-brand" />
               : <ToggleLeft className="w-7 h-7 text-gray-400" />}
           </button>
         </div>
@@ -430,7 +463,7 @@ function EmptyState({
       {action && (
         <button
           onClick={action.onClick}
-          className="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+          className="mt-4 bg-brand hover:bg-brand-mid text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
         >
           {action.label}
         </button>

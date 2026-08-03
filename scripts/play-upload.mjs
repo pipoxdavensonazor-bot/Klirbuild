@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /**
- * Upload automatique KlirBuild → Google Play Console.
+ * Upload automatique → Google Play Console (KlirBuild ou KlirMarket).
  *
  * Secrets (un des deux) :
  *   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON  — JSON brut OU chemin vers .json
  *   GOOGLE_PLAY_SERVICE_ACCOUNT_FILE  — chemin vers la clé JSON
  *
  * Variables optionnelles :
- *   PLAY_AAB_PATH   — défaut: apps/android/.../app-release.aab
+ *   PLAY_AAB_PATH   — défaut: KlirBuild AAB
  *   PLAY_TRACK      — internal | alpha | beta | production (défaut: internal)
  *   PLAY_STATUS     — completed | draft (défaut: completed)
  *   PLAY_PACKAGE    — défaut: app.klirline.klirbuild
+ *   PLAY_RELEASE_NAME — défaut dérivé du package (KlirBuild / KlirMarket)
  *
  * Usage :
  *   npm run play:upload
+ *   npm run play:klirmarket
  */
 import { createReadStream, existsSync, readFileSync } from "fs";
 import { google } from "googleapis";
@@ -27,6 +29,9 @@ const AAB =
   );
 const TRACK = process.env.PLAY_TRACK || "internal";
 const STATUS = process.env.PLAY_STATUS || "completed";
+const RELEASE_NAME =
+  process.env.PLAY_RELEASE_NAME ||
+  (PACKAGE.includes("klirmarket") ? "KlirMarket" : "KlirBuild");
 
 function loadCredentials() {
   const fileEnv = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_FILE?.trim();
@@ -108,7 +113,7 @@ async function main() {
       track: TRACK,
       releases: [
         {
-          name: `KlirBuild ${versionCode}`,
+          name: `${RELEASE_NAME} ${versionCode}`,
           status: STATUS,
           versionCodes: [String(versionCode)],
         },
@@ -136,7 +141,7 @@ main().catch((err) => {
   }
   if (/app not found|package not found|404/i.test(msg)) {
     console.error(
-      "\nCréez d’abord l’app une fois dans Play Console (package app.klirline.klirbuild), puis relancez."
+      `\nCréez d’abord l’app une fois dans Play Console (package ${PACKAGE}), puis relancez.`
     );
   }
   process.exit(1);
