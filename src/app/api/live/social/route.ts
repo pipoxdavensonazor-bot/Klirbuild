@@ -14,7 +14,14 @@ import {
   publishViaZernio,
 } from "@/lib/social-ads/zernio-service";
 import { ensureConnectionSlot } from "@/lib/social-ads/zernio-connections-service";
-import { klirlineOAuthUrl } from "@/lib/social-ads/klirline-marketing";
+import { connectSocialAccountViaKlirline } from "@/lib/social-ads/social-ads-service";
+import {
+  getPostizConnectUrl,
+  isPostizEnabled,
+  publishViaPostiz,
+  syncPostizAccounts,
+} from "@/lib/social-ads/postiz-service";
+import { resolveSocialProvider } from "@/lib/social-ads/social-provider";
 import type { SocialPlatform } from "@/lib/reports/types";
 
 export const runtime = "nodejs";
@@ -40,10 +47,20 @@ export async function GET() {
   const ctx = await hostContext();
   if ("error" in ctx && ctx.error) return ctx.error;
 
+  const provider = resolveSocialProvider();
+  // Keep Postiz channels in sync when listing
+  if (provider === "postiz") {
+    try {
+      await syncPostizAccounts(ctx.enriched.companyId);
+    } catch {
+      /* list still works offline */
+    }
+  }
+
   const destinations = await listLiveSocialDestinations(ctx.enriched.companyId);
   return NextResponse.json({
     destinations,
-    provider: isZernioEnabled() ? "zernio" : "klirline",
+    provider,
     platforms: ["facebook", "instagram", "tiktok", "youtube"],
   });
 }
@@ -59,6 +76,7 @@ export async function POST(request: Request) {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://klirline.app";
   const callbackUrl = `${appUrl}/api/social-ads/callback`;
+  const provider = resolveSocialProvider();
 
   if (action === "oauth_url") {
     const platform =
@@ -66,7 +84,8 @@ export async function POST(request: Request) {
     if (!isLiveSocialPlatform(platform)) {
       return NextResponse.json({ error: "Plateforme invalide." }, { status: 400 });
     }
-    if (isZernioEnabled()) {
+
+    if (provider === "zernio") {
       await ensureConnectionSlot(companyId, platform, companyName);
       const redirectUrl = `${callbackUrl}?company_id=${encodeURIComponent(companyId)}&return=/feed`;
       const { authUrl } = await getZernioConnectUrl(
@@ -77,14 +96,92 @@ export async function POST(request: Request) {
       );
       return NextResponse.json({ oauthUrl: authUrl, provider: "zernio" });
     }
+
+    if (provider === "postiz") {
+      try {
+        const { authUrl } = await getPostizConnectUrl(platform);
+        return NextResponse.json({
+          oauthUrl: authUrl,
+          provider: "postiz",
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Connexion au réseau impossible pour le moment.";
+        return NextResponse.json(
+          { error: message, provider: "postiz" },
+          { status: 400 }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error: "Liez le compte avec le nom de votre page.",
+        code: "USE_IN_APP_CONNECT",
+        provider: "in_app",
+      },
+      { status: 400 }
+    );
+  }
+
+  if (action === "sync_accounts") {
+    if (provider === "postiz") {
+      try {
+        const result = await syncPostizAccounts(companyId);
+        return NextResponse.json({
+          ok: true,
+          ...result,
+          destinations: await listLiveSocialDestinations(companyId),
+          provider,
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Mise à jour des comptes impossible.";
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+    }
+    // Zernio / in_app: just return current destinations (no remote sync needed)
     return NextResponse.json({
-      oauthUrl: klirlineOAuthUrl({
-        companyId,
-        companyName,
-        platform: platform as SocialPlatform,
-        returnUrl: `${callbackUrl}?return=/feed`,
-      }),
-      provider: "klirline",
+      ok: true,
+      synced: 0,
+      destinations: await listLiveSocialDestinations(companyId),
+      provider,
+    });
+  }
+
+  if (action === "connect_account") {
+    const platform =
+      typeof body.platform === "string" ? body.platform.trim() : "";
+    if (!isLiveSocialPlatform(platform)) {
+      return NextResponse.json({ error: "Plateforme invalide." }, { status: 400 });
+    }
+    const accountName =
+      typeof body.accountName === "string" && body.accountName.trim()
+        ? body.accountName.trim()
+        : `Page ${platform}`;
+    const handle =
+      typeof body.handle === "string" ? body.handle.trim() : undefined;
+    const result = await connectSocialAccountViaKlirline(
+      companyId,
+      platform as SocialPlatform,
+      {
+        accountName,
+        handle,
+        klirlineRef: `in-app/${companyId}/${platform}`,
+      }
+    );
+    if ("error" in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json({
+      ok: true,
+      account: result.account,
+      destinations: await listLiveSocialDestinations(companyId),
+      provider,
     });
   }
 
@@ -145,31 +242,54 @@ export async function POST(request: Request) {
 
     const content = liveAnnounceMessage({ title, liveUrl, companyName });
 
-    if (!isZernioEnabled()) {
-      return NextResponse.json({
-        ok: true,
-        simulated: true,
-        message:
-          "Comptes prêts. Ajoutez ZERNIO_API_KEY pour publier automatiquement l’annonce live sur les réseaux.",
+    if (isZernioEnabled()) {
+      const published = await publishViaZernio(companyId, companyName, {
+        name: `Live — ${title}`,
         content,
         accountIds: accounts.map((a) => a.id),
+        mode: "now",
+        objective: "awareness",
+      });
+      if ("error" in published && published.error) {
+        return NextResponse.json({ error: published.error }, { status: 400 });
+      }
+      return NextResponse.json({
+        ok: true,
+        published,
+        provider: "zernio",
         destinations: await listLiveSocialDestinations(companyId),
       });
     }
 
-    const published = await publishViaZernio(companyId, companyName, {
-      name: `Live — ${title}`,
-      content,
-      accountIds: accounts.map((a) => a.id),
-      mode: "now",
-      objective: "awareness",
-    });
-    if ("error" in published && published.error) {
-      return NextResponse.json({ error: published.error }, { status: 400 });
+    if (isPostizEnabled()) {
+      // Refresh Postiz ids before publish
+      try {
+        await syncPostizAccounts(companyId);
+      } catch {
+        /* continue with stored ids */
+      }
+      const published = await publishViaPostiz(companyId, {
+        content,
+        accountIds: accounts.map((a) => a.id),
+      });
+      if ("error" in published && published.error) {
+        return NextResponse.json({ error: published.error }, { status: 400 });
+      }
+      return NextResponse.json({
+        ok: true,
+        published,
+        provider: "postiz",
+        destinations: await listLiveSocialDestinations(companyId),
+      });
     }
+
     return NextResponse.json({
       ok: true,
-      published,
+      simulated: true,
+      message:
+        "Compte enregistré. La publication automatique n’est pas encore activée sur ce serveur.",
+      content,
+      accountIds: accounts.map((a) => a.id),
       destinations: await listLiveSocialDestinations(companyId),
     });
   }

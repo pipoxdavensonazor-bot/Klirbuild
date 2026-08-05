@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Check, Copy, Megaphone, Radio, Square, Video, X } from "lucide-react";
 import { RequirePermission } from "@/components/auth/require-permission";
 import { RequirePlan } from "@/components/auth/require-plan";
-import { DailyRoomEmbed } from "@/components/meetings/daily-room-embed";
 import { LiveSocialConnections } from "@/components/meetings/live-social-connections";
+import { LiveStage } from "@/components/meetings/live-stage";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,7 @@ export function FeedPageClient() {
     token: string;
     title: string;
     publicPath?: string;
+    slug?: string;
   } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -153,6 +154,8 @@ export function FeedPageClient() {
         typeof data.live?.publicPath === "string"
           ? data.live.publicPath
           : undefined,
+      slug:
+        typeof data.live?.slug === "string" ? data.live.slug : undefined,
     });
     setError("");
   }
@@ -199,22 +202,19 @@ export function FeedPageClient() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
-                <DailyRoomEmbed
+                <LiveStage
+                  liveId={activeLive.id}
                   roomUrl={activeLive.roomUrl}
                   token={activeLive.token}
                   title={activeLive.title}
-                  meetingId={activeLive.id}
+                  isHost={canLive}
+                  liveUrl={
+                    activeLive.publicPath
+                      ? absoluteAppPath(activeLive.publicPath)
+                      : undefined
+                  }
+                  publicSlug={activeLive.slug}
                 />
-                {canLive ? (
-                  <LiveSocialConnections
-                    title={activeLive.title}
-                    liveUrl={
-                      activeLive.publicPath
-                        ? absoluteAppPath(activeLive.publicPath)
-                        : undefined
-                    }
-                  />
-                ) : null}
               </CardContent>
             </Card>
           ) : null}
