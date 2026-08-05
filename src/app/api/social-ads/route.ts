@@ -11,10 +11,7 @@ import {
   socialAdsLoadErrorMessage,
   syncCampaignInsights,
 } from "@/lib/social-ads/social-ads-service";
-import {
-  klirlineMarketingPortalUrl,
-  klirlineOAuthUrl,
-} from "@/lib/social-ads/klirline-marketing";
+import { klirlineMarketingPortalUrl } from "@/lib/social-ads/klirline-marketing";
 import {
   getAudienceRecommendations,
   getZernioConnectUrl,
@@ -163,16 +160,16 @@ export async function POST(request: Request) {
         );
         return NextResponse.json({ oauthUrl: authUrl, provider: "zernio" });
       }
-      const platform = platformOrKey as SocialPlatform;
-      return NextResponse.json({
-        oauthUrl: klirlineOAuthUrl({
-          companyId,
-          companyName,
-          platform,
-          returnUrl: callbackUrl,
-        }),
-        provider: "klirline",
-      });
+      // klirline.ca/marketing/connect is broken for KlirBuild — require Zernio or in-app link via live social.
+      return NextResponse.json(
+        {
+          error:
+            "Connexion klirline.ca indisponible. Configurez ZERNIO_API_KEY pour OAuth natif, ou liez le compte depuis Feed & live (Connecter → formulaire).",
+          code: "USE_IN_APP_CONNECT",
+          provider: "in_app",
+        },
+        { status: 400 }
+      );
     }
 
     if (action === "sync_accounts") {
@@ -229,14 +226,14 @@ export async function POST(request: Request) {
         const { authUrl } = await getZernioConnectUrl(companyId, companyName, platform);
         return NextResponse.json({ oauthUrl: authUrl });
       }
-      return NextResponse.json({
-        oauthUrl: klirlineOAuthUrl({
-          companyId,
-          companyName,
-          platform,
-          returnUrl: callbackUrl,
-        }),
-      });
+      return NextResponse.json(
+        {
+          error:
+            "Reconnectez via ZERNIO_API_KEY, ou reliez le compte depuis Feed & live.",
+          code: "USE_IN_APP_CONNECT",
+        },
+        { status: 400 }
+      );
     }
 
     if (action === "sync") {
