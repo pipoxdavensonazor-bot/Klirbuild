@@ -16,6 +16,7 @@ type Item = {
   rating: number;
   featured: boolean;
   approved: boolean;
+  propertyTitle?: string | null;
 };
 
 export function TestimonialForm({
@@ -132,6 +133,7 @@ export function TestimonialRow({ item }: { item: Item & { id: string } }) {
             {"★".repeat(item.rating)} ·{" "}
             {item.approved ? "Approuvé" : "En attente"}
             {item.featured ? " · Vedette" : ""}
+            {item.propertyTitle ? ` · Fiche : ${item.propertyTitle}` : ""}
           </p>
           <h3 className="mt-1 font-medium text-[#0F172A]">{item.name}</h3>
           {item.role ? <p className="text-sm text-slate-500">{item.role}</p> : null}

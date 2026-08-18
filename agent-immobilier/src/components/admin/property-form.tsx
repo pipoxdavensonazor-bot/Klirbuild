@@ -160,12 +160,14 @@ export function PropertyAdminForm({
         </p>
       </div>
       <div>
-        <Label htmlFor="videoUrl">Vidéo (URL /api/media/… ou YouTube)</Label>
+        <Label htmlFor="videoUrl">
+          Vidéo ou visite virtuelle (YouTube, /api/media/… ou Bonne Visite)
+        </Label>
         <Input
           id="videoUrl"
           name="videoUrl"
           defaultValue={initial?.videoUrl || ""}
-          placeholder="/api/media/… ou https://…"
+          placeholder="https://tour.bonnevisite.com/… ou YouTube"
         />
       </div>
       <div>

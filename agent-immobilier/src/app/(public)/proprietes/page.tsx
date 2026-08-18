@@ -1,9 +1,15 @@
 import { PropertyCard } from "@/components/properties/property-card";
 import { prisma } from "@/lib/prisma";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Propriétés" };
+export const metadata = pageMetadata({
+  title: "Propriétés à vendre à Laval, Laurentides et Lanaudière",
+  description:
+    "Maisons, condos et immeubles à vendre avec Léonne Bien-Aimé, courtière immobilière PROPRIO DIRECT — Laval, Laurentides et Lanaudière.",
+  path: "/proprietes",
+});
 
 export default async function PropertiesPage() {
   const properties = await prisma.property.findMany({

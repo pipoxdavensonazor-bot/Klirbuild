@@ -1,6 +1,8 @@
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { JsonLd } from "@/components/seo/json-ld";
 import { prisma } from "@/lib/prisma";
+import { agentJsonLd } from "@/lib/seo";
 import { siteName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +17,7 @@ export default async function PublicLayout({
 
   return (
     <>
+      <JsonLd data={agentJsonLd(profile)} />
       <SiteHeader name={name} />
       <main>{children}</main>
       <SiteFooter

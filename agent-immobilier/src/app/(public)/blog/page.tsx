@@ -1,9 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Conseils & articles" };
+export const metadata = pageMetadata({
+  title: "Conseils immobiliers — achat et vente au Québec",
+  description:
+    "Articles et conseils de Léonne Bien-Aimé, courtière immobilière à Laval, dans les Laurentides et Lanaudière : achat, vente, marché et visites.",
+  path: "/blog",
+});
 
 export default async function BlogPage() {
   const articles = await prisma.article.findMany({

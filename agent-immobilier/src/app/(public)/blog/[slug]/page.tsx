@@ -1,9 +1,29 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
+import { JsonLd } from "@/components/seo/json-ld";
+import { articleJsonLd, pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await prisma.article.findUnique({ where: { slug } });
+  if (!article || !article.published) return { title: "Article" };
+  return pageMetadata({
+    title: article.title,
+    description: article.excerpt,
+    path: `/blog/${article.slug}`,
+    image: article.coverUrl,
+    type: "article",
+  });
+}
 
 export default async function ArticlePage({
   params,
@@ -19,6 +39,16 @@ export default async function ArticlePage({
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <JsonLd
+        data={articleJsonLd({
+          title: article.title,
+          excerpt: article.excerpt,
+          slug: article.slug,
+          coverUrl: article.coverUrl,
+          publishedAt: article.publishedAt,
+          updatedAt: article.updatedAt,
+        })}
+      />
       <p className="text-xs uppercase tracking-[0.3em] text-[#C9A227]">
         {article.category?.name ?? "Article"}
       </p>

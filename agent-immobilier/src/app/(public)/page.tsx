@@ -9,8 +9,16 @@ import { buildHomeFeed } from "@/lib/home-feed";
 import { whatsappLink, centrisListingsUrl } from "@/lib/utils";
 import { PORTRAIT_HERO, resolvePublicPhotoUrl } from "@/lib/photos";
 import { CAREER_PHOTO_KEY, getSetting } from "@/lib/settings";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = pageMetadata({
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
+  path: "/",
+  absoluteTitle: true,
+});
 
 const careerHighlights = [
   {
@@ -41,7 +49,7 @@ export default async function HomePage() {
         orderBy: { updatedAt: "desc" },
       }),
       prisma.testimonial.findMany({
-        where: { featured: true, approved: true },
+        where: { featured: true, approved: true, propertyId: null },
         take: 3,
         orderBy: { createdAt: "desc" },
       }),

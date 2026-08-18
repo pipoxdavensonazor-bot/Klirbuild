@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/"],
       },
     ],
+    host: "leonnebienaime.ca",
     sitemap: `${base}/sitemap.xml`,
   };
 }

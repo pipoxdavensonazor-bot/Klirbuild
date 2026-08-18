@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Politique de confidentialité",
   description:
-    "Politique de confidentialité — protection des renseignements personnels (site Léonne Bien-Aimé).",
-};
+    "Politique de confidentialité — protection des renseignements personnels (Loi 25) du site Léonne Bien-Aimé, courtière immobilière à Laval.",
+  path: "/politique-confidentialite",
+});
 
 export default function PolitiqueConfidentialitePage() {
   return (

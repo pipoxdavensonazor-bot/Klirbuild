@@ -1,15 +1,17 @@
 import { ContactForm } from "@/components/contact/contact-form";
 import { prisma } from "@/lib/prisma";
+import { pageMetadata } from "@/lib/seo";
 import { whatsappLink } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Contact",
+export const metadata = pageMetadata({
+  title: "Contact — évaluation, achat et vente à Laval et Laurentides",
   description:
-    "Contactez Léonne Bien-Aimé, courtière immobilière — évaluation, achat, vente, rendez-vous.",
-};
+    "Contactez Léonne Bien-Aimé, courtière immobilière PROPRIO DIRECT à Laval. Évaluation, visite, achat ou vente dans les Laurentides et Lanaudière.",
+  path: "/contact",
+});
 
 export default async function ContactPage() {
   const profile = await prisma.profile.findFirst();

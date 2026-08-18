@@ -1,11 +1,32 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
 import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
+import { JsonLd } from "@/components/seo/json-ld";
+import { eventJsonLd, pageMetadata, stripHtml } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const seminar = await prisma.seminar.findUnique({ where: { slug } });
+  if (!seminar) return { title: "Événement" };
+  return pageMetadata({
+    title: seminar.title,
+    description:
+      stripHtml(seminar.description, 155) ||
+      `${seminar.title} — ${seminar.location}. Atelier immobilier avec Léonne Bien-Aimé, PROPRIO DIRECT.`,
+    path: `/seminaires/${seminar.slug}`,
+    image: seminar.imageUrl,
+  });
+}
 
 export default async function SeminarDetailPage({
   params,
@@ -18,6 +39,16 @@ export default async function SeminarDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <JsonLd
+        data={eventJsonLd({
+          title: seminar.title,
+          description: seminar.description,
+          slug: seminar.slug,
+          location: seminar.location,
+          startsAt: seminar.startsAt,
+          imageUrl: seminar.imageUrl,
+        })}
+      />
       <p className="text-sm text-[#C9A227]">
         {format(seminar.startsAt, "d MMMM yyyy · HH:mm", { locale: fr })}
       </p>

@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Mentions légales",
-  description: "Mentions légales du site Léonne Bien-Aimé, courtière immobilière.",
-};
+  description:
+    "Mentions légales du site de Léonne Bien-Aimé, courtière immobilière PROPRIO DIRECT à Laval.",
+  path: "/mentions-legales",
+});
 
 export default function MentionsLegalesPage() {
   return (

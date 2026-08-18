@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
-import { siteName, siteUrl } from "@/lib/utils";
+import { siteName } from "@/lib/utils";
+import {
+  CANONICAL_ORIGIN,
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_TITLE,
+  absoluteUrl,
+} from "@/lib/seo";
 
 const display = Cormorant_Garamond({
   variable: "--font-display",
@@ -16,13 +23,46 @@ const sans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
+  metadataBase: new URL(CANONICAL_ORIGIN),
   title: {
-    default: siteName(),
+    default: DEFAULT_TITLE,
     template: `%s · ${siteName()}`,
   },
-  description:
-    "Léonne Bien-Aimé — courtière immobilière. Des conseils justes. Des résultats concrets.",
+  description: DEFAULT_DESCRIPTION,
+  applicationName: siteName(),
+  authors: [{ name: siteName(), url: CANONICAL_ORIGIN }],
+  creator: siteName(),
+  keywords: [
+    "courtière immobilière Laval",
+    "courtier immobilier Laurentides",
+    "maison à vendre Lanaudière",
+    "PROPRIO DIRECT",
+    "Léonne Bien-Aimé",
+    "OACIQ",
+    "condo Saint-Jérôme",
+    "évaluation maison Laval",
+  ],
+  alternates: { canonical: CANONICAL_ORIGIN },
+  openGraph: {
+    type: "website",
+    locale: "fr_CA",
+    url: CANONICAL_ORIGIN,
+    siteName: siteName(),
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE), alt: siteName() }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

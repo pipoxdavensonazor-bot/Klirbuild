@@ -6,7 +6,10 @@ export const metadata = { title: "Témoignages · Admin" };
 
 export default async function AdminTestimonialsPage() {
   const items = await prisma.testimonial
-    .findMany({ orderBy: { createdAt: "desc" } })
+    .findMany({
+      orderBy: { createdAt: "desc" },
+      include: { property: { select: { title: true, slug: true } } },
+    })
     .catch(() => []);
 
   return (
@@ -17,7 +20,7 @@ export default async function AdminTestimonialsPage() {
           Témoignages
         </h1>
         <p className="mt-2 text-slate-500">
-          Avis clients affichés sur la page d&apos;accueil (section Confiance).
+          Avis clients (accueil) et avis par propriété en attente de validation.
         </p>
       </div>
 
@@ -46,6 +49,10 @@ export default async function AdminTestimonialsPage() {
               rating: t.rating,
               featured: t.featured,
               approved: t.approved,
+              propertyTitle:
+                "property" in t && t.property
+                  ? t.property.title
+                  : null,
             }}
           />
         ))}

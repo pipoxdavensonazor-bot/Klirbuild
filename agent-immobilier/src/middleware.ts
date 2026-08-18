@@ -2,15 +2,51 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { sessionTokenMatches } from "@/lib/admin-session";
 import { applySecurityHeaders } from "@/lib/security-headers";
+import { CANONICAL_HOST } from "@/lib/seo";
 
 const COOKIE = "leonne_admin_session";
 
-function withSecurityHeaders(response: NextResponse) {
+function withSecurityHeaders(response: NextResponse, cachePublic = false) {
   applySecurityHeaders(response.headers);
+  if (cachePublic && !response.headers.has("Cache-Control")) {
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=120, stale-while-revalidate=600"
+    );
+  }
   return response;
 }
 
+function canonicalRedirect(request: NextRequest): NextResponse | null {
+  const host = (request.headers.get("host") ?? "")
+    .split(":")[0]
+    .toLowerCase();
+  const proto = (
+    request.headers.get("x-forwarded-proto") ??
+    request.nextUrl.protocol.replace(":", "")
+  ).toLowerCase();
+
+  const isWww = host === `www.${CANONICAL_HOST}`;
+  const isApex = host === CANONICAL_HOST;
+  if (!isWww && !isApex) return null;
+
+  const needsHost = isWww;
+  const needsHttps = proto === "http";
+  if (!needsHost && !needsHttps) return null;
+
+  const url = request.nextUrl.clone();
+  url.protocol = "https:";
+  url.hostname = CANONICAL_HOST;
+  url.port = "";
+  const redirect = NextResponse.redirect(url, 301);
+  applySecurityHeaders(redirect.headers);
+  return redirect;
+}
+
 export async function middleware(request: NextRequest) {
+  const redirected = canonicalRedirect(request);
+  if (redirected) return redirected;
+
   const { pathname } = request.nextUrl;
 
   const isAdminPage = pathname.startsWith("/admin");
@@ -26,10 +62,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/testimonials") ||
     pathname.startsWith("/api/admin");
 
-  // Public pages: still attach security headers
+  // Public pages: still attach security headers + short CDN cache
   if (!isAdminPage && !isAdminApi) {
-    // /api/media has its own access rules — still add headers
-    return withSecurityHeaders(NextResponse.next());
+    return withSecurityHeaders(NextResponse.next(), !pathname.startsWith("/api/"));
   }
 
   // Allow login page + login / totp setup APIs appropriately
@@ -44,6 +79,14 @@ export async function middleware(request: NextRequest) {
 
   // Contact form: public POST only
   if (pathname.startsWith("/api/messages") && request.method === "POST") {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  // Listing reviews: public GET + POST
+  if (
+    pathname.startsWith("/api/property-reviews") &&
+    (request.method === "GET" || request.method === "POST")
+  ) {
     return withSecurityHeaders(NextResponse.next());
   }
 

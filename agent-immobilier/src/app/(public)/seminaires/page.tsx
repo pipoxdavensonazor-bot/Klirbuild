@@ -2,10 +2,16 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Événements" };
+export const metadata = pageMetadata({
+  title: "Séminaires et ateliers immobiliers",
+  description:
+    "Événements, ateliers et séminaires de Léonne Bien-Aimé, courtière immobilière PROPRIO DIRECT — Laval, Laurentides et Lanaudière.",
+  path: "/seminaires",
+});
 
 export default async function SeminarsPage() {
   const seminars = await prisma.seminar.findMany({

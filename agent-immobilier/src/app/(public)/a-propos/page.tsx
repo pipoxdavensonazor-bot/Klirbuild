@@ -2,14 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { SiteImage } from "@/components/ui/site-image";
 import { RichHtml } from "@/components/ui/rich-html";
 import { resolvePublicPhotoUrl, PORTRAIT_CAREER } from "@/lib/photos";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "À propos",
+export const metadata = pageMetadata({
+  title: "À propos — courtière immobilière Laval, Laurentides, Lanaudière",
   description:
-    "Parcours, mission et expertise de Léonne Bien-Aimé, courtière immobilière — PROPRIO DIRECT.",
-};
+    "Parcours, mission et 20 ans d'expertise de Léonne Bien-Aimé, courtière immobilière PROPRIO DIRECT à Laval, dans les Laurentides et Lanaudière.",
+  path: "/a-propos",
+});
 
 function hasText(html: string) {
   return html.replace(/<[^>]+>/g, "").trim().length > 0;

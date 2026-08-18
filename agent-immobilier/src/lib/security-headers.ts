@@ -23,7 +23,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "connect-src 'self' https:",
-    "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://maps.google.com",
+    "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://maps.google.com https://tour.bonnevisite.com https://www.tourbuzz.net https://cdn-player.trivaxis.com https://cdn-tour-na.trivaxis.com",
     "upgrade-insecure-requests",
   ].join("; "),
 };
