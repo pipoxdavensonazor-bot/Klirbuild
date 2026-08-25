@@ -56,6 +56,9 @@ export function CrmPageClient() {
         description="Leads, pipeline et croissance — données entreprise."
         actions={
           <>
+            <Link href="/crm/prospecteur">
+              <Button variant="outline">Prospecteur</Button>
+            </Link>
             <Link href="/clients">
               <Button variant="outline">Clients</Button>
             </Link>

@@ -152,6 +152,13 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess, editProduct }: Add
     }
 
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError('Connectez-vous pour publier un produit.');
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       name: form.name.trim(),
       description: form.description.trim(),
@@ -169,7 +176,12 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess, editProduct }: Add
 
     const { error: dbError } = isEdit
       ? await supabase.from('products').update(payload).eq('id', editProduct!.id)
-      : await supabase.from('products').insert({ ...payload, rating: 0, review_count: 0 });
+      : await supabase.from('products').insert({
+          ...payload,
+          seller_id: user.id,
+          rating: 0,
+          review_count: 0,
+        });
 
     if (dbError) {
       setError(dbError.message);
@@ -296,7 +308,7 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess, editProduct }: Add
                   onChange={e => set('name', e.target.value)}
                   required
                   maxLength={120}
-                  placeholder="Ex. Lampe solaire portable LED"
+                  placeholder="Ex. Chargeur solaire 20 W"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
@@ -311,7 +323,7 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess, editProduct }: Add
                 value={form.brand}
                 onChange={e => set('brand', e.target.value)}
                 maxLength={60}
-                placeholder="Ex. Kay Soley Énergie"
+                placeholder="Ex. Boutique Tech Cap-Haïtien"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               />
             </div>

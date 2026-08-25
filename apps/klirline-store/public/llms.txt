@@ -5,6 +5,7 @@
 ## Site
 - Home: https://klirline.com/
 - Sitemap: https://klirline.com/sitemap.xml
+- Google Search Console: submit https://klirline.com/sitemap.xml for property https://klirline.com/
 - Product URLs: https://klirline.com/produit/{id}
 
 ## Entity

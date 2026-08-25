@@ -5,6 +5,7 @@ import { BADGE_CONFIG, getDisplayPrice, getOriginalPrice, discountPct } from '..
 import { StarRating } from './StarRating';
 import { VerifiedSellerBadge } from './VerifiedSellerBadge';
 import { useI18n } from '../i18n';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface ProductCardProps {
   product: Product;
@@ -54,10 +55,11 @@ export const ProductCard = ({
       {/* Image */}
       <div className="relative overflow-hidden bg-gray-50 aspect-square">
         <img
-          src={product.image_url}
+          src={catalogImageSrc(product.image_url, product.id)}
           alt={product.name}
           className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
+          onError={e => handleBrokenImage(e.currentTarget, product.id)}
         />
 
         {/* Badge ribbon */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, ShoppingBag, ChevronDown, ChevronUp, Package, Truck, PenLine } from 'lucide-react';
 import { supabase, type Order, type OrderItem, type Product } from '../lib/supabase';
 import { FULFILLMENT_LABELS_FR, type FulfillmentStatus } from '../lib/commerce';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface OrderWithItems extends Order {
   order_items: (OrderItem & { product: Product | null })[];
@@ -185,17 +186,12 @@ export const MyOrders = ({ onBack }: MyOrdersProps) => {
                     <div className="border-t border-gray-100 px-5 py-4 space-y-3">
                       {order.order_items.map(item => (
                         <div key={item.id} className="flex items-center gap-3">
-                          {item.product?.image_url ? (
-                            <img
-                              src={item.product.image_url}
-                              alt={item.product.name}
-                              className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                              <Package className="w-5 h-5 text-gray-400" />
-                            </div>
-                          )}
+                          <img
+                            src={catalogImageSrc(item.product?.image_url, item.product?.id ?? item.id)}
+                            alt={item.product?.name ?? 'Produit'}
+                            className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+                            onError={e => handleBrokenImage(e.currentTarget, item.product?.id ?? item.id)}
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">
                               {item.product?.name ?? 'Produit indisponible'}

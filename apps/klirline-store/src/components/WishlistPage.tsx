@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Heart, ShoppingCart, ArrowLeft, Trash2, Package } from 'lucide-react';
 import { type Product, getDisplayPrice, getOriginalPrice, BADGE_CONFIG } from '../lib/supabase';
 import { StarRating } from './StarRating';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface WishlistPageProps {
   onBack: () => void;
@@ -110,9 +111,10 @@ export const WishlistPage = ({
                     className="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 bg-gray-50 rounded-lg overflow-hidden"
                   >
                     <img
-                      src={product.image_url}
+                      src={catalogImageSrc(product.image_url, product.id)}
                       alt={product.name}
                       className="w-full h-full object-contain p-2 hover:scale-105 transition-transform duration-200"
+                      onError={e => handleBrokenImage(e.currentTarget, product.id)}
                     />
                   </button>
 

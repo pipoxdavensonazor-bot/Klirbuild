@@ -23,22 +23,23 @@ import { useCart } from './hooks/useCart';
 import { useWishlist } from './hooks/useWishlist';
 import { LocaleProvider } from './i18n';
 import { supabase, isDemoMode, type Product, type Category } from './lib/supabase';
-import { isJunkProductName, CATEGORY_TO_DEPARTMENT } from './lib/brand';
-import { DEMO_CATEGORIES, DEMO_PRODUCTS } from './lib/demo-products';
+import { isPublishedSellerProduct, CATEGORY_TO_DEPARTMENT } from './lib/brand';
 import { trackAddToCart, trackDepartment, trackProductView } from './lib/activity';
 import {
   navigateTo,
   parseLegalSlugFromPath,
   parseProductIdFromPath,
+  parseAdminFromPath,
   productPath,
   legalPath,
+  adminPath,
   type LegalSlug,
 } from './lib/routing';
 import { searchCatalog } from './lib/searchCatalog';
-import { applyHomeSeo } from './lib/seo';
+import { applyHomeSeo, applyAdminSeo } from './lib/seo';
 import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
 
-const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v2';
+const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v4';
 const CATALOG_TTL_MS = 60_000;
 
 type View = 'shop' | 'dashboard' | 'orders' | 'product' | 'wishlist' | 'account' | 'admin' | 'legal';
@@ -50,7 +51,9 @@ const DEFAULT_FILTERS: Filters = {
 
 function ShopApp() {
   const { user } = useAuth();
-  const [view, setView] = useState<View>('shop');
+  const [view, setView] = useState<View>(() =>
+    typeof window !== 'undefined' && parseAdminFromPath() ? 'admin' : 'shop',
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,6 +103,13 @@ function ShopApp() {
   // Deep-link /produit/:id, /cgv|/confidentialite|/litiges + browser back/forward
   useEffect(() => {
     const openFromPath = () => {
+      if (parseAdminFromPath()) {
+        setLegalSlug(null);
+        setSelectedProduct(null);
+        setView('admin');
+        return;
+      }
+
       const legal = parseLegalSlugFromPath();
       if (legal) {
         setLegalSlug(legal);
@@ -121,7 +131,7 @@ function ShopApp() {
 
       setSelectedProduct(null);
       setLegalSlug(null);
-      setView(current => (current === 'product' || current === 'legal' ? 'shop' : current));
+      setView('shop');
     };
 
     openFromPath();
@@ -130,9 +140,11 @@ function ShopApp() {
   }, [products]);
 
   useEffect(() => {
-    if (view === 'shop' || view === 'wishlist' || view === 'account' || view === 'orders' || view === 'dashboard' || view === 'admin') {
-      if (view === 'shop' && !selectedProduct) applyHomeSeo();
+    if (view === 'admin') {
+      applyAdminSeo();
+      return;
     }
+    if (view === 'shop' && !selectedProduct) applyHomeSeo();
   }, [view, selectedProduct]);
 
   // Stripe / NatCash return (?checkout=…&order_id=…)
@@ -254,43 +266,77 @@ function ShopApp() {
     if (!hadCache) setLoading(true);
 
     if (isDemoMode) {
-      setProducts(DEMO_PRODUCTS);
-      setCatalogNotice('Demo catalog — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to connect live data.');
+      setProducts([]);
+      setCatalogNotice('Catalogue vide — configurez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY.');
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .order('created_at', { ascending: false });
+    const mapRows = (data: Product[] | null) =>
+      (data ?? [])
+        .filter(p => isPublishedSellerProduct(p))
+        .map(p => {
+          const row = p as Product & { categories?: { name?: string } | null };
+          const catName = row.categories?.name;
+          const department =
+            row.department ||
+            (catName ? CATEGORY_TO_DEPARTMENT[catName] ?? catName : null);
+          const { categories: _c, ...rest } = row;
+          return { ...rest, department } as Product;
+        });
 
-    if (error) {
-      console.error('products fetch failed', error);
+    let data: Product[] | null = null;
+    let errorMessage: string | null = null;
+
+    {
+      const res = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .not('seller_id', 'is', null)
+        .order('created_at', { ascending: false });
+      if (res.error) {
+        console.error('products fetch (join) failed', res.error);
+        errorMessage = res.error.message;
+        const fallback = await supabase
+          .from('products')
+          .select('*')
+          .not('seller_id', 'is', null)
+          .order('created_at', { ascending: false });
+        if (fallback.error) {
+          console.error('products fetch (simple) failed', fallback.error);
+          errorMessage = fallback.error.message;
+        } else {
+          data = fallback.data as Product[];
+          errorMessage = null;
+        }
+      } else {
+        data = res.data as Product[];
+      }
+    }
+
+    if (errorMessage) {
       if (!hadCache) {
-        setProducts(DEMO_PRODUCTS);
-        setCatalogNotice('Could not load live products. Showing curated demo catalog.');
+        setProducts([]);
+        setCatalogNotice(
+          `Catalogue indisponible (${errorMessage}). Réessayez dans un instant — pas de produits démo en production.`,
+        );
+      } else {
+        setCatalogNotice('Mise à jour catalogue échouée — affichage du cache local.');
       }
       setLoading(false);
       return;
     }
 
-    const cleaned = (data ?? [])
-      .filter(p => !isJunkProductName(p.name))
-      .map(p => {
-        const row = p as Product & { categories?: { name?: string } | null };
-        const catName = row.categories?.name;
-        const department =
-          row.department ||
-          (catName ? CATEGORY_TO_DEPARTMENT[catName] ?? catName : null);
-        const { categories: _c, ...rest } = row;
-        return { ...rest, department } as Product;
-      });
+    const cleaned = mapRows(data);
     if (cleaned.length === 0) {
-      setProducts(DEMO_PRODUCTS);
-      setCatalogNotice('Live catalog was empty or only contained test listings. Showing curated demo products.');
+      setProducts([]);
+      setCatalogNotice(null);
+      try {
+        sessionStorage.removeItem(CATALOG_CACHE_KEY);
+      } catch { /* ignore */ }
     } else {
       setProducts(cleaned);
+      setCatalogNotice(null);
       try {
         sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ at: Date.now(), products: cleaned }));
       } catch { /* ignore */ }
@@ -300,28 +346,36 @@ function ShopApp() {
 
   const fetchCategories = async () => {
     if (isDemoMode) {
-      setCategories(DEMO_CATEGORIES);
+      setCategories([]);
       return;
     }
     const { data, error } = await supabase.from('categories').select('*').order('name');
     if (error || !data?.length) {
-      setCategories(DEMO_CATEGORIES);
+      setCategories([]);
       return;
     }
     setCategories(data);
   };
 
   const fetchUserMeta = async () => {
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    if (!uid) {
+      setIsAdmin(false);
+      setVendorStatus('none');
+      return;
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_admin')
-      .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
+      .eq('id', uid)
       .maybeSingle();
-    if (profile) setIsAdmin(profile.is_admin ?? false);
+    setIsAdmin(profile?.is_admin ?? false);
 
     const { data: app } = await supabase
       .from('vendor_applications')
       .select('status, rejection_reason')
+      .eq('user_id', uid)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -475,7 +529,10 @@ function ShopApp() {
   const handleMyOrdersClick = () => requireAuth(() => setView('orders'));
   const handleWishlistClick = () => setView('wishlist');
   const handleAccountClick = () => requireAuth(() => setView('account'));
-  const handleAdminClick = () => requireAuth(() => setView('admin'));
+  const handleAdminClick = () => requireAuth(() => {
+    setView('admin');
+    navigateTo(adminPath());
+  });
   const handleCheckout = () => setIsCheckoutOpen(true);
 
   const handleCheckoutSuccess = async () => {
@@ -670,7 +727,7 @@ function ShopApp() {
   }
 
   if (view === 'admin') {
-    return <AdminPanel onBack={() => setView('shop')} />;
+    return <AdminPanel onBack={goShop} />;
   }
 
   // ── Shop view ──────────────────────────────────────────────────────────────
@@ -707,7 +764,16 @@ function ShopApp() {
         {catalogNotice && (
           <div className="flex items-start gap-3 bg-brand-50 border border-brand/20 rounded-xl px-4 py-3 mb-4 text-sm text-brand-mid">
             <span className="flex-1">{catalogNotice}</span>
-            <button onClick={() => setCatalogNotice(null)} className="text-brand hover:text-brand-dark font-bold text-xs ml-2">Dismiss</button>
+            <button
+              type="button"
+              onClick={() => { void fetchProducts(); }}
+              className="text-brand hover:text-brand-dark font-semibold text-xs whitespace-nowrap"
+            >
+              Réessayer
+            </button>
+            <button type="button" onClick={() => setCatalogNotice(null)} className="text-brand hover:text-brand-dark font-bold text-xs ml-1">
+              Fermer
+            </button>
           </div>
         )}
         {/* Vendor status banner */}

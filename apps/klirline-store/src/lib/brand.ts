@@ -89,3 +89,49 @@ export function isJunkProductName(name: string): boolean {
   const junkExact = new Set(['diven', 'try', 'kepi', 'test', 'demo']);
   return junkExact.has(n.toLowerCase());
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Seed / demo boutiques — no real seller_id. Hidden even if seller_verified was faked. */
+const SEED_DEMO_SHOPS = new Set([
+  'jaden ayiti',
+  'libreri lakay',
+  'aqua kle',
+  'atelier capois',
+  'sport leogane',
+  'belte lakay',
+  'cafe lakay',
+  'motokask securite',
+  'kay soley energie',
+  'energie soleil jacmel',
+  'marche en fer select',
+  'tech delmas express',
+]);
+
+function foldShopName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+export function isSeedDemoShop(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return SEED_DEMO_SHOPS.has(foldShopName(name));
+}
+
+/** Public catalog: real vendor account only (KYC shop with a seller_id). */
+export function isPublishedSellerProduct(p: {
+  seller_id?: string | null;
+  seller_shop_name?: string | null;
+  brand?: string | null;
+  name?: string;
+}): boolean {
+  const sid = (p.seller_id ?? '').trim();
+  if (!UUID_RE.test(sid)) return false;
+  if (isSeedDemoShop(p.seller_shop_name) || isSeedDemoShop(p.brand)) return false;
+  return !isJunkProductName(p.name ?? '');
+}

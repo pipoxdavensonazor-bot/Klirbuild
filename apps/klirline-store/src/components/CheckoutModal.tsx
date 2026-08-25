@@ -10,6 +10,7 @@ import { KLIRLINE_COMMISSION_RATE, formatHtg, getShippingFee } from '../lib/comm
 import { PAYMENTS } from '../lib/brand';
 import { useI18n } from '../i18n';
 import { orderPaidWhatsAppUrl } from '../lib/whatsapp';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -253,13 +254,12 @@ export const CheckoutModal = ({
         ),
       ];
       if (sellerIds.length) {
-        const { data: apps } = await supabase
-          .from('vendor_applications')
-          .select('business_phone, user_id')
-          .eq('status', 'approved')
-          .in('user_id', sellerIds)
-          .limit(1);
-        const phone = apps?.[0]?.business_phone;
+        const { data: contact } = await supabase.rpc(
+          'get_approved_seller_contact',
+          { p_seller_id: sellerIds[0] },
+        );
+        const row = Array.isArray(contact) ? contact[0] : contact;
+        const phone = row?.business_phone as string | undefined;
         setWaSellerUrl(
           orderPaidWhatsAppUrl({
             sellerPhone: phone,
@@ -446,7 +446,12 @@ export const CheckoutModal = ({
                   const unit = getDisplayPrice(item.product);
                   return (
                     <div key={item.id} className="flex items-center gap-3">
-                      <img src={item.product.image_url} alt={item.product.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                      <img
+                        src={catalogImageSrc(item.product.image_url, item.product.id)}
+                        alt={item.product.name}
+                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        onError={e => handleBrokenImage(e.currentTarget, item.product.id)}
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-slate-800 truncate">{item.product.name}</p>
                         <p className="text-xs text-gray-500">Qté : {item.quantity}</p>

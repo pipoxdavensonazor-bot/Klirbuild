@@ -40,6 +40,7 @@ const commands = [
   { label: "Paie automatique", href: "/payroll" },
   { label: "Comptabilité & taxes", href: "/accounting" },
   { label: "Chat sécurisé", href: "/team-chat" },
+  { label: "Prospecteur Amériques", href: "/crm/prospecteur" },
   { label: "CRM", href: "/crm" },
   { label: "Clients", href: "/clients" },
   { label: "Invoices", href: "/invoices" },

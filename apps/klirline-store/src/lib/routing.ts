@@ -35,6 +35,15 @@ export function parseLegalSlugFromPath(pathname = window.location.pathname): Leg
   return PATH_TO_LEGAL[clean] ?? null;
 }
 
+export function parseAdminFromPath(pathname = window.location.pathname): boolean {
+  const clean = pathname.replace(/\/$/, '') || '/';
+  return clean === '/admin';
+}
+
+export function adminPath(): string {
+  return '/admin';
+}
+
 export function navigateTo(path: string, replace = false) {
   const url = path.startsWith('/') ? path : `/${path}`;
   if (replace) {

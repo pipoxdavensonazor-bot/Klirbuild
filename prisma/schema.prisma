@@ -101,6 +101,8 @@ model Company {
   feedPosts          FeedPost[]
   deleteRequests     DeleteRequest[]
   companyBackups     CompanyBackup[]
+  prospectScans      ProspectScan[]
+  prospectHits       ProspectHit[]
   /// Suspendue par l'admin plateforme (login entreprise bloqué sauf platform admin)
   suspended          Boolean            @default(false)
   sponsoredAds       SponsoredAdCampaign[]
@@ -1078,6 +1080,50 @@ model DeleteRequest {
 
   @@index([companyId, status, createdAt])
   @@index([companyId, resourceType, resourceId])
+}
+
+/// Scan B2B: entreprises Amériques + emails publiés sur leur site officiel.
+model ProspectScan {
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  region         String
+  sector         String
+  focus          String        @default("mix")
+  status         String        @default("running")
+  error          String?
+  discovered     Int           @default(0)
+  withEmail      Int           @default(0)
+  createdByEmail String?
+  createdAt      DateTime      @default(now())
+  finishedAt     DateTime?
+  hits           ProspectHit[]
+
+  @@index([companyId, createdAt])
+}
+
+model ProspectHit {
+  id             String       @id @default(cuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scanId         String
+  scan           ProspectScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  name           String
+  website        String?
+  email          String?
+  country        String?
+  sector         String?
+  source         String
+  sourceUrl      String?
+  notes          String?
+  score          Int          @default(0)
+  importedLeadId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([companyId, website])
+  @@index([scanId])
 }
 
 // Company backup metadata (payload stored in Netlify Blobs)

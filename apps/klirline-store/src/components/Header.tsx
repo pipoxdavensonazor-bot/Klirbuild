@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Search, ChevronDown, User, LogOut, Plus, BarChart2,
-  ShoppingBag, Heart, MapPin, Menu, X, ChevronRight, ShieldCheck, Store,
+  ShoppingCart, Heart, MapPin, Menu, X, ChevronRight, ShieldCheck, Store,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DEPARTMENTS, getDisplayPrice, type Product } from '../lib/supabase';
 import { BRAND, NAV_DEPT_MAP, PAYMENTS, SOFT_LAUNCH, labelDepartment } from '../lib/brand';
 import { useI18n } from '../i18n';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 export type VendorStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
@@ -213,9 +214,10 @@ export const Header = ({
                     }}
                   >
                     <img
-                      src={p.image_url}
+                      src={catalogImageSrc(p.image_url, p.id)}
                       alt=""
                       className="w-10 h-10 object-contain bg-gray-50 rounded border border-gray-100 flex-shrink-0"
+                      onError={e => handleBrokenImage(e.currentTarget, p.id)}
                     />
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium text-gray-900 line-clamp-1">{p.name}</span>
@@ -265,7 +267,7 @@ export const Header = ({
                       </div>
                       <p className="text-xs text-gray-500 text-center truncate">{user.email}</p>
                     </div>
-                    <DropItem icon={<ShoppingBag />} label={t('myOrders')} onClick={() => { onMyOrdersClick(); setAccountOpen(false); }} />
+                    <DropItem icon={<ShoppingCart />} label={t('myOrders')} onClick={() => { onMyOrdersClick(); setAccountOpen(false); }} />
                     <DropItem icon={<Heart />} label={t('myWishlist')} onClick={() => { onWishlistClick(); setAccountOpen(false); }} />
                     <DropItem icon={<User />} label={t('myAccount')} onClick={() => { onAccountClick(); setAccountOpen(false); }} />
                     {isApprovedSeller ? (
@@ -323,13 +325,13 @@ export const Header = ({
                 <img
                   src={BRAND.cartIcon}
                   alt=""
-                  width={32}
-                  height={32}
+                  width={36}
+                  height={36}
                   className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-sm"
                   aria-hidden
                 />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 bg-accent text-brand-dark text-[10px] sm:text-xs font-extrabold rounded-full min-w-[18px] h-4 sm:min-w-[20px] sm:h-5 flex items-center justify-center px-0.5 leading-none">
+                  <span className="absolute -top-1.5 -right-2 bg-accent text-brand-dark text-[10px] sm:text-xs font-extrabold rounded-full min-w-[18px] h-4 sm:min-w-[20px] sm:h-5 flex items-center justify-center px-0.5 leading-none">
                     {cartCount > 99 ? '99+' : cartCount}
                   </span>
                 )}
@@ -412,7 +414,7 @@ export const Header = ({
                   <p className="text-sm font-semibold truncate">{user.email}</p>
                 </div>
               </div>
-              <MobileItem icon={<ShoppingBag />} label={t('myOrders')} onClick={() => { onMyOrdersClick(); setMobileMenuOpen(false); }} />
+              <MobileItem icon={<ShoppingCart />} label={t('myOrders')} onClick={() => { onMyOrdersClick(); setMobileMenuOpen(false); }} />
               <MobileItem icon={<Heart />} label={t('myWishlist')} onClick={() => { onWishlistClick(); setMobileMenuOpen(false); }} />
               <MobileItem icon={<User />} label={t('myAccount')} onClick={() => { onAccountClick(); setMobileMenuOpen(false); }} />
               {isApprovedSeller ? (

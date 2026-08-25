@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { sendOrderConfirmationEmail } from "../_shared/order-confirm-email.ts";
 import { assertSafeReturnUrl, getAllowedOrigins } from "../_shared/safe-return-url.ts";
+import { enforcePaymentCreateLimit, tooManyRequests } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = getAllowedOrigins();
 
@@ -197,6 +198,9 @@ Deno.serve(async (req: Request) => {
 
     // ── POST /create ───────────────────────────────────────────────────────
     if ((path === "/create" || path.endsWith("/create")) && req.method === "POST") {
+      const payOk = await enforcePaymentCreateLimit(admin, req);
+      if (!payOk) return tooManyRequests(corsHeaders, 600);
+
       const body = await req.json();
       const orderId = body.orderId as string | undefined;
       const guestToken = (body.guestToken as string | undefined) ?? null;

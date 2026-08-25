@@ -21,6 +21,7 @@ import {
   MapPin,
   Megaphone,
   MessageSquareLock,
+  Radar,
   Radio,
   Receipt,
   Settings,
@@ -74,6 +75,7 @@ type NavDef = {
 const coreNav: NavDef[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, planFeature: "dashboard" },
   { href: "/crm", label: "CRM", icon: Briefcase, permission: "crm:read", planFeature: "crm" },
+  { href: "/crm/prospecteur", label: "Prospecteur", icon: Radar, permission: "crm:read", planFeature: "crm" },
   { href: "/clients", label: "Clients", icon: Users, permission: "crm:read", planFeature: "crm" },
   { href: "/inbox", label: "Boîte courriel", icon: Inbox, permission: "crm:read", planFeature: "crm" },
   { href: "/quotes", label: "Quotes", icon: FileText, permission: "quotes:read", planFeature: "quotes_invoices" },

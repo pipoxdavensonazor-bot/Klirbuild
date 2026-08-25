@@ -269,6 +269,24 @@ export function HomeFeed({
           wishlisted={wishlisted}
           onWishlistToggle={onWishlistToggle}
         />
+      ) : products.length === 0 ? (
+        <section className="bg-white/90 rounded-xl border border-white/60 px-6 py-16 text-center">
+          <h2 className="font-display text-xl font-semibold text-brand-dark mb-2">
+            Catalogue vierge
+          </h2>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Aucun produit ni boutique pour le moment. Les vendeurs approuvés pourront publier leurs annonces ici.
+          </p>
+          {!signedIn && (
+            <button
+              type="button"
+              onClick={onSignUp}
+              className="mt-6 bg-brand hover:bg-brand-mid text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Créer un compte vendeur
+            </button>
+          )}
+        </section>
       ) : (
         <>
           {rails.sponsored.length > 0 && (

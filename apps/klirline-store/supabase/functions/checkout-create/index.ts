@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { enforceCheckoutCreateLimit, tooManyRequests } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
   "https://klirline-store.pages.dev,https://store.klirline.com,https://klirline.com,https://www.klirline.com,http://localhost:5173,http://localhost:4173")
@@ -124,6 +125,17 @@ Deno.serve(async (req: Request) => {
       return json(corsHeaders, 400, { error: "Email obligatoire pour payer sans compte" });
     }
 
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const identity = user?.id ?? guest_email;
+    const allowed = await enforceCheckoutCreateLimit(admin, req, identity);
+    if (!allowed) {
+      return tooManyRequests(corsHeaders, 600);
+    }
+
     const qtyById = new Map<string, number>();
     for (const it of rawItems) {
       const id = String(it.product_id ?? "").trim();
@@ -144,10 +156,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const productIds = [...qtyById.keys()];
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     const { data: products, error: productsError } = await admin
       .from("products")

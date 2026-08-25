@@ -1,6 +1,5 @@
 import { supabase, isDemoMode, type Product } from './supabase';
-import { CATEGORY_TO_DEPARTMENT, isJunkProductName } from './brand';
-import { DEMO_PRODUCTS } from './demo-products';
+import { CATEGORY_TO_DEPARTMENT, isPublishedSellerProduct } from './brand';
 
 function mapProductRow(p: Product & { categories?: { name?: string } | null }): Product {
   const catName = p.categories?.name;
@@ -47,7 +46,7 @@ export async function searchCatalog(
   if (q.length < 2) return [];
 
   if (isDemoMode) {
-    return localRank(catalog.length ? catalog : DEMO_PRODUCTS, q).slice(0, limit);
+    return localRank(catalog, q).slice(0, limit);
   }
 
   // Escape LIKE metacharacters: backslash first, then % and _
@@ -60,13 +59,14 @@ export async function searchCatalog(
   const rpc = await supabase.rpc('search_products', { q, lim: limit });
   if (!rpc.error && Array.isArray(rpc.data)) {
     return (rpc.data as Product[])
-      .filter(p => !isJunkProductName(p.name))
+      .filter(p => isPublishedSellerProduct(p))
       .map(p => mapProductRow(p as Product & { categories?: { name?: string } | null }));
   }
 
   const { data, error } = await supabase
     .from('products')
     .select('*, categories(name)')
+    .not('seller_id', 'is', null)
     .or(`name.ilike.${pattern},brand.ilike.${pattern},description.ilike.${pattern}`)
     .order('sponsored', { ascending: false, nullsFirst: false })
     .order('rating', { ascending: false })
@@ -77,6 +77,6 @@ export async function searchCatalog(
   }
 
   return data
-    .filter(p => !isJunkProductName(p.name))
+    .filter(p => isPublishedSellerProduct(p))
     .map(p => mapProductRow(p as Product & { categories?: { name?: string } | null }));
 }

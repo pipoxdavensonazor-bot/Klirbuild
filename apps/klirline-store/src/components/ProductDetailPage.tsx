@@ -13,6 +13,7 @@ import { productAbsoluteUrl } from '../lib/routing';
 import { labelDepartment } from '../lib/brand';
 import { useI18n } from '../i18n';
 import { applyHomeSeo, applyProductSeo } from '../lib/seo';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -52,7 +53,9 @@ export const ProductDetailPage = ({
   const [alertStatus, setAlertStatus] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle');
   const [alertMsg, setAlertMsg] = useState('');
 
-  const allImages = [product.image_url, ...(product.images ?? [])].filter(Boolean);
+  const allImages = [product.image_url, ...(product.images ?? [])]
+    .map(u => catalogImageSrc(u, product.id))
+    .filter((u, i, arr) => u && arr.indexOf(u) === i);
   const displayPrice = getDisplayPrice(product);
   const originalPrice = getOriginalPrice(product);
   const pct = discountPct(product);
@@ -240,9 +243,10 @@ export const ProductDetailPage = ({
             <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
               <div className="relative aspect-square bg-gray-50 rounded-lg overflow-hidden mb-3">
                 <img
-                  src={allImages[selectedImage] ?? product.image_url}
+                  src={allImages[selectedImage] ?? catalogImageSrc(product.image_url, product.id)}
                   alt={product.name}
                   className="w-full h-full object-contain p-4"
+                  onError={e => handleBrokenImage(e.currentTarget, product.id)}
                 />
                 {allImages.length > 1 && (
                   <>

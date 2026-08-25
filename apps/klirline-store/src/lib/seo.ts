@@ -212,6 +212,17 @@ export function applyHomeSeo() {
   removeJsonLd('product-jsonld');
 }
 
+export function applyAdminSeo() {
+  document.title = 'Admin — KlirMarket';
+  ensureMeta('name', 'description', 'Espace administration KlirMarket. Accès restreint.');
+  ensureMeta('name', 'robots', 'noindex, nofollow, noarchive');
+  ensureMeta('property', 'og:title', 'Admin — KlirMarket');
+  ensureMeta('property', 'og:url', `${SITE.url}/admin`);
+  setCanonical(`${SITE.url}/admin`);
+  removeJsonLd('site-jsonld');
+  removeJsonLd('product-jsonld');
+}
+
 export type ProductSeoInput = {
   id: string;
   name: string;

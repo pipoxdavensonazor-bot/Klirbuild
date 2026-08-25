@@ -95,6 +95,7 @@ function DocThumb({ label, path, icon }: { label: string; path: string | null | 
 }
 
 export const AdminPanel = ({ onBack }: AdminPanelProps) => {
+  const [gate, setGate] = useState<'loading' | 'ok' | 'denied'>('loading');
   const [tab, setTab] = useState<Tab>('kyc');
   const [applications, setApplications] = useState<VendorApplication[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
@@ -137,7 +138,23 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setGate('denied');
+        return;
+      }
+      const { data } = await supabase.rpc('is_admin');
+      if (!cancelled) setGate(data === true ? 'ok' : 'denied');
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (gate === 'ok') void loadAll();
+  }, [gate, loadAll]);
 
   const stats = {
     pending:  applications.filter(a => a.status === 'pending').length,
@@ -266,6 +283,33 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
     await loadAll();
     setActionLoading(false);
   };
+
+  if (gate === 'loading') {
+    return (
+      <div className="min-h-screen bg-haiti-sand flex items-center justify-center text-slate-500 text-sm">
+        Vérification d’accès…
+      </div>
+    );
+  }
+
+  if (gate === 'denied') {
+    return (
+      <div className="min-h-screen bg-haiti-sand flex flex-col items-center justify-center px-6 text-center">
+        <ShieldCheck className="w-8 h-8 text-brand mb-3" />
+        <h1 className="font-display text-xl font-semibold text-brand-dark">Accès refusé</h1>
+        <p className="text-sm text-slate-500 mt-2 max-w-sm">
+          Cette page est réservée aux administrateurs KlirMarket. Les données KYC et clients ne sont pas chargées.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="mt-6 bg-brand hover:bg-brand-mid text-white px-5 py-2.5 rounded-lg text-sm font-semibold"
+        >
+          Retour à la boutique
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-haiti-sand">

@@ -3,6 +3,7 @@ import type { CartItem, Product } from '../lib/supabase';
 import { getDisplayPrice } from '../lib/supabase';
 import { formatHtg } from '../lib/commerce';
 import { useI18n } from '../i18n';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -80,9 +81,10 @@ export const CartSidebar = ({
                   >
                     <div className="flex gap-4">
                       <img
-                        src={item.product.image_url}
+                        src={catalogImageSrc(item.product.image_url, item.product.id)}
                         alt={item.product.name}
                         className="w-20 h-20 object-cover rounded"
+                        onError={e => handleBrokenImage(e.currentTarget, item.product.id)}
                       />
                       <div className="flex-1">
                         <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2">

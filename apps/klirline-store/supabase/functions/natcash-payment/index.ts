@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendOrderConfirmationEmail } from "../_shared/order-confirm-email.ts";
+import { enforcePaymentCreateLimit, tooManyRequests } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
   "https://klirline-store.pages.dev,https://store.klirline.com,https://klirline.com,https://www.klirline.com,http://localhost:5173,http://localhost:4173")
@@ -417,6 +418,9 @@ Deno.serve(async (req: Request) => {
     );
 
     if ((path === "/create" || path.endsWith("/create")) && req.method === "POST") {
+      const payOk = await enforcePaymentCreateLimit(admin, req);
+      if (!payOk) return tooManyRequests(corsHeaders, 600);
+
       const body = await req.json();
       const orderId = body.orderId as string | undefined;
       const guestToken = (body.guestToken as string | undefined) ?? null;

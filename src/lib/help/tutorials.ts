@@ -169,7 +169,7 @@ export const tutorials: Tutorial[] = [
     category: "metier",
     order: 4,
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_4,
-    relatedHrefs: ["/crm", "/quotes", "/invoices", "/payments"],
+    relatedHrefs: ["/crm", "/crm/prospecteur", "/quotes", "/invoices", "/payments"],
     steps: [
       {
         title: "CRM & pipeline",

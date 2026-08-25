@@ -4,6 +4,7 @@ import { supabase, type Product } from '../lib/supabase';
 import { SellerFulfillmentsPanel } from './SellerFulfillmentsPanel';
 import { SellerPayoutSettings } from './SellerPayoutSettings';
 import { SellerSponsoredPanel } from './SellerSponsoredPanel';
+import { catalogImageSrc, handleBrokenImage } from '../lib/product-image';
 
 interface SellerStats {
   total_products: number;
@@ -360,9 +361,10 @@ function ProductCard({
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
       <div className="relative">
         <img
-          src={product.image_url}
+          src={catalogImageSrc(product.image_url, product.id)}
           alt={product.name}
           className="w-full h-40 object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          onError={e => handleBrokenImage(e.currentTarget, product.id)}
         />
         <div className={`absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full ${product.in_stock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
           {product.in_stock ? 'In Stock' : 'Out of Stock'}

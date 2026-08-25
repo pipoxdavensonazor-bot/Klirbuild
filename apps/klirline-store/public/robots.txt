@@ -8,6 +8,7 @@ Allow: /litiges
 Allow: /retours
 Allow: /sequestre
 Disallow: /admin
+Disallow: /admin/
 Disallow: /api/
 
 Sitemap: https://klirline.com/sitemap.xml
