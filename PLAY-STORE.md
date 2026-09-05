@@ -7,7 +7,10 @@
 | **KlirBuild** | `app.klirline.klirbuild` | `apps/android` |
 | **KlirMarket** | `app.klirline.klirmarket` | `apps/klirmarket-android` |
 
+Fiche store KlirBuild (textes + captures à coller) : [PLAY-STORE-LISTING.md](./PLAY-STORE-LISTING.md)  
 Fiche store KlirMarket (textes) : `play/klirmarket/listing/fr-FR/`
+
+**Statut KlirBuild (2026-09-05)** : fiche FR + images + content ratings + data safety envoyés en revue Google Play.
 
 ## Une seule fois (API upload)
 

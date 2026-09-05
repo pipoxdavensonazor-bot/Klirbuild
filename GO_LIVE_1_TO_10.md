@@ -14,7 +14,10 @@ Health : `curl -sS https://klirline.app/api/health | jq .`
 | 7 | Rotation clés exposées | 📝 à faire côté compte | Voir [SECURITY-ROTATION.md](SECURITY-ROTATION.md) |
 | 8 | Windows `.exe` | ✅ exe + setup NSIS | Artifacts `KlirBuild.exe` + `KlirBuild_0.1.0_x64-setup.exe` |
 | 9 | Android release | ✅ APK + AAB | Artifacts `KlirBuild-release.apk` / `.aab` |
+| 9b | Google Play fiche + revue | ✅ envoyé | Fiche FR, captures, ratings, data safety — en attente validation Google |
 | 10 | Merge PR | ✅ | #17 hosting, #19 admin/ads, #20 stack health |
+| 11 | SEO landing publique | ✅ | `/` indexable + `sitemap.xml` + `robots.txt` |
+| 12 | Première annonce sociale | 📝 prêt | Voir [FIRST-ANNOUNCE.md](FIRST-ANNOUNCE.md) |
 
 ## 1 — Stripe (prod Cloudflare)
 
