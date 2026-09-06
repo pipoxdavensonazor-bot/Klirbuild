@@ -64,7 +64,17 @@ export async function GET(request: Request) {
     }
     return redirect;
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erreur Google OAuth";
-    return NextResponse.redirect(`${appBaseUrl()}/login?error=${encodeURIComponent(msg)}`);
+    const raw = err instanceof Error ? err.message : "Erreur Google OAuth";
+    const msg =
+      /column .* does not exist|does not exist in the current database|P2022/i.test(
+        raw
+      )
+        ? "Base de données non à jour (schéma). Contactez le support KlirBuild."
+        : raw.length > 180
+          ? "Erreur lors de la connexion Google. Réessayez."
+          : raw;
+    return NextResponse.redirect(
+      `${appBaseUrl()}/login?error=${encodeURIComponent(msg)}`
+    );
   }
 }
