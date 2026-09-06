@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 
 type Col = { column_name: string; data_type: string };
 
+/** Colonnes scalaires Company attendues par Prisma (hors relations). */
 const COMPANY_COLUMNS: { name: string; sql: string }[] = [
   { name: "email", sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "email" TEXT` },
   { name: "phone", sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "phone" TEXT` },
@@ -51,6 +52,14 @@ const COMPANY_COLUMNS: { name: string; sql: string }[] = [
   },
   { name: "employerBn", sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "employerBn" TEXT` },
   {
+    name: "createdAt",
+    sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  },
+  {
+    name: "updatedAt",
+    sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  },
+  {
     name: "zernioProfileId",
     sql: `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "zernioProfileId" TEXT`,
   },
@@ -90,19 +99,28 @@ const USER_COLUMNS: { name: string; sql: string }[] = [
 ];
 
 async function listColumns(table: string): Promise<Col[]> {
+  // pg_catalog is more reliable than information_schema with restricted roles.
   return prisma.$queryRawUnsafe<Col[]>(
-    `SELECT column_name, data_type
-     FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = '${table}'
-     ORDER BY column_name`
+    `SELECT a.attname AS column_name,
+            pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
+     FROM pg_catalog.pg_attribute a
+     JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+     JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+     WHERE n.nspname = 'public'
+       AND c.relname = '${table}'
+       AND a.attnum > 0
+       AND NOT a.attisdropped
+     ORDER BY a.attname`
   );
 }
 
 async function tableExists(table: string): Promise<boolean> {
   const rows = await prisma.$queryRawUnsafe<{ exists: boolean }[]>(
     `SELECT EXISTS (
-       SELECT 1 FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = '${table}'
+       SELECT 1
+       FROM pg_catalog.pg_class c
+       JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+       WHERE n.nspname = 'public' AND c.relname = '${table}' AND c.relkind = 'r'
      ) AS exists`
   );
   return Boolean(rows[0]?.exists);
@@ -129,7 +147,7 @@ async function ensureEnums() {
     try {
       await prisma.$executeRawUnsafe(sql);
     } catch {
-      // ignore enum permission / already-exists races
+      // ignore
     }
   }
 }
@@ -153,13 +171,6 @@ async function ensureAccountTable() {
       sql: `CREATE UNIQUE INDEX IF NOT EXISTS "Account_provider_providerAccountId_key"
     ON "Account"("provider", "providerAccountId")`,
     },
-    {
-      name: "fk",
-      sql: `ALTER TABLE "Account"
-      ADD CONSTRAINT "Account_userId_fkey"
-      FOREIGN KEY ("userId") REFERENCES "User"("id")
-      ON DELETE CASCADE ON UPDATE CASCADE`,
-    },
   ];
   const errors: { step: string; message: string }[] = [];
   for (const step of steps) {
@@ -176,14 +187,15 @@ async function ensureAccountTable() {
 }
 
 async function applyMissing(
-  _table: string,
   columns: { name: string; sql: string }[],
   existing: Set<string>
 ) {
   const added: string[] = [];
   const errors: { column: string; message: string }[] = [];
+  const pendingSql: string[] = [];
   for (const col of columns) {
     if (existing.has(col.name)) continue;
+    pendingSql.push(col.sql + ";");
     try {
       await prisma.$executeRawUnsafe(col.sql);
       added.push(col.name);
@@ -194,17 +206,18 @@ async function applyMissing(
       });
     }
   }
-  return { added, errors };
+  return { added, errors, pendingSql };
 }
 
 /**
- * Aligne les colonnes critiques Company/User/Account avec le schéma Prisma
- * (ADD COLUMN IF NOT EXISTS — idempotent, sûr en prod).
+ * Aligne / diagnostique le schéma prod pour Google OAuth.
+ * Si le rôle DB n'est pas owner, retourne le SQL à coller dans Supabase SQL Editor.
  */
 export async function ensureProductionSchema() {
   const before = {
     company: await listColumns("Company").catch(() => [] as Col[]),
     user: await listColumns("User").catch(() => [] as Col[]),
+    account: await listColumns("Account").catch(() => [] as Col[]),
     accountExists: await tableExists("Account").catch(() => false),
   };
 
@@ -213,23 +226,24 @@ export async function ensureProductionSchema() {
   const companyExisting = new Set(before.company.map((c) => c.column_name));
   const userExisting = new Set(before.user.map((c) => c.column_name));
 
-  const company = await applyMissing("Company", COMPANY_COLUMNS, companyExisting);
-  const user = await applyMissing("User", USER_COLUMNS, userExisting);
-
+  const company = await applyMissing(COMPANY_COLUMNS, companyExisting);
+  const user = await applyMissing(USER_COLUMNS, userExisting);
   const accountErrors = await ensureAccountTable();
-  const accountExistsAfter = await tableExists("Account").catch(() => false);
-  const accountCreated = !before.accountExists && accountExistsAfter;
 
   const after = {
     company: (await listColumns("Company").catch(() => [] as Col[])).map(
       (c) => c.column_name
     ),
     user: (await listColumns("User").catch(() => [] as Col[])).map((c) => c.column_name),
-    accountExists: accountExistsAfter,
+    account: (await listColumns("Account").catch(() => [] as Col[])).map(
+      (c) => c.column_name
+    ),
+    accountExists: await tableExists("Account").catch(() => false),
   };
 
-  let companySelectOk = false;
-  let companySelectError: string | null = null;
+  let companyPartialOk = false;
+  let companyFullOk = false;
+  let companyFullError: string | null = null;
   try {
     await prisma.company.findFirst({
       select: {
@@ -245,46 +259,93 @@ export async function ensureProductionSchema() {
         suspended: true,
       },
     });
-    companySelectOk = true;
+    companyPartialOk = true;
   } catch (err) {
-    companySelectError = err instanceof Error ? err.message : String(err);
+    companyFullError = err instanceof Error ? err.message : String(err);
+  }
+  try {
+    // RETURNING * path — surfaces the real missing column name
+    await prisma.company.findFirst();
+    companyFullOk = true;
+  } catch (err) {
+    companyFullError = err instanceof Error ? err.message : String(err);
   }
 
-  let accountSelectOk = false;
-  let accountSelectError: string | null = null;
+  let accountOk = false;
+  let accountError: string | null = null;
   try {
-    await prisma.account.findFirst({
-      select: {
-        id: true,
-        provider: true,
-        providerAccountId: true,
-        userId: true,
-      },
-    });
-    accountSelectOk = true;
+    await prisma.account.findFirst();
+    accountOk = true;
   } catch (err) {
-    accountSelectError = err instanceof Error ? err.message : String(err);
+    accountError = err instanceof Error ? err.message : String(err);
   }
+
+  let createOk = false;
+  let createError: string | null = null;
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.company.create({
+        data: {
+          name: "__schema_probe__",
+          email: "schema-probe@klirbuild.invalid",
+          emailFrom: "schema-probe@klirbuild.invalid",
+          inboxEmail: "schema-probe@inbox.klirline.ca",
+          emailSenderName: "Schema Probe",
+          plan: "starter",
+          subscriptionStatus: "trialing",
+          enabledModules: ["construction-os", "crm"],
+        },
+      });
+      // force rollback
+      throw new Error("SCHEMA_PROBE_ROLLBACK");
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("SCHEMA_PROBE_ROLLBACK")) {
+      createOk = true;
+    } else {
+      createError = msg;
+    }
+  }
+
+  const missingCompany = COMPANY_COLUMNS.map((c) => c.name).filter(
+    (n) => !after.company.includes(n)
+  );
+  const missingUser = USER_COLUMNS.map((c) => c.name).filter(
+    (n) => !after.user.includes(n)
+  );
+
+  const sqlForOwner = [
+    "-- Run as table owner (Supabase SQL Editor / postgres role)",
+    ...company.pendingSql,
+    ...user.pendingSql,
+  ].filter((line, i, arr) => arr.indexOf(line) === i);
+
+  const notOwner =
+    company.errors.some((e) => /must be owner/i.test(e.message)) ||
+    user.errors.some((e) => /must be owner/i.test(e.message));
 
   return {
-    ok:
-      companySelectOk &&
-      accountSelectOk &&
-      company.errors.length === 0 &&
-      user.errors.length === 0,
-    companySelectOk,
-    companySelectError,
-    accountSelectOk,
-    accountSelectError,
-    accountCreated,
-    accountExists: after.accountExists,
+    ok: companyFullOk && accountOk && createOk && missingCompany.length === 0,
+    notOwner,
+    companyPartialOk,
+    companyFullOk,
+    companyFullError,
+    accountOk,
+    accountError,
+    createOk,
+    createError,
+    missingCompany,
+    missingUser,
     accountErrors,
     added: { company: company.added, user: user.added },
     errors: { company: company.errors, user: user.errors },
     columnsBefore: {
       company: before.company.map((c) => c.column_name),
       user: before.user.map((c) => c.column_name),
+      account: before.account.map((c) => c.column_name),
     },
     columnsAfter: after,
+    sqlForOwner,
   };
 }
