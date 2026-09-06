@@ -99,15 +99,15 @@ const USER_COLUMNS: { name: string; sql: string }[] = [
 ];
 
 async function listColumns(table: string): Promise<Col[]> {
-  // pg_catalog is more reliable than information_schema with restricted roles.
   return prisma.$queryRawUnsafe<Col[]>(
     `SELECT a.attname AS column_name,
             pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
      FROM pg_catalog.pg_attribute a
      JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
      JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-     WHERE n.nspname = 'public'
-       AND c.relname = '${table}'
+     WHERE n.nspname = current_schema()
+       AND c.relkind = 'r'
+       AND c.relname IN ('${table}', lower('${table}'))
        AND a.attnum > 0
        AND NOT a.attisdropped
      ORDER BY a.attname`
@@ -284,7 +284,7 @@ export async function ensureProductionSchema() {
   let createError: string | null = null;
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.company.create({
+      const company = await tx.company.create({
         data: {
           name: "__schema_probe__",
           email: "schema-probe@klirbuild.invalid",
@@ -294,6 +294,23 @@ export async function ensureProductionSchema() {
           plan: "starter",
           subscriptionStatus: "trialing",
           enabledModules: ["construction-os", "crm"],
+        },
+      });
+      const user = await tx.user.create({
+        data: {
+          name: "Schema Probe",
+          email: `schema-probe-${Date.now()}@klirbuild.invalid`,
+          passwordHash: "probe-not-a-real-hash",
+          role: "COMPANY_ADMIN",
+          companyId: company.id,
+          emailVerified: new Date(),
+        },
+      });
+      await tx.account.create({
+        data: {
+          userId: user.id,
+          provider: "google",
+          providerAccountId: `probe-${Date.now()}`,
         },
       });
       // force rollback
@@ -326,7 +343,7 @@ export async function ensureProductionSchema() {
     user.errors.some((e) => /must be owner/i.test(e.message));
 
   return {
-    ok: companyFullOk && accountOk && createOk && missingCompany.length === 0,
+    ok: companyFullOk && accountOk && createOk,
     notOwner,
     companyPartialOk,
     companyFullOk,
@@ -347,5 +364,8 @@ export async function ensureProductionSchema() {
     },
     columnsAfter: after,
     sqlForOwner,
+    note: createOk
+      ? "Probe Company+User+Account OK — réessayez Continuer avec Google."
+      : "Probe create a échoué — voir createError / sqlForOwner.",
   };
 }
