@@ -90,7 +90,6 @@ const USER_COLUMNS: { name: string; sql: string }[] = [
 ];
 
 async function listColumns(table: string): Promise<Col[]> {
-  // Table names are internal constants only (never user input).
   return prisma.$queryRawUnsafe<Col[]>(
     `SELECT column_name, data_type
      FROM information_schema.columns
@@ -127,13 +126,19 @@ async function ensureEnums() {
     EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
   ];
   for (const sql of statements) {
-    await prisma.$executeRawUnsafe(sql);
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch {
+      // ignore enum permission / already-exists races
+    }
   }
 }
 
 async function ensureAccountTable() {
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "Account" (
+  const steps: { name: string; sql: string }[] = [
+    {
+      name: "create_table",
+      sql: `CREATE TABLE IF NOT EXISTS "Account" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
       "provider" TEXT NOT NULL,
@@ -141,27 +146,37 @@ async function ensureAccountTable() {
       "accessToken" TEXT,
       "refreshToken" TEXT,
       CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
-    )
-  `);
-  await prisma.$executeRawUnsafe(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "Account_provider_providerAccountId_key"
-    ON "Account"("provider", "providerAccountId")
-  `);
-  // FK may already exist — ignore failures
-  try {
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "Account"
+    )`,
+    },
+    {
+      name: "unique_index",
+      sql: `CREATE UNIQUE INDEX IF NOT EXISTS "Account_provider_providerAccountId_key"
+    ON "Account"("provider", "providerAccountId")`,
+    },
+    {
+      name: "fk",
+      sql: `ALTER TABLE "Account"
       ADD CONSTRAINT "Account_userId_fkey"
       FOREIGN KEY ("userId") REFERENCES "User"("id")
-      ON DELETE CASCADE ON UPDATE CASCADE
-    `);
-  } catch {
-    // constraint already present
+      ON DELETE CASCADE ON UPDATE CASCADE`,
+    },
+  ];
+  const errors: { step: string; message: string }[] = [];
+  for (const step of steps) {
+    try {
+      await prisma.$executeRawUnsafe(step.sql);
+    } catch (err) {
+      errors.push({
+        step: step.name,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
+  return errors;
 }
 
 async function applyMissing(
-  table: string,
+  _table: string,
   columns: { name: string; sql: string }[],
   existing: Set<string>
 ) {
@@ -201,22 +216,18 @@ export async function ensureProductionSchema() {
   const company = await applyMissing("Company", COMPANY_COLUMNS, companyExisting);
   const user = await applyMissing("User", USER_COLUMNS, userExisting);
 
-  let accountCreated = false;
-  if (!before.accountExists) {
-    await ensureAccountTable();
-    accountCreated = true;
-  } else {
-    // still ensure unique index / columns on existing table
-    await ensureAccountTable();
-  }
+  const accountErrors = await ensureAccountTable();
+  const accountExistsAfter = await tableExists("Account").catch(() => false);
+  const accountCreated = !before.accountExists && accountExistsAfter;
 
   const after = {
-    company: (await listColumns("Company")).map((c) => c.column_name),
-    user: (await listColumns("User")).map((c) => c.column_name),
-    accountExists: await tableExists("Account"),
+    company: (await listColumns("Company").catch(() => [] as Col[])).map(
+      (c) => c.column_name
+    ),
+    user: (await listColumns("User").catch(() => [] as Col[])).map((c) => c.column_name),
+    accountExists: accountExistsAfter,
   };
 
-  // Smoke: can we SELECT the oauth-critical columns?
   let companySelectOk = false;
   let companySelectError: string | null = null;
   try {
@@ -239,12 +250,35 @@ export async function ensureProductionSchema() {
     companySelectError = err instanceof Error ? err.message : String(err);
   }
 
+  let accountSelectOk = false;
+  let accountSelectError: string | null = null;
+  try {
+    await prisma.account.findFirst({
+      select: {
+        id: true,
+        provider: true,
+        providerAccountId: true,
+        userId: true,
+      },
+    });
+    accountSelectOk = true;
+  } catch (err) {
+    accountSelectError = err instanceof Error ? err.message : String(err);
+  }
+
   return {
-    ok: companySelectOk && company.errors.length === 0 && user.errors.length === 0,
+    ok:
+      companySelectOk &&
+      accountSelectOk &&
+      company.errors.length === 0 &&
+      user.errors.length === 0,
     companySelectOk,
     companySelectError,
+    accountSelectOk,
+    accountSelectError,
     accountCreated,
     accountExists: after.accountExists,
+    accountErrors,
     added: { company: company.added, user: user.added },
     errors: { company: company.errors, user: user.errors },
     columnsBefore: {
