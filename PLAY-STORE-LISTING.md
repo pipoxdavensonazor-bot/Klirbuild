@@ -101,8 +101,15 @@ https://klirline.app/downloads/KlirBuild-release.aab
 
 ## Checklist Play Console
 
-1. [ ] Fiche FR : coller nom + descriptions  
-2. [ ] Upload icône + bannière + 8 captures  
-3. [ ] Content ratings → Submit  
-4. [ ] Data safety  
-5. [ ] Test interne / Production → Send for review  
+Voir le pack complet (réponses exactes) : [PLAY-STORE-CHECKLIST.md](./PLAY-STORE-CHECKLIST.md)
+
+1. [ ] Fiche FR : coller nom + descriptions **ou** `npm run play:listing`
+2. [ ] Upload icône + bannière (+ 8 captures manuelles)
+3. [ ] Content ratings → Submit
+4. [ ] Target audience 18+
+5. [ ] Data safety
+6. [ ] Government apps → Non
+7. [ ] Financial features → Stripe/MonCash web, pas Play Billing
+8. [ ] Health → Non
+9. [ ] Catégorie Affaires + Contact@klirline.ca
+10. [ ] Test fermé → puis production (12×14 j) 
