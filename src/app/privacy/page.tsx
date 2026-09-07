@@ -50,6 +50,10 @@ export default function PrivacyPage() {
               <a href="mailto:Contact@klirline.ca" className="text-brand-600 hover:underline">
                 Contact@klirline.ca
               </a>
+              . Pour supprimer votre compte :{" "}
+              <Link href="/delete-account" className="text-brand-600 hover:underline">
+                https://klirline.app/delete-account
+              </Link>
               .
             </p>
             <p>
