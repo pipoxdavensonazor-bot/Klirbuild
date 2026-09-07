@@ -22,6 +22,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/privacy",
   "/terms",
+  "/delete-account",
   "/live",
   "/client-live",
   "/offline",
