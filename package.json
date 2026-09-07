@@ -43,6 +43,7 @@
     "klirmarket:android:apk": "npm --prefix apps/klirmarket-android run sync && npm --prefix apps/klirmarket-android run build:release",
     "play:upload": "node scripts/play-upload.mjs",
     "play:publish": "npm run android:release && PLAY_AAB_PATH=apps/android/android/app/build/outputs/bundle/release/app-release.aab npm run play:upload",
+    "play:listing": "node scripts/play-listing-klirbuild.mjs",
     "play:klirmarket": "npm run klirmarket:android:aab && node scripts/play-upload-klirmarket.mjs",
     "play:klirmarket:listing": "node scripts/play-listing-klirmarket.mjs",
     "play:klirmarket:prod": "node scripts/play-promote-klirmarket-prod.mjs",

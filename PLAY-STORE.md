@@ -7,7 +7,16 @@
 | **KlirBuild** | `app.klirline.klirbuild` | `apps/android` |
 | **KlirMarket** | `app.klirline.klirmarket` | `apps/klirmarket-android` |
 
+Fiche store KlirBuild (textes + captures) : [PLAY-STORE-LISTING.md](./PLAY-STORE-LISTING.md)  
+**Pack réponses questionnaires** : [PLAY-STORE-CHECKLIST.md](./PLAY-STORE-CHECKLIST.md)  
 Fiche store KlirMarket (textes) : `play/klirmarket/listing/fr-FR/`
+
+**Statut KlirBuild (2026-09-06)** : setup Play Console **3 / 11** seulement  
+(politique de confidentialité, détails de connexion, pubs).  
+**En attente** : classification contenu, public cible, data safety, apps gouvernementales,  
+fonctionnalités financières, santé, catégorie + contact, fiche store.  
+Tests fermés bloqués tant que le setup n’est pas terminé.  
+Production : après closed testing (≥ 12 testeurs × 14 jours) — **pas live**.
 
 ## Une seule fois (API upload)
 
@@ -27,6 +36,15 @@ Google Play n’accepte l’API que via un **compte de service** :
 export GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=./play-sa.json
 npm run play:publish
 ```
+
+Fiche store (textes fr-FR + icône + feature graphic) :
+
+```bash
+export GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=./play-sa.json
+npm run play:listing
+```
+
+Réponses exactes pour les 8 questionnaires restants : [PLAY-STORE-CHECKLIST.md](./PLAY-STORE-CHECKLIST.md)
 
 ### KlirMarket
 
