@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import { siteName } from "@/lib/utils";
@@ -9,6 +10,9 @@ import {
   DEFAULT_TITLE,
   absoluteUrl,
 } from "@/lib/seo";
+
+/** Google AdSense publisher ID */
+const ADSENSE_CLIENT = "ca-pub-9701452344811975";
 
 const display = Cormorant_Garamond({
   variable: "--font-display",
@@ -63,6 +67,9 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  other: {
+    "google-adsense-account": ADSENSE_CLIENT,
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -79,6 +86,12 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={`${display.variable} ${sans.variable} antialiased`}>
+        <Script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         {children}
       </body>
     </html>
