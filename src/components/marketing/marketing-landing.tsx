@@ -17,6 +17,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { marketingCopy, resolveMarketingLang } from "@/lib/marketing/copy";
+import { demoBookingHref } from "@/lib/marketing/demo-booking";
 import { withTrackingQuery } from "@/lib/marketing/utm";
 
 const FEATURE_ICONS = {
@@ -36,9 +37,9 @@ export function MarketingLanding() {
   const otherLang = lang === "fr" ? "en" : "fr";
   const here = pathname || "/";
 
-  const demoHref = withTrackingQuery("/contact", searchParams, { lang });
+  const trialHref = withTrackingQuery("/register", searchParams);
+  const demoHref = demoBookingHref(searchParams);
   const loginHref = withTrackingQuery("/login", searchParams);
-  const registerHref = withTrackingQuery("/register", searchParams);
   const langHref = withTrackingQuery(here, searchParams, { lang: otherLang });
 
   return (
@@ -65,9 +66,9 @@ export function MarketingLanding() {
             <a href="#fonctionnalites" className="hover:text-white">
               {t.navFeatures}
             </a>
-            <Link href={demoHref} className="hover:text-white">
+            <a href={demoHref} target="_blank" rel="noreferrer" className="hover:text-white">
               {t.navContact}
-            </Link>
+            </a>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
@@ -86,13 +87,15 @@ export function MarketingLanding() {
               {t.login}
             </Link>
             <Link
-              href={demoHref}
+              href={trialHref}
               className={cn(
                 buttonVariants({ size: "sm" }),
                 "bg-[#004F6E] hover:bg-[#003A52] sm:h-10 sm:px-4"
               )}
+              title={t.trial}
             >
-              {t.demoShort}
+              <span className="sm:hidden">{t.trialShort}</span>
+              <span className="hidden sm:inline">{t.trial}</span>
             </Link>
           </div>
         </div>
@@ -123,7 +126,7 @@ export function MarketingLanding() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
-                  href={demoHref}
+                  href={trialHref}
                   className={cn(
                     buttonVariants({ size: "lg" }),
                     "h-12 bg-[#004F6E] px-6 text-base hover:bg-[#003A52]"
@@ -131,19 +134,22 @@ export function MarketingLanding() {
                 >
                   {t.ctaPrimary}
                 </Link>
-                <Link
-                  href={loginHref}
+                <a
+                  href={demoHref}
+                  target="_blank"
+                  rel="noreferrer"
                   className={cn(
                     buttonVariants({ size: "lg", variant: "outline" }),
                     "h-12 border-[#D4AF37]/50 bg-transparent px-6 text-base text-white hover:bg-white/10 hover:text-white"
                   )}
                 >
                   {t.ctaSecondary}
-                </Link>
+                </a>
               </div>
-              <p className="mt-4 text-sm">
-                <Link href={registerHref} className="text-[#D4AF37] underline-offset-2 hover:underline">
-                  {t.signup}
+              <p className="mt-4 text-sm text-white/80">
+                {lang === "fr" ? "Déjà un compte ?" : "Already have an account?"}{" "}
+                <Link href={loginHref} className="text-[#D4AF37] underline-offset-2 hover:underline">
+                  {t.login}
                 </Link>
               </p>
               <p className="mt-8 text-sm font-medium text-white/75">{t.trust}</p>
@@ -256,7 +262,7 @@ export function MarketingLanding() {
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <Link
-                href={demoHref}
+                href={trialHref}
                 className={cn(
                   buttonVariants({ size: "lg" }),
                   "h-12 bg-[#D4AF37] px-6 text-[#0A1C31] hover:bg-[#c4a030]"
@@ -264,15 +270,17 @@ export function MarketingLanding() {
               >
                 {t.ctaPrimary}
               </Link>
-              <Link
-                href={loginHref}
+              <a
+                href={demoHref}
+                target="_blank"
+                rel="noreferrer"
                 className={cn(
                   buttonVariants({ size: "lg", variant: "outline" }),
                   "h-12 border-white/40 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white"
                 )}
               >
                 {t.ctaSecondary}
-              </Link>
+              </a>
             </div>
           </div>
         </section>

@@ -106,7 +106,7 @@ async function main() {
     const home = await get("/");
     const landed =
       home.res.status === 200 &&
-      /KlirBuild|Construction OS|Réserver une démo/i.test(home.text);
+      /KlirBuild|Construction OS|essai 14 jours|Réserver une démo 30 min/i.test(home.text);
     results.push({
       name: "GET / marketing landing (public)",
       ok: landed,

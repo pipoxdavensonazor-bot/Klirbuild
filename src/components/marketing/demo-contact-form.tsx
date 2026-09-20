@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 import { AppFooter } from "@/components/layout/app-footer";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { marketingCopy, resolveMarketingLang } from "@/lib/marketing/copy";
+import { demoBookingHref } from "@/lib/marketing/demo-booking";
 import { DEMO_INBOX, demoMailto, parseDemoRequest } from "@/lib/marketing/demo-request";
 import { pickTrackingParams, withTrackingQuery } from "@/lib/marketing/utm";
+import { cn } from "@/lib/utils";
 
 export function DemoContactForm() {
   const searchParams = useSearchParams();
@@ -29,6 +31,7 @@ export function DemoContactForm() {
   const [loading, setLoading] = useState(false);
 
   const homeHref = withTrackingQuery("/", searchParams, { lang });
+  const calendlyHref = demoBookingHref(searchParams);
   const mailtoHref = (() => {
     const parsed = parseDemoRequest({
       name: name || (lang === "en" ? "Name" : "Nom"),
@@ -136,6 +139,14 @@ export function DemoContactForm() {
             <CardTitle className="text-2xl">{t.contactTitle}</CardTitle>
             <p className="text-sm text-muted-foreground">{t.contactBody}</p>
             <p className="text-sm font-medium text-[#004F6E]">{t.trust}</p>
+            <a
+              href={calendlyHref}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(buttonVariants({ size: "lg" }), "mt-3 h-11 w-full bg-[#004F6E] hover:bg-[#003A52]")}
+            >
+              {t.contactCalendly}
+            </a>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-3">

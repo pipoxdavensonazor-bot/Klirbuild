@@ -30,13 +30,18 @@ test.describe("KlirBuild smoke", () => {
       page.getByRole("heading", { name: /système d.exploitation des chantiers/i })
     ).toBeVisible();
     await expect(page.getByText(/Klirline Inc\./i).first()).toBeVisible();
-    const demo = page
-      .getByRole("link", { name: /réserver une démo|demander une démo/i })
+    const trial = page
+      .getByRole("link", { name: /commencer l.essai 14 jours|essai 14 jours/i })
       .first();
+    await expect(trial).toBeVisible();
+    await expect(trial).toHaveAttribute("href", /\/register/);
+    await expect(trial).toHaveAttribute("href", /utm_source=google/);
+    const demo = page.getByRole("link", { name: /réserver une démo 30 min/i }).first();
     await expect(demo).toBeVisible();
+    await expect(demo).toHaveAttribute("href", /calendly\.com\/contact-klirline-klirbuild\/30min/);
     await expect(demo).toHaveAttribute("href", /utm_source=google/);
+    await expect(demo).toHaveAttribute("target", "_blank");
     await expect(page.getByRole("link", { name: /se connecter/i }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /créer un compte/i }).first()).toBeVisible();
   });
 
   test("dashboard still requires login", async ({ page }) => {

@@ -37,7 +37,7 @@ describe("parseDemoRequest", () => {
     if (!result.ok) return;
     const mailto = demoMailto(result.value);
     expect(mailto.startsWith(`mailto:${DEMO_INBOX}?`)).toBe(true);
-    expect(mailto).toContain(encodeURIComponent("Demande de démo KlirBuild"));
+    expect(mailto).toContain(encodeURIComponent("Démo KlirBuild 30 min"));
     expect(decodeURIComponent(mailto)).toContain("utm_source=google");
   });
 });

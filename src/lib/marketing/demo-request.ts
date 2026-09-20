@@ -88,11 +88,13 @@ export function parseDemoRequest(
 export function demoMailto(value: DemoRequestParsed): string {
   const subject =
     value.lang === "en"
-      ? `KlirBuild demo request — ${value.company}`
-      : `Demande de démo KlirBuild — ${value.company}`;
+      ? `KlirBuild 30-min demo — ${value.company}`
+      : `Démo KlirBuild 30 min — ${value.company}`;
   const utm = trackingSummary(value.tracking);
   const body = [
-    value.lang === "en" ? "I would like a KlirBuild demo." : "Je souhaite réserver une démo KlirBuild.",
+    value.lang === "en"
+      ? "I would like to book a 30-minute KlirBuild demo."
+      : "Je souhaite réserver une démo KlirBuild de 30 minutes.",
     "",
     `${value.lang === "en" ? "Name" : "Nom"}: ${value.name}`,
     `Email: ${value.email}`,
