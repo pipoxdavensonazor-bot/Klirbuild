@@ -23,6 +23,31 @@ test.describe("KlirBuild smoke", () => {
     ).toBeVisible();
   });
 
+  test("marketing landing is public", async ({ page }) => {
+    await page.goto("/?utm_source=google&utm_campaign=qc");
+    await expect(page).not.toHaveURL(/login/);
+    await expect(
+      page.getByRole("heading", { name: /système d.exploitation des chantiers/i })
+    ).toBeVisible();
+    await expect(page.getByText(/Klirline Inc\./i).first()).toBeVisible();
+    const trial = page
+      .getByRole("link", { name: /commencer l.essai 14 jours|essai 14 jours/i })
+      .first();
+    await expect(trial).toBeVisible();
+    await expect(trial).toHaveAttribute("href", /\/register/);
+    await expect(trial).toHaveAttribute("href", /utm_source=google/);
+    const demo = page.getByRole("link", { name: /réserver une démo 30 min/i }).first();
+    await expect(demo).toBeVisible();
+    await expect(demo).toHaveAttribute("href", /mailto:Contact@klirline\.ca/);
+    await expect(demo).toHaveAttribute("href", /30%20min/);
+    await expect(page.getByRole("link", { name: /se connecter/i }).first()).toBeVisible();
+  });
+
+  test("dashboard still requires login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/login/);
+  });
+
   test("session API returns unauthenticated without cookie", async ({ request }) => {
     const res = await request.get("/api/auth/session");
     expect(res.status()).toBe(200);

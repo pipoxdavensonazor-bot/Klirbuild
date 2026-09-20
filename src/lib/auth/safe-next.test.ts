@@ -13,4 +13,11 @@ describe("sanitizeNextPath", () => {
     expect(sanitizeNextPath("/\\evil.com")).toBe("/dashboard");
     expect(sanitizeNextPath(null)).toBe("/dashboard");
   });
+
+  it("envoie le post-login vers le dashboard depuis les pages marketing", () => {
+    expect(sanitizeNextPath("/")).toBe("/dashboard");
+    expect(sanitizeNextPath("/accueil")).toBe("/dashboard");
+    expect(sanitizeNextPath("/marketing?utm_source=google")).toBe("/dashboard");
+    expect(sanitizeNextPath("/contact")).toBe("/dashboard");
+  });
 });

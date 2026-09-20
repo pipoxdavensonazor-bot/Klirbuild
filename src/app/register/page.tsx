@@ -85,14 +85,14 @@ function RegisterForm() {
           <CardHeader className="items-center text-center">
             <KlirBuildLogo className="mb-3 h-[64px] w-[176px]" priority />
             <CardTitle>
-              {inviteToken ? "Accepter l'invitation" : "Créer votre entreprise"}
+              {inviteToken ? "Accepter l'invitation" : "Commencer l'essai 14 jours"}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {inviteToken
                 ? companyName
                   ? `Rejoignez ${companyName} sur KlirBuild.`
                   : "Complétez votre profil pour rejoindre l'équipe."
-                : "Crée votre entreprise + compte admin. Nécessite une base Postgres en production."}
+                : "Créez votre entreprise et votre compte admin. Essai de 14 jours — carte non exigée à l'inscription."}
             </p>
           </CardHeader>
           <CardContent>
@@ -134,7 +134,7 @@ function RegisterForm() {
                   ? "Création…"
                   : inviteToken
                     ? "Rejoindre l'équipe"
-                    : "Inscription"}
+                    : "Commencer l'essai"}
               </Button>
             </form>
             <p className="mt-3 text-center text-xs text-muted-foreground">

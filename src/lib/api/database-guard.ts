@@ -28,6 +28,7 @@ export const API_DB_WHITELIST = [
   "/api/stripe",
   "/api/cron",
   "/api/uploads",
+  "/api/public",
 ] as const;
 
 export function apiRequiresDatabase(pathname: string) {
