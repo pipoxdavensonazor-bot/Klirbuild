@@ -23,6 +23,27 @@ test.describe("KlirBuild smoke", () => {
     ).toBeVisible();
   });
 
+  test("marketing landing is public", async ({ page }) => {
+    await page.goto("/?utm_source=google&utm_campaign=qc");
+    await expect(page).not.toHaveURL(/login/);
+    await expect(
+      page.getByRole("heading", { name: /système d.exploitation des chantiers/i })
+    ).toBeVisible();
+    await expect(page.getByText(/Klirline Inc\./i).first()).toBeVisible();
+    const demo = page
+      .getByRole("link", { name: /réserver une démo|demander une démo/i })
+      .first();
+    await expect(demo).toBeVisible();
+    await expect(demo).toHaveAttribute("href", /utm_source=google/);
+    await expect(page.getByRole("link", { name: /se connecter/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /créer un compte/i }).first()).toBeVisible();
+  });
+
+  test("dashboard still requires login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/login/);
+  });
+
   test("session API returns unauthenticated without cookie", async ({ request }) => {
     const res = await request.get("/api/auth/session");
     expect(res.status()).toBe(200);

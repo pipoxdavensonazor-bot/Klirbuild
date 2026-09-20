@@ -257,6 +257,11 @@ export function LoginForm() {
                     Créer un compte
                   </Link>
                 </div>
+                <p className="mt-3 text-center text-xs text-white/70">
+                  <Link href="/" className="text-[#D4AF37] hover:underline">
+                    Découvrir KlirBuild
+                  </Link>
+                </p>
                 {!nativeApp ? (
                   <div className="mt-5 space-y-2 border-t border-white/15 pt-4 lg:mt-6 lg:pt-5">
                     <p className="text-center text-xs font-medium text-white">

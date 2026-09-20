@@ -103,6 +103,24 @@ async function main() {
   }
 
   try {
+    const home = await get("/");
+    const landed =
+      home.res.status === 200 &&
+      /KlirBuild|Construction OS|Réserver une démo/i.test(home.text);
+    results.push({
+      name: "GET / marketing landing (public)",
+      ok: landed,
+      detail: `HTTP ${home.res.status}`,
+    });
+  } catch (e) {
+    results.push({
+      name: "GET / marketing landing (public)",
+      ok: false,
+      detail: e instanceof Error ? e.message : "Network error",
+    });
+  }
+
+  try {
     const bad = await fetch(`${url}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

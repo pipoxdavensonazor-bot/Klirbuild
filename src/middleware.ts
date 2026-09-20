@@ -5,6 +5,7 @@ import {
   databaseRequiredResponse,
   hasDatabaseUrl,
 } from "@/lib/api/database-guard";
+import { isUnauthenticatedPublicPath } from "@/lib/marketing/public-paths";
 import { securityHeaders } from "@/lib/security/csp";
 import { can, type Permission, type Role } from "@/types";
 
@@ -16,21 +17,9 @@ function withSecurityHeaders(response: NextResponse) {
   return response;
 }
 
-const PUBLIC_PATHS = [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/privacy",
-  "/terms",
-  "/live",
-  "/client-live",
-  "/offline",
-  "/download",
-  "/invite",
-];
-
 /**
  * La connexion est obligatoire par défaut (SIGN IN / SIGN UP requis).
+ * `/`, `/accueil`, `/marketing` et `/contact` restent publics (landing).
  * Mettre DEMO_AUTH_BYPASS="true" uniquement pour une démo sans login.
  */
 const DEMO_AUTH_BYPASS =
@@ -83,7 +72,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (
-    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    isUnauthenticatedPublicPath(pathname, request.headers.get("user-agent")) ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next") ||
     pathname.includes(".")
