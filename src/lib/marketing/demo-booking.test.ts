@@ -1,33 +1,49 @@
 import { describe, expect, it } from "vitest";
+import { DEMO_INBOX } from "@/lib/marketing/demo-request";
 import {
-  DEFAULT_DEMO_BOOKING_URL,
+  DEMO_MAILTO_SUBJECT,
   demoBookingHref,
+  demoMailtoFallback,
+  isExternalDemoBooking,
   resolveDemoBookingUrl,
 } from "@/lib/marketing/demo-booking";
 
 describe("resolveDemoBookingUrl", () => {
-  it("defaults to the KlirBuild Calendly event", () => {
-    expect(resolveDemoBookingUrl(undefined)).toBe(DEFAULT_DEMO_BOOKING_URL);
-    expect(resolveDemoBookingUrl("")).toBe(DEFAULT_DEMO_BOOKING_URL);
+  it("falls back to mailto when the env var is unset", () => {
+    const href = resolveDemoBookingUrl(undefined);
+    expect(href).toBe(demoMailtoFallback());
+    expect(href.startsWith(`mailto:${DEMO_INBOX}?`)).toBe(true);
+    expect(href).toContain(encodeURIComponent(DEMO_MAILTO_SUBJECT));
+    expect(resolveDemoBookingUrl("")).toBe(demoMailtoFallback());
   });
 
-  it("accepts an https override and rejects unsafe values", () => {
-    expect(resolveDemoBookingUrl("https://calendly.com/other/15min")).toBe(
-      "https://calendly.com/other/15min"
+  it("uses a safe https override when set", () => {
+    expect(resolveDemoBookingUrl("https://calendly.com/other/30min")).toBe(
+      "https://calendly.com/other/30min"
     );
-    expect(resolveDemoBookingUrl("javascript:alert(1)")).toBe(DEFAULT_DEMO_BOOKING_URL);
-    expect(resolveDemoBookingUrl("http://evil.test")).toBe(DEFAULT_DEMO_BOOKING_URL);
+    expect(resolveDemoBookingUrl("javascript:alert(1)")).toBe(demoMailtoFallback());
+    expect(resolveDemoBookingUrl("http://evil.test")).toBe(demoMailtoFallback());
   });
 });
 
 describe("demoBookingHref", () => {
-  it("appends UTM params for Calendly attribution", () => {
+  it("puts UTMs in the mailto body when Calendly is unset", () => {
     const href = demoBookingHref(
       new URLSearchParams("utm_source=google&utm_campaign=qc&lang=fr")
     );
-    expect(href.startsWith(DEFAULT_DEMO_BOOKING_URL)).toBe(true);
+    expect(href.startsWith(`mailto:${DEMO_INBOX}?`)).toBe(true);
+    expect(decodeURIComponent(href)).toContain("utm_source=google");
+    expect(isExternalDemoBooking(href)).toBe(false);
+  });
+
+  it("appends UTM params to an https booking URL", () => {
+    const href = demoBookingHref(
+      new URLSearchParams("utm_source=google&utm_campaign=qc&lang=fr"),
+      "https://calendly.com/contact-klirline-klirbuild/30min"
+    );
+    expect(href).toContain("calendly.com/contact-klirline-klirbuild/30min");
     expect(href).toContain("utm_source=google");
-    expect(href).toContain("utm_campaign=qc");
     expect(href).not.toContain("lang=fr");
+    expect(isExternalDemoBooking(href)).toBe(true);
   });
 });

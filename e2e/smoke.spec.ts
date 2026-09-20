@@ -38,9 +38,8 @@ test.describe("KlirBuild smoke", () => {
     await expect(trial).toHaveAttribute("href", /utm_source=google/);
     const demo = page.getByRole("link", { name: /réserver une démo 30 min/i }).first();
     await expect(demo).toBeVisible();
-    await expect(demo).toHaveAttribute("href", /calendly\.com\/contact-klirline-klirbuild\/30min/);
-    await expect(demo).toHaveAttribute("href", /utm_source=google/);
-    await expect(demo).toHaveAttribute("target", "_blank");
+    await expect(demo).toHaveAttribute("href", /mailto:Contact@klirline\.ca/);
+    await expect(demo).toHaveAttribute("href", /30%20min/);
     await expect(page.getByRole("link", { name: /se connecter/i }).first()).toBeVisible();
   });
 

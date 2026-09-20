@@ -17,7 +17,7 @@ import { AppFooter } from "@/components/layout/app-footer";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { marketingCopy, resolveMarketingLang } from "@/lib/marketing/copy";
-import { demoBookingHref } from "@/lib/marketing/demo-booking";
+import { demoBookingHref, isExternalDemoBooking } from "@/lib/marketing/demo-booking";
 import { withTrackingQuery } from "@/lib/marketing/utm";
 
 const FEATURE_ICONS = {
@@ -39,6 +39,10 @@ export function MarketingLanding() {
 
   const trialHref = withTrackingQuery("/register", searchParams);
   const demoHref = demoBookingHref(searchParams);
+  const demoOpensExternally = isExternalDemoBooking(demoHref);
+  const demoLinkProps = demoOpensExternally
+    ? ({ target: "_blank", rel: "noreferrer" } as const)
+    : {};
   const loginHref = withTrackingQuery("/login", searchParams);
   const langHref = withTrackingQuery(here, searchParams, { lang: otherLang });
 
@@ -66,7 +70,7 @@ export function MarketingLanding() {
             <a href="#fonctionnalites" className="hover:text-white">
               {t.navFeatures}
             </a>
-            <a href={demoHref} target="_blank" rel="noreferrer" className="hover:text-white">
+            <a href={demoHref} {...demoLinkProps} className="hover:text-white">
               {t.navContact}
             </a>
           </nav>
@@ -136,8 +140,7 @@ export function MarketingLanding() {
                 </Link>
                 <a
                   href={demoHref}
-                  target="_blank"
-                  rel="noreferrer"
+                  {...demoLinkProps}
                   className={cn(
                     buttonVariants({ size: "lg", variant: "outline" }),
                     "h-12 border-[#D4AF37]/50 bg-transparent px-6 text-base text-white hover:bg-white/10 hover:text-white"
@@ -272,8 +275,7 @@ export function MarketingLanding() {
               </Link>
               <a
                 href={demoHref}
-                target="_blank"
-                rel="noreferrer"
+                {...demoLinkProps}
                 className={cn(
                   buttonVariants({ size: "lg", variant: "outline" }),
                   "h-12 border-white/40 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white"
