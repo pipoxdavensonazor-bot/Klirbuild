@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DailyRoomEmbed } from "@/components/meetings/daily-room-embed";
+import { LiveStage } from "@/components/meetings/live-stage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
@@ -9,11 +9,13 @@ import { KlirBuildLogo } from "@/components/brand/klirline-logo";
 
 export function PublicLiveClient({ slug }: { slug: string }) {
   const [title, setTitle] = useState("Live KlirBuild");
+  const [liveId, setLiveId] = useState("");
   const [userName, setUserName] = useState("");
   const [roomUrl, setRoomUrl] = useState("");
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [joined, setJoined] = useState(false);
+  const [liveUrl, setLiveUrl] = useState("");
 
   const loadMeta = useCallback(async () => {
     const res = await fetch(apiUrl(`/api/public/live/${slug}`));
@@ -25,6 +27,10 @@ export function PublicLiveClient({ slug }: { slug: string }) {
     setTitle(
       data.live?.title || data.meeting?.title || "Live public KlirBuild"
     );
+    if (typeof data.live?.id === "string") setLiveId(data.live.id);
+    if (typeof window !== "undefined") {
+      setLiveUrl(`${window.location.origin}/live/${slug}`);
+    }
   }, [slug]);
 
   useEffect(() => {
@@ -44,6 +50,7 @@ export function PublicLiveClient({ slug }: { slug: string }) {
     }
     setRoomUrl(data.roomUrl);
     setToken(data.token);
+    if (typeof data.live?.id === "string") setLiveId(data.live.id);
     setJoined(true);
     setError("");
   }
@@ -80,8 +87,17 @@ export function PublicLiveClient({ slug }: { slug: string }) {
             </div>
             <Button onClick={() => void join()}>Rejoindre</Button>
           </div>
-        ) : roomUrl ? (
-          <DailyRoomEmbed roomUrl={roomUrl} token={token} title={title} />
+        ) : roomUrl && liveId ? (
+          <LiveStage
+            liveId={liveId}
+            roomUrl={roomUrl}
+            token={token}
+            title={title}
+            liveUrl={liveUrl}
+            publicSlug={slug}
+            isHost={false}
+            viewerName={userName || "Spectateur"}
+          />
         ) : null}
       </div>
     </div>
