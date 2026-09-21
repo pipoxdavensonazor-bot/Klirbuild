@@ -98,6 +98,7 @@ model Company {
   employees          EmployeeProfile[]
   meetings           Meeting[]
   liveSessions       LiveSession[]
+  liveComments       LiveComment[]
   feedPosts          FeedPost[]
   deleteRequests     DeleteRequest[]
   companyBackups     CompanyBackup[]
@@ -1032,10 +1033,27 @@ model LiveSession {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   posts         FeedPost[]
+  comments      LiveComment[]
 
   @@unique([companyId, slug])
   @@index([companyId, status])
   @@index([slug])
+}
+
+/// Chat / commentaires pendant un live (host + spectateurs)
+model LiveComment {
+  id            String      @id @default(cuid())
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  authorName    String
+  authorUserId  String?
+  body          String
+  createdAt     DateTime    @default(now())
+
+  @@index([liveSessionId, createdAt])
+  @@index([companyId, createdAt])
 }
 
 model FeedPost {

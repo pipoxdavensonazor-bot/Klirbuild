@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCompanyContext } from "@/lib/auth/require-company";
+import { sanitizeNextPath } from "@/lib/auth/safe-next";
 import { connectSocialAccountViaKlirline } from "@/lib/social-ads/social-ads-service";
 import { connectZernioCallbackAccount } from "@/lib/social-ads/zernio-connections-service";
 import { isZernioEnabled, syncZernioAccounts } from "@/lib/social-ads/zernio-service";
@@ -13,6 +14,7 @@ export const runtime = "nodejs";
  * Zernio: ?company_id=...&connected=facebook&accountId=...&username=...
  *
  * company_id in the query is validated against the signed session — never trusted alone.
+ * Optional `return` (relative path) sends the user back to Feed / Live after connect.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -27,11 +29,25 @@ export async function GET(request: Request) {
   const zernioAccountId = url.searchParams.get("accountId")?.trim();
   const username = url.searchParams.get("username")?.trim();
   const displayName = url.searchParams.get("displayName")?.trim();
+  const returnPath = sanitizeNextPath(
+    url.searchParams.get("return"),
+    "/social-ads"
+  );
 
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://www.klirline.app";
-  const redirectBase = `${appUrl}/social-ads`;
-  const loginUrl = `${appUrl}/login?next=${encodeURIComponent("/social-ads?tab=connections")}`;
+  const redirectBase =
+    returnPath === "/social-ads" || returnPath.startsWith("/social-ads?")
+      ? `${appUrl}/social-ads`
+      : `${appUrl}${returnPath.split("?")[0]}`;
+  const successQs = (extra: string) => {
+    const joiner = redirectBase.includes("?") ? "&" : "?";
+    if (returnPath.startsWith("/feed") || returnPath.startsWith("/meetings")) {
+      return `${redirectBase}${joiner}${extra}`;
+    }
+    return `${redirectBase}?tab=connections&${extra}`;
+  };
+  const loginUrl = `${appUrl}/login?next=${encodeURIComponent(returnPath)}`;
 
   const auth = await requireCompanyContext();
   if (auth instanceof NextResponse) {
@@ -41,7 +57,7 @@ export async function GET(request: Request) {
   const companyId = auth.companyId;
   if (claimedCompanyId && claimedCompanyId !== companyId) {
     return NextResponse.redirect(
-      `${redirectBase}?error=${encodeURIComponent("Entreprise OAuth non autorisée")}&tab=connections`
+      successQs(`error=${encodeURIComponent("Entreprise OAuth non autorisée")}`)
     );
   }
 
@@ -62,7 +78,9 @@ export async function GET(request: Request) {
       /* redirect anyway */
     }
     return NextResponse.redirect(
-      `${redirectBase}?tab=connections&connected=${encodeURIComponent(connected)}&provider=zernio`
+      successQs(
+        `connected=${encodeURIComponent(connected)}&provider=zernio`
+      )
     );
   }
 
@@ -73,13 +91,15 @@ export async function GET(request: Request) {
       /* redirect anyway */
     }
     return NextResponse.redirect(
-      `${redirectBase}?tab=connections&connected=${encodeURIComponent(platform)}&provider=zernio`
+      successQs(
+        `connected=${encodeURIComponent(platform)}&provider=zernio`
+      )
     );
   }
 
   if (status !== "ok") {
     return NextResponse.redirect(
-      `${redirectBase}?error=${encodeURIComponent("Connexion annulée ou échouée")}&tab=connections`
+      successQs(`error=${encodeURIComponent("Connexion annulée ou échouée")}`)
     );
   }
 
@@ -91,6 +111,6 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.redirect(
-    `${redirectBase}?tab=connections&connected=${encodeURIComponent(platform)}`
+    successQs(`connected=${encodeURIComponent(platform)}`)
   );
 }
