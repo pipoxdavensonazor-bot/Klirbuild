@@ -88,6 +88,7 @@ async function persistPrisma(
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     email?: string;
+    trialEndsAt?: Date | null;
   }
 ) {
   if (!hasDatabase()) return;
@@ -102,6 +103,7 @@ async function persistPrisma(
         subscriptionStatus: toPrismaStatus(patch.subscriptionStatus),
         stripeCustomerId: patch.stripeCustomerId ?? undefined,
         stripeSubscriptionId: patch.stripeSubscriptionId ?? undefined,
+        trialEndsAt: patch.trialEndsAt ?? undefined,
         enabledModules: ["construction-os"],
       },
       update: {
@@ -109,6 +111,9 @@ async function persistPrisma(
         subscriptionStatus: toPrismaStatus(patch.subscriptionStatus),
         stripeCustomerId: patch.stripeCustomerId ?? undefined,
         stripeSubscriptionId: patch.stripeSubscriptionId ?? undefined,
+        ...(patch.trialEndsAt !== undefined
+          ? { trialEndsAt: patch.trialEndsAt }
+          : {}),
         ...(patch.email ? { email: patch.email } : {}),
       },
     });
@@ -214,4 +219,41 @@ export async function updateBillingStatus(
     stripeSubscriptionId: current.stripeSubscriptionId,
   });
   return getBillingState(companyId);
+}
+
+/** Active un plan après paiement MonCash one-shot (période mensuelle/annuelle). */
+export async function activateFromMonCashPayment(input: {
+  companyId: string;
+  plan: SubscriptionPlanId;
+  cycle: "monthly" | "yearly";
+  email?: string;
+  transactionId?: string | null;
+  periodEndsAt: Date;
+}) {
+  const stripeSubscriptionId = input.transactionId
+    ? `moncash:${input.transactionId}`
+    : `moncash:${input.cycle}:${Date.now()}`;
+
+  if (!hasDatabase()) {
+    updateSubscription(
+      {
+        plan: input.plan,
+        billingCycle: input.cycle,
+        subscriptionStatus: "active",
+        stripeSubscriptionId,
+        ...(input.email ? { email: input.email } : {}),
+      },
+      input.companyId
+    );
+  }
+
+  await persistPrisma(input.companyId, {
+    plan: input.plan,
+    subscriptionStatus: "active",
+    stripeSubscriptionId,
+    email: input.email,
+    trialEndsAt: input.periodEndsAt,
+  });
+
+  return getBillingState(input.companyId);
 }

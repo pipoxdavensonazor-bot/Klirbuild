@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, CreditCard, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { Check, CreditCard, ExternalLink, Loader2, Smartphone, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,14 @@ type StripeStatus = {
   modeHint: string;
 };
 
+type MonCashStatus = {
+  configured: boolean;
+  env: "sandbox" | "live" | null;
+  label: string;
+};
+
+type PayMethod = "stripe" | "moncash";
+
 export default function BillingPage() {
   const searchParams = useSearchParams();
   const planId = useSessionStore((s) => s.plan);
@@ -42,6 +50,8 @@ export default function BillingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
+  const [moncashStatus, setMoncashStatus] = useState<MonCashStatus | null>(null);
+  const [payMethod, setPayMethod] = useState<PayMethod>("stripe");
   const [enterpriseFormOpen, setEnterpriseFormOpen] = useState(false);
   const current = getPlan(planId);
 
@@ -81,11 +91,117 @@ export default function BillingPage() {
           modeHint: "unknown",
         })
       );
+    fetch(apiUrl("/api/billing/moncash/status"))
+      .then((r) => r.json())
+      .then((d: MonCashStatus) => {
+        setMoncashStatus(d);
+        if (d?.configured) setPayMethod((prev) => prev);
+      })
+      .catch(() =>
+        setMoncashStatus({ configured: false, env: null, label: "MonCash" })
+      );
   }, []);
 
   useEffect(() => {
     const checkout = searchParams.get("checkout");
     const sessionId = searchParams.get("session_id");
+    const moncash = searchParams.get("moncash");
+    const orderId = searchParams.get("orderId");
+    const token = searchParams.get("token");
+
+    if (moncash === "1" && orderId) {
+      setMessage("Vérification du paiement MonCash…");
+      fetch(apiUrl("/api/billing/moncash/verify"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderId, token }),
+      })
+        .then(async (r) => {
+          const d = await r.json();
+          if (!r.ok) {
+            throw new Error(d.error || d.message || "Paiement MonCash non confirmé");
+          }
+          return d;
+        })
+        .then((d) => {
+          if (d.ok && d.plan) {
+            syncBilling({
+              plan: d.plan,
+              billingCycle: d.billingCycle,
+              subscriptionStatus: d.subscriptionStatus,
+            });
+            setMessage(
+              `Abonnement ${getPlan(d.plan).name} activé via MonCash${
+                d.amountHtg ? ` (${d.amountHtg} HTG)` : ""
+              }.`
+            );
+            setError("");
+            sessionStorage.removeItem("klir_moncash_plan");
+          } else {
+            setError(d.message || d.error || "Paiement MonCash non confirmé");
+          }
+        })
+        .catch((e) =>
+          setError(e instanceof Error ? e.message : "Erreur vérification MonCash")
+        );
+      return;
+    }
+
+    // Retour Digicel sans query orderId — reprendre depuis sessionStorage
+    if (moncash === "1" || searchParams.get("transactionId") || searchParams.get("transaction_id")) {
+      try {
+        const raw = sessionStorage.getItem("klir_moncash_plan");
+        if (raw) {
+          const saved = JSON.parse(raw) as { orderId?: string; token?: string };
+          if (saved.orderId) {
+            setMessage("Vérification du paiement MonCash…");
+            fetch(apiUrl("/api/billing/moncash/verify"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                orderId: saved.orderId,
+                token: saved.token,
+              }),
+            })
+              .then(async (r) => {
+                const d = await r.json();
+                if (!r.ok) {
+                  throw new Error(d.error || d.message || "Paiement MonCash non confirmé");
+                }
+                return d;
+              })
+              .then((d) => {
+                if (d.ok && d.plan) {
+                  syncBilling({
+                    plan: d.plan,
+                    billingCycle: d.billingCycle,
+                    subscriptionStatus: d.subscriptionStatus,
+                  });
+                  setMessage(
+                    `Abonnement ${getPlan(d.plan).name} activé via MonCash${
+                      d.amountHtg ? ` (${d.amountHtg} HTG)` : ""
+                    }.`
+                  );
+                  setError("");
+                  sessionStorage.removeItem("klir_moncash_plan");
+                } else {
+                  setError(d.message || d.error || "Paiement MonCash non confirmé");
+                }
+              })
+              .catch((e) =>
+                setError(
+                  e instanceof Error ? e.message : "Erreur vérification MonCash"
+                )
+              );
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     if (checkout === "success" && sessionId) {
       fetch(
@@ -154,9 +270,54 @@ export default function BillingPage() {
       return;
     }
 
+    if (payMethod === "moncash") {
+      if (moncashStatus && !moncashStatus.configured) {
+        setError(
+          "MonCash n'est pas configuré. Ajoutez MONCASH_CLIENT_ID / MONCASH_CLIENT_SECRET, ou choisissez Stripe."
+        );
+        return;
+      }
+      setLoadingPlan(id);
+      try {
+        const res = await fetch(apiUrl("/api/billing/moncash/checkout"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ plan: id, cycle: billingCycle }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = `/login?next=${encodeURIComponent("/billing")}`;
+            return;
+          }
+          setError(data.error || "Erreur MonCash");
+          return;
+        }
+        if (data.token) {
+          sessionStorage.setItem(
+            "klir_moncash_plan",
+            JSON.stringify({
+              orderId: data.orderId,
+              token: data.token,
+              returnUrl: data.returnUrl,
+            })
+          );
+        }
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+          return;
+        }
+        setError("URL MonCash manquante");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erreur réseau");
+      } finally {
+        setLoadingPlan(null);
+      }
+      return;
+    }
+
     if (stripeStatus?.configured !== false) {
-      // Allow checkout while status loads, or when connected.
-      // Only hard-block when we know Stripe is not configured.
       if (stripeStatus && !stripeStatus.connected && !stripeStatus.configured) {
         setError("Paiement indisponible — Stripe n'est pas connecté. Contactez le support.");
         return;
@@ -195,7 +356,13 @@ export default function BillingPage() {
       return;
     }
 
-    setError("Paiement indisponible — Stripe n'est pas connecté. Contactez le support.");
+    if (moncashStatus?.configured) {
+      setPayMethod("moncash");
+      setError("Stripe indisponible — basculez sur MonCash puis réessayez.");
+      return;
+    }
+
+    setError("Paiement indisponible — configurez Stripe ou MonCash.");
   }
 
   return (
@@ -208,7 +375,7 @@ export default function BillingPage() {
       />
       <PageHeader
         title="Abonnements KlirBuild"
-        description="Choisissez un plan. Paiement via Stripe Checkout (cartes + méthodes activées dans le Dashboard)."
+        description="Choisissez un plan. Payez par carte (Stripe) ou MonCash Digicel (Haïti)."
         actions={
           <div className="flex rounded-lg border border-border p-1">
             <button
@@ -238,6 +405,61 @@ export default function BillingPage() {
           </div>
         }
       />
+
+      <Card className="mb-4">
+        <CardContent className="flex flex-col gap-3 p-4 text-sm">
+          <p className="font-medium">Mode de paiement</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setPayMethod("stripe")}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-3 py-3 text-left transition",
+                payMethod === "stripe"
+                  ? "border-brand-500 bg-brand-50/60 dark:bg-brand-950/30"
+                  : "border-border hover:border-brand-300"
+              )}
+            >
+              <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
+              <span>
+                <span className="block font-medium">Stripe</span>
+                <span className="text-xs text-muted-foreground">
+                  Carte · Interac · Apple Pay · abonnement récurrent
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPayMethod("moncash")}
+              disabled={moncashStatus?.configured === false}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border px-3 py-3 text-left transition",
+                payMethod === "moncash"
+                  ? "border-brand-500 bg-brand-50/60 dark:bg-brand-950/30"
+                  : "border-border hover:border-brand-300",
+                moncashStatus?.configured === false && "cursor-not-allowed opacity-50"
+              )}
+            >
+              <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
+              <span>
+                <span className="block font-medium">MonCash</span>
+                <span className="text-xs text-muted-foreground">
+                  Digicel Haïti · paiement mobile en HTG
+                  {moncashStatus?.configured
+                    ? ` · ${moncashStatus.env || "sandbox"}`
+                    : " · non configuré"}
+                </span>
+              </span>
+            </button>
+          </div>
+          {payMethod === "moncash" ? (
+            <p className="text-xs text-muted-foreground">
+              MonCash active le plan pour 1 mois ou 1 an (paiement unique). Le renouvellement se
+              fait manuellement.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card className="mb-4">
         <CardContent className="flex flex-col gap-2 p-4 text-sm">
@@ -416,13 +638,21 @@ export default function BillingPage() {
                       {busy ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Redirection Stripe…
+                          {payMethod === "moncash"
+                            ? "Redirection MonCash…"
+                            : "Redirection Stripe…"}
                         </>
                       ) : plan.id === "enterprise" ? (
                         <>
                           <Sparkles className="h-4 w-4" />
                           Nous contacter
                         </>
+                      ) : payMethod === "moncash" ? (
+                        moncashStatus?.configured ? (
+                          `Payer MonCash — ${plan.name}`
+                        ) : (
+                          `MonCash indisponible`
+                        )
                       ) : stripeStatus?.connected ? (
                         `Payer — ${plan.name}`
                       ) : stripeStatus?.configured ? (
