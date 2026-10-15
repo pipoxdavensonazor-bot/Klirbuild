@@ -1,0 +1,24 @@
+# Apply Cloudflare zone auth fix for Clerk (klirline.ca)
+# Runs only on this ops branch so master deploys are not triggered.
+name: Cloudflare auth zone fix
+
+on:
+  push:
+    branches: [cursor/cf-disable-under-attack-6707]
+  workflow_dispatch:
+
+jobs:
+  fix-zone:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Disable Under Attack Mode and grey-cloud Clerk CNAMEs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_NAME: klirline.ca
+        run: |
+          chmod +x scripts/cloudflare-fix-auth-zone.sh
+          scripts/cloudflare-fix-auth-zone.sh
