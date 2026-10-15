@@ -48,7 +48,7 @@ jobs:
 
       - name: Setup Android SDK
         if: ${{ inputs.build_android != false }}
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install root deps (googleapis)
         run: npm ci
