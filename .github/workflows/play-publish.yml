@@ -87,7 +87,7 @@ jobs:
         run: npm run play:upload
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: klirbuild-play-aab
           path: apps/android/android/app/build/outputs/bundle/release/*.aab

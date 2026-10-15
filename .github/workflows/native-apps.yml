@@ -58,7 +58,7 @@ jobs:
           ./gradlew assembleDebug assembleRelease bundleRelease
 
       - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: klirbuild-android
           path: |
@@ -89,7 +89,7 @@ jobs:
         run: npm run build
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: klirbuild-windows
           path: |
