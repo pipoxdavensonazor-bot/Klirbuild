@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hasDatabase } from "@/lib/auth/auth-service";
@@ -22,7 +23,9 @@ export async function POST(request: Request) {
     }
   } else {
     const header = request.headers.get("x-webhook-secret") || "";
-    if (header !== secret) {
+    const actual = crypto.createHash('sha256').update(header).digest();
+    const expected = crypto.createHash('sha256').update(secret).digest();
+    if (!crypto.timingSafeEqual(actual, expected)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
