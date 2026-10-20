@@ -136,7 +136,7 @@ export async function upsertTask(
 export async function deleteTask(companyId: string, id: string) {
   if (!hasDatabase()) return { error: DATABASE_REQUIRED_MESSAGE };
   const deleted = await prisma.task.deleteMany({
-    where: { id, project: { companyId } },
+    where: { id: { equals: id }, project: { companyId: { equals: companyId } } },
   });
   if (deleted.count === 0) return { error: "Tâche introuvable." as const };
   return { ok: true as const };
