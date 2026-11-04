@@ -7,11 +7,9 @@ Compte qui contrôle **toutes les entreprises** indépendamment + revenus **pubs
 | Champ | Valeur |
 |-------|--------|
 | URL | https://klirline.app/login |
-| Email | `admin@klirline.ca` |
-| Mot de passe | `KlirAdmin!2026` (à changer après 1ère connexion) |
+| Email | `admin@klirline.ca` (ou `PLATFORM_ADMIN_EMAIL`) |
+| Mot de passe | **aucun défaut.** Définir `PLATFORM_ADMIN_PASSWORD` (12+ caractères) au moment du seed. |
 | Console | https://klirline.app/platform |
-
-Override possible via env : `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD`.
 
 ## Capacités
 
@@ -46,4 +44,4 @@ PLATFORM_ADMIN_PASSWORD='…' npx tsx scripts/seed-platform-admin.ts
 npm run db:seed
 ```
 
-**Important :** changez le mot de passe admin dès la première connexion (Paramètres / reset).
+Le seed complet ne réécrit un mot de passe existant que si `ALLOW_SEED_PASSWORD_RESET=true`. Le script `seed-platform-admin.ts` exige `PLATFORM_ADMIN_PASSWORD` et met à jour le hash : c’est le chemin explicite de rotation applicative.

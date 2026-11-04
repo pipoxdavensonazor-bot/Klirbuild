@@ -49,7 +49,7 @@ npm run db:push
 npm run db:seed
 ```
 
-Le seed crée : `alex@klirline.demo` / `password` (entreprise démo).
+Le seed crée l’entreprise démo sans réécrire un mot de passe déjà en base. Pour un mot de passe local, définir `SEED_DEMO_PASSWORD` (et `PLATFORM_ADMIN_PASSWORD` pour l’admin plateforme). Aucune valeur par défaut.
 
 ---
 
@@ -152,7 +152,7 @@ Réponse `/api/health` attendue :
 |------|--------------|
 | `DEMO_AUTH_BYPASS=false` | Connexion obligatoire |
 | Avec `DATABASE_URL` | Inscription crée Company + User en Postgres |
-| Sans DB (dev seulement) | Démo `alex@klirline.demo` / `password` |
+| Sans DB (dev seulement) | Login local uniquement si `NODE_ENV` n’est pas `production`. Ne pas réutiliser en prod. |
 
 **Inscription** : `/register` — crée une entreprise + admin (nécessite Postgres).
 

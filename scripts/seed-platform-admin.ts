@@ -14,8 +14,12 @@ const scryptAsync = promisify(scrypt);
 const PLATFORM_COMPANY_ID = "klirline_platform";
 const EMAIL =
   process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || "admin@klirline.ca";
-const PASSWORD =
-  process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "KlirAdmin!2026";
+const PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "";
+if (!PASSWORD || PASSWORD.length < 12 || PASSWORD === "KlirAdmin!2026" || PASSWORD === "password") {
+  throw new Error(
+    "PLATFORM_ADMIN_PASSWORD requis (12+ caractères). Aucun mot de passe par défaut."
+  );
+}
 
 function connectionString() {
   const raw = process.env.DATABASE_URL?.trim();

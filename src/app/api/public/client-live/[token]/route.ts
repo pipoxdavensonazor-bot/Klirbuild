@@ -8,6 +8,7 @@ import {
   getMeetingByShareToken,
   issueMeetingJoinToken,
 } from "@/lib/meetings/meetings-service";
+import { clientIdsForViewer, shareAllowsClient } from "@/lib/meetings/share-access";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,11 @@ export async function GET(request: Request, { params }: Params) {
   }
 
   const audience = live?.audience ?? meeting!.audience;
+  const tokenClientIds = live?.clientIds ?? meeting!.clientIds ?? [];
   if (audience !== "clients" && audience !== "public") {
+    return NextResponse.json({ error: "Accès client refusé." }, { status: 403 });
+  }
+  if (clientId && !shareAllowsClient({ audience, clientIds: tokenClientIds, clientId })) {
     return NextResponse.json({ error: "Accès client refusé." }, { status: 403 });
   }
 
@@ -35,10 +40,11 @@ export async function GET(request: Request, { params }: Params) {
     feed = await listClientFeed(clientId, token);
   }
 
+  const visibleIds = clientIdsForViewer(tokenClientIds, clientId);
   return NextResponse.json({
     type: live ? "live" : "meeting",
-    live: live ?? null,
-    meeting: meeting ?? null,
+    live: live ? { ...live, clientIds: visibleIds } : null,
+    meeting: meeting ? { ...meeting, clientIds: visibleIds } : null,
     feed: feed && !("error" in feed) ? feed : null,
   });
 }

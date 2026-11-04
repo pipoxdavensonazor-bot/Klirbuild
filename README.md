@@ -24,7 +24,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) → public marketing landing. Sign in at `/login`. Authenticated visits to `/` go to `/dashboard`.
 
-Sign in is **required** by default. Without a database, use the demo account `alex@klirline.demo` / `password`. Set `DEMO_AUTH_BYPASS=true` only for a local demo without login.
+Sign in is **required** by default. Without a database, a local development login exists only when `NODE_ENV` is not `production` (see `src/lib/auth/auth-service.ts`). Do not seed that password into production. Set `DEMO_AUTH_BYPASS=true` only for a local demo without login.
 
 ## Connect the database
 

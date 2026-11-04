@@ -117,6 +117,18 @@ async function persistPrisma(
   }
 }
 
+export async function findCompanyIdByStripeCustomer(
+  customerId: string
+): Promise<string | null> {
+  const id = customerId.trim();
+  if (!id || !hasDatabase()) return null;
+  const company = await prisma.company.findFirst({
+    where: { stripeCustomerId: id },
+    select: { id: true },
+  });
+  return company?.id ?? null;
+}
+
 export async function getBillingState(companyId = DEMO_COMPANY_ID) {
   const fromDb = await readFromPrisma(companyId);
   if (fromDb) return fromDb;

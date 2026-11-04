@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { generateOpaqueToken } from "@/lib/auth/token-hash";
 import { prisma } from "@/lib/db";
 import { canApp, type AppPermission } from "@/lib/workforce/types";
 import type { Role } from "@/types";
@@ -156,6 +157,7 @@ export async function createMeeting(input: {
       startsAt: input.startsAt ?? new Date(),
       allowedRoles: input.allowedRoles ?? [],
       clientIds: input.clientIds ?? [],
+      shareToken: generateOpaqueToken(),
     },
   });
 

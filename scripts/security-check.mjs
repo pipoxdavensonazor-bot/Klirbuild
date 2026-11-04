@@ -107,6 +107,14 @@ for (const file of codeFiles) {
       ) {
         continue;
       }
+      // Static JSON-LD only, with `<` escaped so it cannot break out of <script>.
+      if (
+        text.includes("function jsonLdHtml") &&
+        text.includes("JSON.stringify") &&
+        text.includes("\\\\u003c")
+      ) {
+        continue;
+      }
       errors.push(`${rel}: dangerouslySetInnerHTML sans sanitization`);
       continue;
     }

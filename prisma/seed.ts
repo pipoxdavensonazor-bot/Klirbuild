@@ -19,8 +19,16 @@ const DEMO_COMPANY_ID = "demo_klirbuild";
 const PLATFORM_COMPANY_ID = "klirline_platform";
 const PLATFORM_ADMIN_EMAIL =
   process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || "admin@klirline.ca";
-const PLATFORM_ADMIN_PASSWORD =
-  process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "KlirAdmin!2026";
+const PLATFORM_ADMIN_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD?.trim() || "";
+const SEED_DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD?.trim() || "";
+const ALLOW_SEED_PASSWORD_RESET = process.env.ALLOW_SEED_PASSWORD_RESET === "true";
+
+function assertNotPredictable(label: string, value: string) {
+  if (!value) return;
+  if (value === "password" || value === "KlirAdmin!2026" || value === "Klirline@Admin2026") {
+    throw new Error(`${label} refusé : mot de passe prévisible retiré du dépôt.`);
+  }
+}
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -31,7 +39,11 @@ async function hashPassword(password: string) {
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await hashPassword("password");
+  assertNotPredictable("SEED_DEMO_PASSWORD", SEED_DEMO_PASSWORD);
+  assertNotPredictable("PLATFORM_ADMIN_PASSWORD", PLATFORM_ADMIN_PASSWORD);
+  const demoPasswordHash = SEED_DEMO_PASSWORD
+    ? await hashPassword(SEED_DEMO_PASSWORD)
+    : await hashPassword(randomBytes(24).toString("base64url"));
 
   const company = await prisma.company.upsert({
     where: { id: DEMO_COMPANY_ID },
@@ -55,11 +67,16 @@ async function main() {
     create: {
       name: "Alex Rivera",
       email: "alex@klirline.demo",
-      passwordHash,
+      passwordHash: demoPasswordHash,
       role: "COMPANY_ADMIN",
       companyId: company.id,
     },
-    update: { passwordHash, name: "Alex Rivera" },
+    update: {
+      name: "Alex Rivera",
+      ...(SEED_DEMO_PASSWORD && ALLOW_SEED_PASSWORD_RESET
+        ? { passwordHash: demoPasswordHash }
+        : {}),
+    },
   });
 
   await prisma.employeeProfile.upsert({
@@ -547,23 +564,28 @@ async function main() {
     },
   });
 
-  const adminPasswordHash = await hashPassword(PLATFORM_ADMIN_PASSWORD);
+  const adminPasswordHash = PLATFORM_ADMIN_PASSWORD
+    ? await hashPassword(PLATFORM_ADMIN_PASSWORD)
+    : null;
   await prisma.user.upsert({
     where: { email: PLATFORM_ADMIN_EMAIL },
     create: {
       name: "Admin KlirBuild",
       email: PLATFORM_ADMIN_EMAIL,
-      passwordHash: adminPasswordHash,
+      passwordHash:
+        adminPasswordHash ?? (await hashPassword(randomBytes(24).toString("base64url"))),
       role: "SUPER_ADMIN",
       isPlatformAdmin: true,
       companyId: platformCompany.id,
     },
     update: {
-      passwordHash: adminPasswordHash,
       role: "SUPER_ADMIN",
       isPlatformAdmin: true,
       companyId: platformCompany.id,
       name: "Admin KlirBuild",
+      ...(adminPasswordHash && ALLOW_SEED_PASSWORD_RESET
+        ? { passwordHash: adminPasswordHash }
+        : {}),
     },
   });
 
@@ -592,13 +614,18 @@ async function main() {
     });
   }
 
-  console.log("Seed OK:", company.name, "— alex@klirline.demo / password");
+  console.log("Seed OK:", company.name, "— alex@klirline.demo (mot de passe inchangé s'il existait déjà)");
+  if (!SEED_DEMO_PASSWORD) {
+    console.log("SEED_DEMO_PASSWORD absent : nouvel utilisateur démo avec secret aléatoire, non affiché.");
+  }
   console.log(
     "Platform admin:",
     PLATFORM_ADMIN_EMAIL,
-    "/",
-    PLATFORM_ADMIN_PASSWORD,
-    "→ /platform"
+    PLATFORM_ADMIN_PASSWORD
+      ? ALLOW_SEED_PASSWORD_RESET
+        ? "(mot de passe défini via env et réécrit)"
+        : "(mot de passe env ignoré sur un compte existant — ALLOW_SEED_PASSWORD_RESET=true pour réécrire)"
+      : "(PLATFORM_ADMIN_PASSWORD absent — mot de passe existant conservé)"
   );
 }
 

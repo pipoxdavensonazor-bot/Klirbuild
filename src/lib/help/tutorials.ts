@@ -39,7 +39,7 @@ export const tutorials: Tutorial[] = [
       {
         time: "0:00",
         title: "Connexion",
-        body: "Connectez-vous avec votre courriel professionnel sur /login. Compte démo : alex@klirline.demo / password.",
+        body: "Connectez-vous avec votre courriel professionnel sur /login.",
         href: "/login",
       },
       {
