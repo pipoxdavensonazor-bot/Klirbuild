@@ -7,4 +7,6 @@
 /sitemap.xml   /sitemap.xml   200
 /favicon.svg   /favicon.svg   200
 /favicon.png   /favicon.png   200
+# Android App Links must return the JSON statement, not the SPA shell.
+/.well-known/assetlinks.json    /.well-known/assetlinks.json    200
 /*             /index.html    200
