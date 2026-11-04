@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.klirline.klirmarket",
+      "sha256_cert_fingerprints": [
+        "69:46:73:83:BC:BB:5B:B4:90:E9:FF:3F:C5:43:A0:52:D1:8C:96:9E:05:7C:7C:41:91:CA:98:1B:41:04:E5:6A"
+      ]
+    }
+  }
+]
