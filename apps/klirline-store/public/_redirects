@@ -1,4 +1,7 @@
 # Static assets & Pages Functions first; SPA fallback last
+# Password recovery (Supabase redirectTo) must serve the SPA, including the query/hash.
+/reset-password    /index.html    200
+/reset-password/   /index.html    200
 /robots.txt    /robots.txt    200
 /llms.txt      /llms.txt      200
 /sitemap.xml   /sitemap.xml   200

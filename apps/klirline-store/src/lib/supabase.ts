@@ -1,4 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  emptyAuthRedirectSnapshot,
+  readAuthRedirectSnapshot,
+  type AuthRedirectSnapshot,
+} from './password-recovery';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -6,10 +11,83 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 /** True when env is missing — app runs on curated demo catalog. */
 export const isDemoMode = !supabaseUrl || !supabaseAnonKey;
 
+function peekPkcePasswordRecovery(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key?.endsWith('-code-verifier')) continue;
+      const marker = (localStorage.getItem(key) ?? '').split('/')[1];
+      if (marker === 'PASSWORD_RECOVERY') return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Captured before the auth client starts. supabase-js strips ?code= / #access_token
+ * during init, and a PKCE recovery verifier is deleted as soon as it is exchanged.
+ */
+export const authRedirectSnapshot: AuthRedirectSnapshot =
+  typeof window === 'undefined' ? emptyAuthRedirectSnapshot : readAuthRedirectSnapshot(window.location.href);
+
+/** True when this browser asked for a reset email and still holds the PKCE verifier. */
+export const pendingPkcePasswordRecovery = peekPkcePasswordRecovery();
+
 export const supabase: SupabaseClient = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'public-anon-key'
 );
+
+type AuthSignals = { passwordRecovery: boolean; signedIn: boolean };
+
+const authSignals: AuthSignals = { passwordRecovery: false, signedIn: false };
+const authSignalListeners = new Set<() => void>();
+
+export function peekAuthSignals(): AuthSignals {
+  return authSignals;
+}
+
+/** Replay-safe subscription. Registered at startup so early auth events are not missed. */
+export function subscribeAuthSignals(listener: () => void): () => void {
+  authSignalListeners.add(listener);
+  if (authSignals.passwordRecovery || authSignals.signedIn) listener();
+  return () => {
+    authSignalListeners.delete(listener);
+  };
+}
+
+function emitAuthSignal(event: 'PASSWORD_RECOVERY' | 'SIGNED_IN') {
+  if (event === 'PASSWORD_RECOVERY') authSignals.passwordRecovery = true;
+  if (event === 'SIGNED_IN') authSignals.signedIn = true;
+  authSignalListeners.forEach((listener) => listener());
+}
+
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') emitAuthSignal(event);
+  });
+}
+
+let recoveryOtpVerify: Promise<{ ok: boolean; expired: boolean }> | null = null;
+
+/** Email templates that pass token_hash (instead of a PKCE code) land here. */
+export function verifyRecoveryTokenHash(tokenHash: string): Promise<{ ok: boolean; expired: boolean }> {
+  if (!recoveryOtpVerify) {
+    recoveryOtpVerify = supabase.auth
+      .verifyOtp({ type: 'recovery', token_hash: tokenHash })
+      .then(({ data, error }) => {
+        if (error || !data.session) {
+          const blob = `${error?.message ?? ''}`.toLowerCase();
+          return { ok: false, expired: blob.includes('expir') };
+        }
+        return { ok: true, expired: false };
+      });
+  }
+  return recoveryOtpVerify;
+}
 
 export type Category = {
   id: string;

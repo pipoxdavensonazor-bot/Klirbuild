@@ -19,6 +19,7 @@ import { HomeFeed } from './components/HomeFeed';
 import { WhatsAppFab } from './components/WhatsAppFab';
 import { StoreFooter } from './components/StoreFooter';
 import { LegalPage } from './components/LegalPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { useCart } from './hooks/useCart';
 import { useWishlist } from './hooks/useWishlist';
 import { LocaleProvider } from './i18n';
@@ -32,6 +33,7 @@ import {
   parseProductIdFromPath,
   productPath,
   legalPath,
+  isResetPasswordPath,
   type LegalSlug,
 } from './lib/routing';
 import { searchCatalog } from './lib/searchCatalog';
@@ -41,7 +43,7 @@ import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
 const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v3';
 const CATALOG_TTL_MS = 60_000;
 
-type View = 'shop' | 'dashboard' | 'orders' | 'product' | 'wishlist' | 'account' | 'admin' | 'legal';
+type View = 'shop' | 'dashboard' | 'orders' | 'product' | 'wishlist' | 'account' | 'admin' | 'legal' | 'reset-password';
 
 const DEFAULT_FILTERS: Filters = {
   categoryId: '', department: '', minPrice: '', maxPrice: '',
@@ -50,7 +52,7 @@ const DEFAULT_FILTERS: Filters = {
 
 function ShopApp() {
   const { user } = useAuth();
-  const [view, setView] = useState<View>('shop');
+  const [view, setView] = useState<View>(() => (isResetPasswordPath() ? 'reset-password' : 'shop'));
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,9 +99,16 @@ function ShopApp() {
     fetchCategories();
   }, []);
 
-  // Deep-link /produit/:id, /cgv|/confidentialite|/litiges + browser back/forward
+  // Deep-link /produit/:id, legal pages, /reset-password + browser back/forward
   useEffect(() => {
     const openFromPath = () => {
+      if (isResetPasswordPath()) {
+        setLegalSlug(null);
+        setSelectedProduct(null);
+        setView('reset-password');
+        return;
+      }
+
       const legal = parseLegalSlugFromPath();
       if (legal) {
         setLegalSlug(legal);
@@ -121,7 +130,9 @@ function ShopApp() {
 
       setSelectedProduct(null);
       setLegalSlug(null);
-      setView(current => (current === 'product' || current === 'legal' ? 'shop' : current));
+      setView(current => (
+        current === 'product' || current === 'legal' || current === 'reset-password' ? 'shop' : current
+      ));
     };
 
     openFromPath();
@@ -525,6 +536,10 @@ function ShopApp() {
   };
 
   // ── Views that replace the full page ──────────────────────────────────────
+
+  if (view === 'reset-password') {
+    return <ResetPasswordPage onDone={() => goShop(true)} />;
+  }
 
   if (view === 'product' && selectedProduct) {
     return (
