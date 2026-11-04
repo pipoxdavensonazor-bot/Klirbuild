@@ -23,7 +23,7 @@ import { useCart } from './hooks/useCart';
 import { useWishlist } from './hooks/useWishlist';
 import { LocaleProvider } from './i18n';
 import { supabase, isDemoMode, type Product, type Category } from './lib/supabase';
-import { isJunkProductName, CATEGORY_TO_DEPARTMENT } from './lib/brand';
+import { isJunkProductName, isSellerListedProduct, CATEGORY_TO_DEPARTMENT } from './lib/brand';
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from './lib/demo-products';
 import { trackAddToCart, trackDepartment, trackProductView } from './lib/activity';
 import {
@@ -38,7 +38,7 @@ import { searchCatalog } from './lib/searchCatalog';
 import { applyHomeSeo } from './lib/seo';
 import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
 
-const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v2';
+const CATALOG_CACHE_KEY = 'klirline_catalog_cache_v3';
 const CATALOG_TTL_MS = 60_000;
 
 type View = 'shop' | 'dashboard' | 'orders' | 'product' | 'wishlist' | 'account' | 'admin' | 'legal';
@@ -243,8 +243,11 @@ function ShopApp() {
       const cached = sessionStorage.getItem(CATALOG_CACHE_KEY);
       if (cached) {
         const { at, products: cachedProducts } = JSON.parse(cached) as { at: number; products: Product[] };
-        if (Date.now() - at < CATALOG_TTL_MS && cachedProducts?.length) {
-          setProducts(cachedProducts);
+        const listed = (cachedProducts ?? []).filter(
+          p => isSellerListedProduct(p) && !isJunkProductName(p.name),
+        );
+        if (Date.now() - at < CATALOG_TTL_MS && listed.length) {
+          setProducts(listed);
           setLoading(false);
           hadCache = true;
         }
@@ -263,6 +266,7 @@ function ShopApp() {
     const { data, error } = await supabase
       .from('products')
       .select('*, categories(name)')
+      .not('seller_id', 'is', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -276,7 +280,7 @@ function ShopApp() {
     }
 
     const cleaned = (data ?? [])
-      .filter(p => !isJunkProductName(p.name))
+      .filter(p => isSellerListedProduct(p) && !isJunkProductName(p.name))
       .map(p => {
         const row = p as Product & { categories?: { name?: string } | null };
         const catName = row.categories?.name;
@@ -287,8 +291,9 @@ function ShopApp() {
         return { ...rest, department } as Product;
       });
     if (cleaned.length === 0) {
-      setProducts(DEMO_PRODUCTS);
-      setCatalogNotice('Live catalog was empty or only contained test listings. Showing curated demo products.');
+      // Live API answered. Do not substitute the offline demo set.
+      setProducts([]);
+      try { sessionStorage.removeItem(CATALOG_CACHE_KEY); } catch { /* ignore */ }
     } else {
       setProducts(cleaned);
       try {
@@ -304,11 +309,24 @@ function ShopApp() {
       return;
     }
     const { data, error } = await supabase.from('categories').select('*').order('name');
-    if (error || !data?.length) {
+    if (error) {
       setCategories(DEMO_CATEGORIES);
       return;
     }
-    setCategories(data);
+    const { data: listed, error: listedError } = await supabase
+      .from('products')
+      .select('category_id')
+      .not('seller_id', 'is', null);
+    if (listedError) {
+      setCategories(data ?? []);
+      return;
+    }
+    const used = new Set(
+      (listed ?? [])
+        .map(row => row.category_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    );
+    setCategories((data ?? []).filter(cat => used.has(cat.id)));
   };
 
   const fetchUserMeta = async () => {

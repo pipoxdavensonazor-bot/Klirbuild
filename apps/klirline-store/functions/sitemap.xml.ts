@@ -52,7 +52,7 @@ export async function onRequestGet(context) {
   if (supabaseUrl && key) {
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/products?select=id,name,image_url,images,created_at,in_stock&in_stock=eq.true&order=created_at.desc&limit=5000`,
+        `${supabaseUrl}/rest/v1/products?select=id,name,image_url,images,created_at,in_stock&in_stock=eq.true&seller_id=not.is.null&order=created_at.desc&limit=5000`,
         {
           headers: {
             apikey: key,

@@ -78,6 +78,15 @@ export function labelDepartment(
   return locale === 'ht' ? entry.ht : entry.fr;
 }
 
+/**
+ * Live catalog rows must belong to a real seller.
+ * Seed/demo leftovers have `seller_id` null and stay out of storefront queries.
+ * Offline `DEMO_PRODUCTS` also use a null seller and are not passed through here.
+ */
+export function isSellerListedProduct(product: { seller_id?: string | null }): boolean {
+  return typeof product.seller_id === 'string' && product.seller_id.length > 0;
+}
+
 /** Heuristic: throwaway / test listings that should not appear in the catalog. */
 export function isJunkProductName(name: string): boolean {
   const n = name.trim();
