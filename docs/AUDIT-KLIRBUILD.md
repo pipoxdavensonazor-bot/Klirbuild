@@ -1,6 +1,8 @@
 # Audit KlirBuild (lecture seule)
 
-Date : 2026-11-04. Périmètre : dépôt `pipoxdavensonazor-bot/Klirbuild` (privé), commit `23b8842` sur `master`. Aucun code applicatif modifié. Les constats marqués **vérifié** ont une preuve dans le dépôt ou une sonde HTTP publique. Le reste est **hypothèse**.
+Date : 2026-11-04. Périmètre : dépôt `pipoxdavensonazor-bot/Klirbuild` (privé), commit `23b8842` sur `master`. Les constats marqués **vérifié** ont une preuve dans le dépôt ou une sonde HTTP publique. Le reste est **hypothèse**.
+
+**Action manuelle (Philippe) :** le script `promote-admin.sql` a été retiré du dépôt. Il faut quand même tourner à la main le mot de passe Supabase Auth de `contact@klirline.ca` et vérifier `pipoxdavensonazor@gmail.com`. Le code ne peut pas le faire. Détail : `SECURITY-ROTATION.md`.
 
 Produit : Construction OS (ERP chantier, CRM, estimés, CCQ Québec, paiements). Runtime observé : Worker OpenNext derrière `https://klirline.app` et `https://klirbuild.pipoxdavensonazor.workers.dev` (`x-opennext: 1`, `server: cloudflare`, `GET /api/health` → 200). `https://klirbuild.vercel.app` renvoie `DEPLOYMENT_NOT_FOUND`. L’id Worker `a88ca49a37d74ca1977c442fd05c3f43` n’apparaît pas dans le dépôt (contexte externe, non revérifié ici).
 

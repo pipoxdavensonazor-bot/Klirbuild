@@ -10,6 +10,7 @@ Des clés ont circulé dans des sessions agent / chat. **À faire dans les dashb
 | Mot de passe DB Supabase `klirbuild` | Supabase → Database | Nouveau `DATABASE_URL` + `wrangler secret put DATABASE_URL` |
 | `BETTER_AUTH_SECRET` | générer localement | `wrangler secret put BETTER_AUTH_SECRET` |
 | Keystore Android | régénérer si exposé | Nouveau keystore + `keystore.properties` local (gitignoré) |
+| Mot de passe Auth Supabase `contact@klirline.ca` | Supabase → Authentication → Users (projet store, ancien script `promote-admin.sql`) | **Philippe doit le tourner à la main.** Le dépôt ne peut pas le faire. Vérifier aussi `pipoxdavensonazor@gmail.com` : retirer `is_admin` s’il ne doit plus l’être, ou tourner son mot de passe. Ne pas recréer de script SQL avec un mot de passe. |
 
 ### Générer un secret auth
 
