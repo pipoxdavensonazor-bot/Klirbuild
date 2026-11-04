@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getUpload, getUploadMetadata } from "@/lib/storage/blobs";
 import { resolveServeHeaders } from "@/lib/security/upload-security";
+import { authorizeUploadRead } from "@/lib/storage/upload-access";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ key: string[] }> }
 ) {
   const { key: parts } = await context.params;
@@ -19,6 +20,16 @@ export async function GET(
     key.includes("\\")
   ) {
     return NextResponse.json({ error: "Clé invalide." }, { status: 400 });
+  }
+
+  const url = new URL(request.url);
+  const access = await authorizeUploadRead({
+    key,
+    exp: url.searchParams.get("exp"),
+    sig: url.searchParams.get("sig"),
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
   const data = await getUpload(key);

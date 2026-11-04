@@ -1,4 +1,5 @@
 import { getBackupsKv, getUploadsKv } from "@/lib/storage/kv";
+import { signedUploadQuery } from "@/lib/storage/upload-access";
 
 /**
  * Uploads enabled when Workers KV UPLOADS_KV is bound,
@@ -54,7 +55,7 @@ export async function getUploadMetadata(key: string) {
 
 export function publicUploadUrl(key: string, baseUrl: string) {
   const path = key.split("/").map(encodeURIComponent).join("/");
-  return `${baseUrl.replace(/\/$/, "")}/api/uploads/${path}`;
+  return `${baseUrl.replace(/\/$/, "")}/api/uploads/${path}?${signedUploadQuery(key)}`;
 }
 
 /** @deprecated Prefer getBackupsKv from kv.ts */
