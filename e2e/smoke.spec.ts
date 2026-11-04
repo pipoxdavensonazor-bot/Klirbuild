@@ -9,8 +9,13 @@ test.describe("KlirBuild smoke", () => {
     const health = await request.get("/api/health");
     expect([200, 503]).toContain(health.status());
     const body = await health.json();
-    expect(body.checks?.authSecret).toBeTruthy();
-    expect(body.checks?.stripePrices).toBeTruthy();
+    if (health.status() === 200) {
+      expect(body.status).toBe("ok");
+      expect(body.checks?.app?.ok).toBe(true);
+      // Détails (authSecret, stripePrices) uniquement sur /api/health?detail=1.
+      expect(body.checks?.authSecret).toBeUndefined();
+      expect(body.checks?.stripePrices).toBeUndefined();
+    }
 
     await page.goto("/login");
     await expect(

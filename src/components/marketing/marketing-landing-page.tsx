@@ -9,13 +9,18 @@ function LandingFallback() {
   );
 }
 
+/** Static JSON-LD. Escape `<` so a future string cannot close the script tag. */
+function jsonLdHtml(data: object) {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 export function MarketingLandingPage() {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLdHtml({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
             name: "KlirBuild",

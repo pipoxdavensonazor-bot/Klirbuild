@@ -66,18 +66,14 @@ async function main() {
       detail: `HTTP ${health.res.status} · status=${status ?? "?"}`,
     });
     results.push({
-      name: "health.checks.stripePrices présent",
-      ok: Boolean(checks.stripePrices),
-      detail: checks.stripePrices
-        ? `ok=${Boolean(checks.stripePrices.ok)}`
-        : "manquant",
-    });
-    results.push({
-      name: "health.checks.authSecret présent",
-      ok: Boolean(checks.authSecret),
-      detail: checks.authSecret
-        ? `ok=${Boolean(checks.authSecret.ok)}`
-        : "manquant",
+      name: "health public: app ok, pas de détail infra",
+      ok:
+        health.res.status !== 200 ||
+        (Boolean(checks.app?.ok) && !checks.authSecret && !checks.stripePrices),
+      detail:
+        health.res.status === 200
+          ? `app=${Boolean(checks.app?.ok)} googleOAuth=${Boolean(checks.googleOAuth)}`
+          : `HTTP ${health.res.status}`,
     });
   } catch (e) {
     results.push({
