@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getBillingState,
+  findCompanyIdByStripeCustomer,
   syncFromCheckoutSession,
   syncFromStripeSubscription,
   updateBillingStatus,
@@ -57,26 +57,21 @@ export async function POST(request: Request) {
       await syncFromStripeSubscription(sub);
       break;
     }
-    case "invoice.paid": {
-      const invoice = event.data.object as Stripe.Invoice;
-      const customerId =
-        typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
-      if (!customerId) break;
-      const current = await getBillingState();
-      if (current.stripeCustomerId === customerId) {
-        await updateBillingStatus(current.companyId, "active");
-      }
-      break;
-    }
+    case "invoice.paid":
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
       const customerId =
         typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
       if (!customerId) break;
-      const current = await getBillingState();
-      if (current.stripeCustomerId === customerId) {
-        await updateBillingStatus(current.companyId, "past_due");
+      const companyId = await findCompanyIdByStripeCustomer(customerId);
+      if (!companyId) {
+        console.warn("[stripe/webhook] client Stripe sans entreprise", customerId);
+        break;
       }
+      await updateBillingStatus(
+        companyId,
+        event.type === "invoice.paid" ? "active" : "past_due"
+      );
       break;
     }
     default:
