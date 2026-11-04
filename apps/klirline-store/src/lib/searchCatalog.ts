@@ -1,5 +1,5 @@
 import { supabase, isDemoMode, type Product } from './supabase';
-import { CATEGORY_TO_DEPARTMENT, isJunkProductName } from './brand';
+import { CATEGORY_TO_DEPARTMENT, isJunkProductName, isSellerListedProduct } from './brand';
 import { DEMO_PRODUCTS } from './demo-products';
 
 function mapProductRow(p: Product & { categories?: { name?: string } | null }): Product {
@@ -60,13 +60,14 @@ export async function searchCatalog(
   const rpc = await supabase.rpc('search_products', { q, lim: limit });
   if (!rpc.error && Array.isArray(rpc.data)) {
     return (rpc.data as Product[])
-      .filter(p => !isJunkProductName(p.name))
+      .filter(p => isSellerListedProduct(p) && !isJunkProductName(p.name))
       .map(p => mapProductRow(p as Product & { categories?: { name?: string } | null }));
   }
 
   const { data, error } = await supabase
     .from('products')
     .select('*, categories(name)')
+    .not('seller_id', 'is', null)
     .or(`name.ilike.${pattern},brand.ilike.${pattern},description.ilike.${pattern}`)
     .order('sponsored', { ascending: false, nullsFirst: false })
     .order('rating', { ascending: false })
@@ -77,6 +78,6 @@ export async function searchCatalog(
   }
 
   return data
-    .filter(p => !isJunkProductName(p.name))
+    .filter(p => isSellerListedProduct(p) && !isJunkProductName(p.name))
     .map(p => mapProductRow(p as Product & { categories?: { name?: string } | null }));
 }

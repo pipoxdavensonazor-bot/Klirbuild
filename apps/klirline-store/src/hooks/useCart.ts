@@ -76,7 +76,12 @@ export const useCart = (catalog: Product[] = []) => {
       .eq('session_id', user.id);
 
     if (!error && data) {
-      setCartItems(data as (CartItem & { product: Product })[]);
+      // Hidden seed rows (seller_id null) embed as null once RLS hides them.
+      const rows = (data as (CartItem & { product: Product | null })[]).filter(
+        (row): row is CartItem & { product: Product } =>
+          !!row.product && typeof row.product.seller_id === 'string' && row.product.seller_id.length > 0,
+      );
+      setCartItems(rows);
     }
     setLoading(false);
   }, [user]);

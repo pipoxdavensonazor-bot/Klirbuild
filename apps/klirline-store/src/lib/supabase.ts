@@ -113,6 +113,11 @@ export type Product = {
   /** Geographic Haiti department of the seller (Artibonite, Ouest, …). */
   seller_department?: string | null;
   seller_id: string | null;
+  /**
+   * Public catalog flag. Seed rows with no seller are stored as false.
+   * Absent until that migration is applied.
+   */
+  published?: boolean;
   rating: number;
   review_count: number;
   in_stock: boolean;

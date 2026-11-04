@@ -57,7 +57,11 @@ function product(partial: {
   };
 }
 
-/** Curated Haiti marketplace catalog (offline / fallback). */
+/**
+ * Curated Haiti marketplace catalog for offline demo mode only
+ * (`isDemoMode`, when Supabase env is missing) and for a failed live fetch.
+ * `seller_id` stays null on purpose. These rows are not written to Supabase.
+ */
 export const DEMO_PRODUCTS: DemoProduct[] = [
   product({
     id: 'demo-solar',

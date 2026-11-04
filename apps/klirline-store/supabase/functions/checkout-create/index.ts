@@ -25,6 +25,22 @@ const DEFAULT_SHIPPING_FEE_HTG = 350;
 const MAX_LINE_ITEMS = 50;
 const MAX_QTY_PER_PRODUCT = 20;
 
+/**
+ * Pending-order spam limit. Enforced by public.consume_checkout_rate_limit
+ * (migration 20261104193100). guest_token is minted below on each call, so it
+ * cannot identify a repeat caller. Keys are SHA-256 hashes, not raw IP/email.
+ *
+ * Sliding windows:
+ * - 5 creates per IP per minute
+ * - 30 creates per IP per hour
+ * - 5 creates per guest email per 10 minutes
+ * - 10 creates per signed-in user per 10 minutes
+ *
+ * Fail closed (503) if that migration is not applied yet. Apply SQL before
+ * deploying this function. CORS and server-side total recalculation stay as-is.
+ */
+const RATE_LIMIT_MIGRATION = "20261104193100_checkout_create_rate_limit.sql";
+
 function corsHeadersFor(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
   const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -51,11 +67,47 @@ function displayPrice(row: { price: number; deal_price: number | null }): number
   return Number(row.price);
 }
 
-function json(corsHeaders: Record<string, string>, status: number, body: Record<string, unknown>) {
+function json(
+  corsHeaders: Record<string, string>,
+  status: number,
+  body: Record<string, unknown>,
+  extraHeaders?: Record<string, string>,
+) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
+}
+
+function clientIp(req: Request): string {
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real.slice(0, 64);
+  const cf = req.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf.slice(0, 64);
+  const forwarded = (req.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  // Supabase edge puts the client in X-Forwarded-For. Bound the header.
+  return (forwarded[0] || "unknown").slice(0, 64);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function rateLimitMessage(retryAfterSeconds: number): string {
+  if (retryAfterSeconds >= 3600) {
+    return "Trop de commandes. Réessayez dans une heure.";
+  }
+  if (retryAfterSeconds >= 600) {
+    return "Trop de commandes. Réessayez dans quelques minutes.";
+  }
+  return "Trop de commandes. Réessayez dans une minute.";
 }
 
 async function optionalUser(req: Request) {
@@ -125,6 +177,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const qtyById = new Map<string, number>();
+
     for (const it of rawItems) {
       const id = String(it.product_id ?? "").trim();
       if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
@@ -149,9 +202,40 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const ipHash = await sha256Hex(`ip:${clientIp(req)}`);
+    const actorKind = user ? "user" : "email";
+    const actorHash = await sha256Hex(user ? `user:${user.id}` : `email:${guest_email}`);
+    const { data: limit, error: limitError } = await admin.rpc(
+      "consume_checkout_rate_limit",
+      {
+        p_ip_hash: ipHash,
+        p_actor_hash: actorHash,
+        p_actor_kind: actorKind,
+      },
+    );
+    if (limitError) {
+      console.error("checkout rate limit", RATE_LIMIT_MIGRATION, limitError.message);
+      return json(corsHeaders, 503, {
+        error: "Commandes temporairement indisponibles. Réessayez dans un instant.",
+      });
+    }
+    const verdict = limit as { limited?: boolean; retry_after_seconds?: number } | null;
+    if (verdict?.limited) {
+      const retryAfter = Math.max(
+        1,
+        Math.min(3600, Math.floor(Number(verdict.retry_after_seconds) || 60)),
+      );
+      return json(
+        corsHeaders,
+        429,
+        { error: rateLimitMessage(retryAfter), retry_after: retryAfter },
+        { "Retry-After": String(retryAfter) },
+      );
+    }
+
     const { data: products, error: productsError } = await admin
       .from("products")
-      .select("id, price, deal_price, in_stock, name")
+      .select("id, price, deal_price, in_stock, name, seller_id")
       .in("id", productIds);
 
     if (productsError) {
@@ -167,8 +251,8 @@ Deno.serve(async (req: Request) => {
 
     for (const [productId, quantity] of qtyById) {
       const product = byId.get(productId);
-      if (!product) {
-        return json(corsHeaders, 400, { error: "Produit introuvable" });
+      if (!product || !product.seller_id) {
+        return json(corsHeaders, 400, { error: "Produit introuvable ou retiré du catalogue" });
       }
       if (product.in_stock === false) {
         return json(corsHeaders, 400, {
