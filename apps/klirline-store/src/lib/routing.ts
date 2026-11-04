@@ -44,6 +44,13 @@ export function navigateTo(path: string, replace = false) {
   }
 }
 
+export const RESET_PASSWORD_PATH = '/reset-password';
+
+export function isResetPasswordPath(pathname = window.location.pathname): boolean {
+  const clean = pathname.replace(/\/$/, '') || '/';
+  return clean === RESET_PASSWORD_PATH;
+}
+
 export function productAbsoluteUrl(productId: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://klirline.com';
   return `${origin}${productPath(productId)}`;

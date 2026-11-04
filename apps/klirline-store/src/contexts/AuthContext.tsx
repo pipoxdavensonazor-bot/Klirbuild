@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { RESET_PASSWORD_PATH } from '../lib/routing';
 import { normalizeHaitiPhone } from '../lib/whatsapp';
 
 interface AuthContextType {
@@ -11,6 +12,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithPhone: (phone: string) => Promise<{ error: string | null }>;
   verifyPhoneOtp: (phone: string, token: string) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null; reason?: 'expired' | 'invalid' }>;
   signOut: () => Promise<void>;
 }
 
@@ -89,13 +92,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: error?.message ?? null };
   };
 
+  const resetPassword = async (email: string) => {
+    if (typeof window === 'undefined') {
+      return { error: 'Réinitialisation disponible dans le navigateur.' };
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin + RESET_PASSWORD_PATH,
+    });
+    if (!error) return { error: null };
+    const msg = /rate limit|over_email/i.test(error.message)
+      ? 'Limite d’emails temporaire. Réessayez dans une minute.'
+      : error.message;
+    return { error: msg };
+  };
+
+  const updatePassword = async (password: string) => {
+    if (password.length < 8) {
+      return { error: 'Le mot de passe doit contenir au moins 8 caractères.' };
+    }
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) return { error: null };
+    if (/expir/i.test(error.message)) return { error: error.message, reason: 'expired' as const };
+    if (/session|jwt/i.test(error.message)) return { error: error.message, reason: 'invalid' as const };
+    return { error: error.message };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signIn, signUp, signInWithPhone, verifyPhoneOtp, signOut }}
+      value={{
+        user,
+        session,
+        loading,
+        signIn,
+        signUp,
+        signInWithPhone,
+        verifyPhoneOtp,
+        resetPassword,
+        updatePassword,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -42,7 +42,7 @@ export const AuthModal = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInWithPhone, verifyPhoneOtp } = useAuth();
+  const { signIn, signUp, signInWithPhone, verifyPhoneOtp, resetPassword } = useAuth();
 
   if (!isOpen) return null;
 
@@ -110,6 +110,21 @@ export const AuthModal = ({
       reset();
       onClose();
     }
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    setError('');
+    setSuccess('');
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError(t('forgotPasswordNeedEmail'));
+      return;
+    }
+    setLoading(true);
+    const { error: err } = await resetPassword(trimmed);
+    if (err) setError(err);
+    else setSuccess(t('forgotPasswordSent'));
     setLoading(false);
   };
 
@@ -349,6 +364,19 @@ export const AuthModal = ({
                     </button>
                   </div>
                 </div>
+
+                {tab === 'signin' && (
+                  <div className="flex justify-end -mt-1">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => { void handleForgotPassword(); }}
+                      className="text-sm font-semibold text-brand hover:text-brand-mid hover:underline disabled:opacity-60"
+                    >
+                      {t('forgotPassword')}
+                    </button>
+                  </div>
+                )}
 
                 {tab === 'signup' && (
                   <>
