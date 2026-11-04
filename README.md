@@ -69,7 +69,7 @@ Sign in is **required** by default. Without a database, a local development logi
 ## Production host
 
 **Cloudflare Workers (OpenNext)** — see [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md).
-Legacy Netlify notes remain in [`DEPLOY.md`](DEPLOY.md).
+Vercel, Netlify and Amplify docs are archives and are not production.
 
 ## Bolt prompts
 

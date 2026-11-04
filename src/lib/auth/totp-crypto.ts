@@ -2,7 +2,10 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 import { authSecret } from "@/lib/auth/demo-session";
 
 function keyBytes() {
-  const secret = authSecret() || "klirbuild-dev-only-secret-change-me!!";
+  const secret = authSecret();
+  if (!secret) {
+    throw new Error("BETTER_AUTH_SECRET requis pour chiffrer le secret TOTP.");
+  }
   return createHash("sha256").update(secret).digest();
 }
 

@@ -4,7 +4,7 @@ import { sessionResponse } from "@/lib/auth/auth-service";
 import { rateLimitResponse } from "@/lib/auth/rate-limit";
 
 export async function POST(request: Request) {
-  const limited = rateLimitResponse(request, "reset-password", { limit: 10 });
+  const limited = await rateLimitResponse(request, "reset-password", { limit: 10 });
   if (limited) return limited;
 
   const body = await request.json().catch(() => ({}));

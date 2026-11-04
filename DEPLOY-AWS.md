@@ -1,6 +1,6 @@
 # Déploiement KlirBuild sur AWS
 
-Alternative à Netlify quand les crédits sont épuisés. Deux options recommandées.
+> **ARCHIVE Amplify / App Runner — non prod.** L’hébergement canonique est Cloudflare Workers. Voir [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md). Ne pas utiliser Amplify pour KlirBuild.
 
 ---
 

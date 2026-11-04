@@ -1,6 +1,13 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hasDatabase } from "@/lib/auth/auth-service";
+
+function webhookSecretMatches(provided: string, expected: string) {
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
 
 export const runtime = "nodejs";
 
@@ -22,7 +29,7 @@ export async function POST(request: Request) {
     }
   } else {
     const header = request.headers.get("x-webhook-secret") || "";
-    if (header !== secret) {
+    if (!webhookSecretMatches(header, secret)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

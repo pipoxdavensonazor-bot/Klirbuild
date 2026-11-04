@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
-  const limited = rateLimit({
+  const limited = await rateLimit({
     key: `2fa:${ip}`,
     limit: 30,
     windowMs: 15 * 60 * 1000,

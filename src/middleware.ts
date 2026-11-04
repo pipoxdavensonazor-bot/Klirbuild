@@ -25,20 +25,28 @@ function withSecurityHeaders(response: NextResponse) {
 const DEMO_AUTH_BYPASS =
   process.env.DEMO_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
 
-const CORS_ORIGINS = new Set([
+const PROD_CORS_ORIGINS = [
   "https://klirline.app",
   "https://www.klirline.app",
   "https://klirbuild.pipoxdavensonazor.workers.dev",
   "capacitor://localhost",
+];
+
+const DEV_CORS_ORIGINS = [
   "https://localhost",
   "http://localhost",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-]);
+];
+
+function corsOrigins() {
+  if (process.env.NODE_ENV === "production") return new Set(PROD_CORS_ORIGINS);
+  return new Set([...PROD_CORS_ORIGINS, ...DEV_CORS_ORIGINS]);
+}
 
 function withApiCors(request: NextRequest, response: NextResponse) {
   const origin = request.headers.get("origin") || "";
-  if (origin && CORS_ORIGINS.has(origin)) {
+  if (origin && corsOrigins().has(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("Access-Control-Allow-Credentials", "true");
     response.headers.set(

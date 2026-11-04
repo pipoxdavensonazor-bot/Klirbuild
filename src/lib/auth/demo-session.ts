@@ -31,16 +31,16 @@ export type Pending2fa = {
   isPlatformAdmin?: boolean;
 };
 
-function fallbackDevSecret() {
-  return "klirbuild-dev-only-secret-change-me!!";
-}
+const BANNED_AUTH_SECRETS = new Set([
+  "klirbuild-dev-only-secret-change-me!!",
+  "klirbuild-demo-secret",
+]);
 
-/** Secret used for signing. Empty string in prod if misconfigured (verify fails). */
+/** Signing secret. Empty when missing, short, or a known hardcoded fallback. */
 export function authSecret() {
-  const s = process.env.BETTER_AUTH_SECRET?.trim();
-  if (s && s.length >= 32) return s;
-  if (process.env.NODE_ENV === "production") return "";
-  return fallbackDevSecret();
+  const s = process.env.BETTER_AUTH_SECRET?.trim() ?? "";
+  if (s.length >= 32 && !BANNED_AUTH_SECRETS.has(s)) return s;
+  return "";
 }
 
 export function isAuthSecretHardened() {
@@ -52,7 +52,7 @@ function requireSignSecret() {
   const s = authSecret();
   if (!s) {
     throw new Error(
-      "BETTER_AUTH_SECRET manquant ou trop court (32+ caractères requis en production)."
+      "BETTER_AUTH_SECRET manquant ou trop court (32+ caractères requis)."
     );
   }
   return s;

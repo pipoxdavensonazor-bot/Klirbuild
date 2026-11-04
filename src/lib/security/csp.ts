@@ -1,8 +1,8 @@
 /**
  * Baseline Content-Security-Policy for Klirline (Cloudflare / Next App Router).
- * Uses unsafe-inline for scripts/styles so hydration + Tailwind keep working
- * without per-request nonces (OpenNext Workers). Still blocks object/plugin
- * XSS vectors and clickjacking via frame-ancestors.
+ * script-src keeps 'unsafe-inline' because OpenNext injects hydration scripts
+ * without a nonce hook — removing it blanks the app. script-src-attr 'none'
+ * still blocks inline event handlers. Styles stay inline for Tailwind.
  */
 
 function isDev() {
@@ -41,6 +41,7 @@ export function buildContentSecurityPolicy(): string {
     "frame-src 'self' https://*.daily.co https://js.stripe.com https://hooks.stripe.com https://accounts.google.com",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
+    "script-src-attr 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://accounts.google.com https://checkout.stripe.com",

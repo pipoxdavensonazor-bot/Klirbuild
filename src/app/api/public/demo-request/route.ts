@@ -41,7 +41,7 @@ async function sendDemoEmail(payload: ReturnType<typeof demoEmailPayload>) {
 }
 
 export async function POST(request: Request) {
-  const limited = rateLimitResponse(request, "demo-request", {
+  const limited = await rateLimitResponse(request, "demo-request", {
     limit: 5,
     windowMs: 15 * 60 * 1000,
   });
