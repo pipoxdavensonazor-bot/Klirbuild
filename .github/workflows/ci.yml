@@ -48,7 +48,33 @@ jobs:
 
       - run: npm ci
 
+      - name: Patched direct dependencies
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+            const min = { next: "15.5.29", zod: "4.6.6", "sanitize-html": "2.18.0" };
+            const cmp = (a, b) => {
+              const pa = a.split(".").map(Number);
+              const pb = b.split(".").map(Number);
+              for (let i = 0; i < 3; i++) {
+                const d = (pa[i] || 0) - (pb[i] || 0);
+                if (d) return d;
+              }
+              return 0;
+            };
+            for (const [name, floor] of Object.entries(min)) {
+              const version = lock.packages?.["node_modules/" + name]?.version;
+              if (!version || cmp(version, floor) < 0) {
+                console.error(name + " " + version + " is below " + floor);
+                process.exit(1);
+              }
+            }
+          '
+
       - name: Dependency audit (high+)
+        # Remaining highs need major bumps (Next 16, Prisma 7, Wrangler/miniflare).
+        # Direct Next/Zod/sanitize-html floors are enforced above.
         continue-on-error: true
         run: npm audit --audit-level=high
 
