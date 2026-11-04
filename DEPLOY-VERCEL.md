@@ -1,6 +1,6 @@
 # Déploiement KlirBuild sur Vercel
 
-**Recommandé** pour Next.js 15 — plus simple qu'AWS Amplify (pas de WEB vs WEB_COMPUTE, SSR automatique).
+> **ARCHIVE — non prod.** L’hébergement canonique est Cloudflare Workers (`klirline.app`). Voir [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md). Ne pas déployer cette app sur Vercel. `klirbuild.vercel.app` ne sert plus le produit.
 
 ---
 

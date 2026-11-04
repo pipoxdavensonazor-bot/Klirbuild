@@ -5,7 +5,7 @@ import { rateLimitResponse } from "@/lib/auth/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const limited = rateLimitResponse(request, "register", { limit: 10 });
+  const limited = await rateLimitResponse(request, "register", { limit: 10 });
   if (limited) return limited;
 
   try {

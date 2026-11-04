@@ -63,7 +63,7 @@ export async function GET() {
 
 /** Start setup: generate secret (not enabled until POST enable). */
 export async function POST(request: Request) {
-  const limited = rateLimitResponse(request, "2fa-setup", { limit: 20 });
+  const limited = await rateLimitResponse(request, "2fa-setup", { limit: 20 });
   if (limited) return limited;
 
   const ctx = await requireUser();

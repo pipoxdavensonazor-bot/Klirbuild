@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
-  const limited = rateLimit({
+  const limited = await rateLimit({
     key: `login:${ip}`,
     limit: 20,
     windowMs: 15 * 60 * 1000,
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email et mot de passe requis" }, { status: 400 });
   }
 
-  const emailLimited = rateLimit({
+  const emailLimited = await rateLimit({
     key: `login-email:${email}`,
     limit: 10,
     windowMs: 15 * 60 * 1000,

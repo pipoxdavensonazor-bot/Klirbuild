@@ -13,7 +13,7 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const limited = rateLimitResponse(request, "change-password", { limit: 10 });
+  const limited = await rateLimitResponse(request, "change-password", { limit: 10 });
   if (limited) return limited;
 
   const session = await getRequestSession();

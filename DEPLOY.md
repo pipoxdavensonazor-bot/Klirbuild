@@ -1,7 +1,6 @@
 # Phase 1 — Mise en production KlirBuild
 
-> **Hébergement actif : Cloudflare Workers.** Voir [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md).
-> Ce document conserve l’historique Netlify pour référence.
+> **ARCHIVE Netlify — non prod.** L’hébergement canonique est Cloudflare Workers. Voir [`DEPLOY-CLOUDFLARE.md`](DEPLOY-CLOUDFLARE.md). `netlify.toml` est conservé uniquement comme archive. Ne pas publier via Netlify.
 
 Guide pas à pas pour déployer KlirBuild (historique Netlify / checklist produit).
 
