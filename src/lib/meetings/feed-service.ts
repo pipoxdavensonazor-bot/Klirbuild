@@ -1,6 +1,8 @@
 import { randomBytes } from "crypto";
 import { hasDatabase } from "@/lib/auth/auth-service";
+import { generateOpaqueToken } from "@/lib/auth/token-hash";
 import { prisma } from "@/lib/db";
+import { clientIdsForViewer, shareAllowsClient } from "@/lib/meetings/share-access";
 import { canApp } from "@/lib/workforce/types";
 import type { Role } from "@/types";
 import {
@@ -146,59 +148,49 @@ export async function listFeedPosts(
 
 export async function listClientFeed(clientId: string, shareToken: string) {
   if (!hasDatabase()) return { error: "DATABASE_URL requis." as const };
-  const live = await prisma.liveSession.findFirst({
-    where: { shareToken, OR: [{ clientIds: { has: clientId } }, { audience: "public" }] },
-  });
+  const live = await prisma.liveSession.findFirst({ where: { shareToken } });
   const meeting = !live
-    ? await prisma.meeting.findFirst({
-        where: {
-          shareToken,
-          OR: [{ clientIds: { has: clientId } }, { audience: "public" }],
-        },
-      })
+    ? await prisma.meeting.findFirst({ where: { shareToken } })
     : null;
 
   if (!live && !meeting) {
-    // Allow feed by clientId when any company post targets this client
-    const posts = await prisma.feedPost.findMany({
-      where: {
-        audience: { in: ["clients", "public"] },
-        OR: [
-          { clientIds: { has: clientId } },
-          { clientIds: { equals: [] }, audience: "public" },
-        ],
-      },
-      include: { liveSession: true },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    });
-    // Require shareToken match on at least one live/meeting belonging to same company
-    const tokenOk = await prisma.liveSession.findFirst({
-      where: { shareToken },
-      select: { companyId: true },
-    }) || await prisma.meeting.findFirst({
-      where: { shareToken },
-      select: { companyId: true },
-    });
-    if (!tokenOk) return { error: "Lien client invalide." as const };
-    const filtered = posts.filter((p) => p.companyId === tokenOk.companyId);
-    return { posts: filtered.map(mapPost), shareToken };
+    return { error: "Lien client invalide." as const };
+  }
+
+  const audience = live?.audience ?? meeting!.audience;
+  const tokenClientIds = live?.clientIds ?? meeting!.clientIds;
+  if (!shareAllowsClient({ audience, clientIds: tokenClientIds, clientId })) {
+    return { error: "Accès client refusé." as const };
   }
 
   const companyId = live?.companyId ?? meeting!.companyId;
+  const requested = clientId.trim();
   const posts = await prisma.feedPost.findMany({
     where: {
       companyId,
       audience: { in: ["clients", "public"] },
-      OR: [{ clientIds: { has: clientId } }, { clientIds: { equals: [] } }],
+      ...(requested
+        ? {
+            OR: [
+              { clientIds: { has: requested } },
+              { AND: [{ clientIds: { equals: [] } }, { audience: "public" }] },
+            ],
+          }
+        : { audience: "public", clientIds: { equals: [] } }),
     },
     include: { liveSession: true },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  const visibleIds = clientIdsForViewer(tokenClientIds, requested);
   return {
-    posts: posts.map(mapPost),
-    live: live ? mapLive(live) : null,
+    posts: posts.map((row) => ({
+      ...mapPost(row),
+      clientIds: clientIdsForViewer(row.clientIds, requested),
+    })),
+    live: live
+      ? { ...mapLive(live), clientIds: visibleIds }
+      : null,
     meetingId: meeting?.id,
     shareToken,
   };
@@ -258,6 +250,7 @@ export async function createFeedPost(input: {
         status: "live",
         audience: input.audience,
         slug,
+        shareToken: generateOpaqueToken(),
         startedAt: new Date(),
         clientIds: input.clientIds ?? [],
       },
@@ -322,6 +315,7 @@ export async function startLiveSession(input: {
       status: "live",
       audience: input.audience,
       slug,
+      shareToken: generateOpaqueToken(),
       startedAt: new Date(),
       clientIds: input.clientIds ?? [],
     },
