@@ -12,14 +12,11 @@ npm run db:push
 npm run db:migrate
 ```
 
-## Production (Netlify build)
+## Production (Cloudflare deploy)
 
-The build script runs `prisma db push` which applies schema changes directly.
-For teams preferring migration history, switch the build step to:
+`.github/workflows/cloudflare-deploy.yml` runs `npx prisma migrate deploy` and fails the job if it errors. The OpenNext build does not run `prisma db push`.
 
-```bash
-prisma generate && prisma migrate deploy && next build
-```
+If production was previously updated only with `db push`, baseline already-applied folders once with `prisma migrate resolve --applied <migration>` before the next deploy. The new `20261104160000_crypto_share_tokens` migration rotates short share links and will invalidate existing client live URLs.
 
 ## Phase 6 migration
 
