@@ -1,0 +1,38 @@
+Photographies des monuments — copies web pour KlirMarket (klirline.com)
+
+Ces JPEG sont des dérivés (redimensionnés pour le web, recompressés, EXIF retiré,
+sans recadrage). La licence de chaque original est conservée. Les chemins
+correspondent aux constantes de src/lib/haiti-media.ts.
+
+citadelle-hero.jpg
+  Sujet : Citadelle Laferrière, vue large (Milot, Haïti)
+  Auteur : Alex Proimos (Sydney, Australia)
+  Source : https://commons.wikimedia.org/wiki/File:The_Citadelle_Laferri%C3%A8re,_Haiti_(7761638618).jpg
+  Licence : CC BY 2.0 — https://creativecommons.org/licenses/by/2.0/
+  Original : 4185×2354. Dérivé : 1920×1080, JPEG progressif.
+
+citadelle-bg.jpg
+  Sujet : Citadelle Laferrière, vue depuis le chemin d'accès
+  Auteur : Rémi Kaupp
+  Source : https://commons.wikimedia.org/wiki/File:Citadelle_Laferri%C3%A8re.jpg
+  Licence : CC BY-SA 3.0 — https://creativecommons.org/licenses/by-sa/3.0/
+  (double licence d'origine CC BY-SA 3.0 et GFDL ; cette copie est sous CC BY-SA 3.0)
+  Original : 2592×1944. Dérivé : 1920×1440, JPEG progressif.
+
+citadelle-above.jpg
+  Sujet : Citadelle Laferrière, vue depuis la plate-forme supérieure
+  Auteur : Rémi Kaupp
+  Source : https://commons.wikimedia.org/wiki/File:Citadelle_Laferri%C3%A8re_from_above.jpg
+  Licence : CC BY-SA 3.0 — https://creativecommons.org/licenses/by-sa/3.0/
+  (double licence d'origine CC BY-SA 3.0 et GFDL ; cette copie est sous CC BY-SA 3.0)
+  Original : 2592×1944. Dérivé : 1600×1200, JPEG progressif.
+
+sans-souci.jpg
+  Sujet : Palais Sans-Souci, Parc national historique, Haïti
+  Auteur : Didier Moïse — « Photo by Didier Moïse »
+  Source : https://commons.wikimedia.org/wiki/File:Sans-Souci_Palace,_National_History_Park,_Haiti.jpg
+  Licence : CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+  Original : 4443×2962. Dérivé : 1800×1200, JPEG progressif.
+
+favicon.png et klirmarket-cart.png sont le logo panier fourni par Klirline (pas Wikimedia).
+favicon.svg est un pictogramme original KlirMarket (bleu/rouge du drapeau haïtien).

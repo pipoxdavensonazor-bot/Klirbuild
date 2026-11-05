@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="KlirMarket">
+  <title>KlirMarket</title>
+  <rect width="64" height="64" rx="14" fill="#0A1C31"/>
+  <path d="M14 16h6.5l3.2 7.2h24.8" fill="none" stroke="#E8EEF4" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22.2 26.2h28.2l-3.6 16.2H25.2z" fill="#00209F"/>
+  <path d="M23.4 34.2h24.6l-1.8 8.2H25.1z" fill="#D21034"/>
+  <rect x="32.2" y="28.2" width="7.2" height="5" rx="0.4" fill="#F4F7FB"/>
+  <circle cx="28" cy="49.2" r="5.2" fill="#F7FBFF" stroke="#3AA0D8" stroke-width="2.2"/>
+  <circle cx="46" cy="49.2" r="5.2" fill="#F7FBFF" stroke="#3AA0D8" stroke-width="2.2"/>
+  <circle cx="28" cy="49.2" r="1.6" fill="#0A1C31"/>
+  <circle cx="46" cy="49.2" r="1.6" fill="#0A1C31"/>
+</svg>
