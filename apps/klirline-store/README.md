@@ -48,6 +48,36 @@ npx supabase functions deploy visual-search --project-ref whybbqeeqpkbkatnkjjc
 
 Public matches are only `seller_id IS NOT NULL AND published = true`, similarity ≥ 0.20. The UI calls a hit reliable at ≥ 0.28. CLIP confuses similar colors and shapes; it is not an exact product match.
 
+### RPC `search_products_by_image` (anon / service role)
+
+The function stays **`SECURITY INVOKER`**. It is not `SECURITY DEFINER`. RLS on `product_image_embeddings`, `products`, and `categories` still applies to `anon` and `authenticated`. Ranking materializes only `product_id`, the boolean `sponsored`, and `similarity`, then `LIMIT`s, and only then reads `description`, `images`, `about_items`, and `variants`. A toasted row over about 8 KB used to raise `ERRCODE 54000` from the wide CTE even when the anon policies were correct. `category_name` (`text`, from `categories.name`) and `sponsored` (`boolean`) stay in the result type. Grants are unchanged: `EXECUTE` for `anon`, `authenticated`, and `service_role` only.
+
+`service_role` bypasses RLS in PostgreSQL, but the SQL `WHERE` still requires `seller_id IS NOT NULL AND published = true`, so this RPC does not return unpublished or seller-less rows for that role either. Drafts remain readable only through the existing product policies (seller or admin), not through this function.
+
+Static catalog check (no writes). PostgreSQL reserves role names that start with `pg_`, so a role named `pg_readonly` cannot be created. The built-in read role is `pg_read_all_data` (or the migration owner). Point `DATABASE_URL` at a database where the migration is already applied:
+
+```bash
+cd apps/klirline-store
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/check-visual-search-rpc.sql
+```
+
+Expect `security_definer = f` and `volatile_code = s`. `result_type` includes `category_name text` and `sponsored boolean`.
+
+Anon call (RLS on). Do this only against a database you can roll back. A zero vector usually matches nothing; it must not error 54000 and must not list unpublished rows:
+
+```sql
+BEGIN;
+SET LOCAL ROLE anon;
+SELECT id, sponsored, category_name, published, seller_id, similarity
+FROM public.search_products_by_image(array_fill(0, ARRAY[512])::vector(512), 5);
+SELECT COUNT(*) AS leaked
+FROM public.search_products_by_image(array_fill(0, ARRAY[512])::vector(512), 24) r
+WHERE r.published IS NOT TRUE OR r.seller_id IS NULL;
+ROLLBACK;
+```
+
+Same `leaked` query as `service_role` must also return 0. `leaked` counts rows this RPC returns, not rows `service_role` can read with a direct `SELECT` on `products`.
+
 ### Index seller images
 
 When the live catalog has published seller photos (service role stays on the machine that runs the script, never in `VITE_*`):
