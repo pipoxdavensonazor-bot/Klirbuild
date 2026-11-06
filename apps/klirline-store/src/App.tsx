@@ -37,6 +37,8 @@ import {
   type LegalSlug,
 } from './lib/routing';
 import { searchCatalog } from './lib/searchCatalog';
+import { searchProductsByPhoto } from './lib/searchByPhoto';
+import { VISUAL_COPY, type VisualSearchView } from './lib/visualSearch';
 import { applyHomeSeo } from './lib/seo';
 import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
 
@@ -64,6 +66,15 @@ function ShopApp() {
   const [browseAll, setBrowseAll] = useState(false);
   const [serverSearchHits, setServerSearchHits] = useState<Product[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [visual, setVisual] = useState<VisualSearchView & { active: boolean; loading: boolean }>({
+    active: false,
+    loading: false,
+    products: [],
+    reliable: false,
+    notice: null,
+    error: null,
+    emptyCatalog: false,
+  });
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [legalSlug, setLegalSlug] = useState<LegalSlug | null>(null);
@@ -360,7 +371,9 @@ function ShopApp() {
 
   const filteredProducts = useCallback(() => {
     const q = searchQuery.trim().toLowerCase();
-    const base = q.length >= 2 && serverSearchHits
+    const base = visual.active
+      ? visual.products
+      : q.length >= 2 && serverSearchHits
       ? serverSearchHits
       : products;
 
@@ -385,7 +398,7 @@ function ShopApp() {
         return true;
       })
       .sort((a, b) => Number(Boolean(b.sponsored)) - Number(Boolean(a.sponsored)));
-  }, [products, searchQuery, selectedDept, filters, serverSearchHits]);
+  }, [products, searchQuery, selectedDept, filters, serverSearchHits, visual.active, visual.products]);
 
   const displayProducts = filteredProducts();
   const suggestionCatalog = serverSearchHits?.length ? serverSearchHits : products;
@@ -512,12 +525,54 @@ function ShopApp() {
     await refreshCart();
   };
 
+  const clearVisual = () => {
+    setVisual({
+      active: false,
+      loading: false,
+      products: [],
+      reliable: false,
+      notice: null,
+      error: null,
+      emptyCatalog: false,
+    });
+  };
+
+  const handleSearchChange = (q: string) => {
+    setSearchQuery(q);
+    if (q.trim()) clearVisual();
+  };
+
+  const handlePhotoSearch = async (file: File): Promise<{ error: string | null }> => {
+    setSearchQuery('');
+    setSelectedDept('');
+    setFilters(DEFAULT_FILTERS);
+    setBrowseAll(true);
+    setServerSearchHits(null);
+    setVisual({
+      active: true,
+      loading: true,
+      products: [],
+      reliable: false,
+      notice: null,
+      error: null,
+      emptyCatalog: false,
+    });
+    goShop();
+    window.scrollTo(0, 0);
+    const view = await searchProductsByPhoto(file, {
+      catalogEmpty: !loading && products.length === 0 && !isDemoMode,
+    });
+    setVisual({ active: true, loading: false, ...view });
+    return { error: view.error };
+  };
+
   const handleLogoClick = () => {
     setSearchQuery('');
     setSelectedDept('');
     setBrowseAll(false);
     setFilters(DEFAULT_FILTERS);
     setServerSearchHits(null);
+    clearVisual();
     goShop();
     window.scrollTo(0, 0);
   };
@@ -548,7 +603,7 @@ function ShopApp() {
           cartCount={cartCount}
           onCartClick={() => setIsCartOpen(true)}
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           onSignInClick={() => { setAuthTab('signin'); setIsAuthOpen(true); }}
           onAddProductClick={handleAddProductClick}
           onDashboardClick={handleDashboardClick}
@@ -564,6 +619,7 @@ function ShopApp() {
           vendorStatus={vendorStatus}
           searchProducts={suggestionCatalog}
           onProductSuggestionClick={handleProductClick}
+          onPhotoSearch={handlePhotoSearch}
         />
         <ProductDetailPage
           product={selectedProduct}
@@ -718,7 +774,7 @@ function ShopApp() {
         cartCount={cartCount}
         onCartClick={() => setIsCartOpen(true)}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         onSignInClick={() => { setAuthTab('signin'); setIsAuthOpen(true); }}
         onAddProductClick={handleAddProductClick}
         onDashboardClick={handleDashboardClick}
@@ -734,6 +790,7 @@ function ShopApp() {
         vendorStatus={vendorStatus}
         searchProducts={suggestionCatalog}
         onProductSuggestionClick={handleProductClick}
+        onPhotoSearch={handlePhotoSearch}
       />
 
       <main className="max-w-[1500px] mx-auto px-4 py-6">
@@ -753,7 +810,7 @@ function ShopApp() {
             <button onClick={() => setVendorBanner(null)} className="text-amber-600 hover:text-amber-800 font-bold text-xs ml-2">Dismiss</button>
           </div>
         )}
-        {!searchQuery && !selectedDept && !hasActiveFilters && !browseAll ? (
+        {!searchQuery && !selectedDept && !hasActiveFilters && !browseAll && !visual.active ? (
           <HomeFeed
             products={products}
             loading={loading}
@@ -790,21 +847,29 @@ function ShopApp() {
                   )}
                 </button>
                 <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
-                  {searchQuery
-                    ? `Results for "${searchQuery}"`
+                  {visual.active
+                    ? VISUAL_COPY.resultsTitle
+                    : searchQuery
+                    ? `Résultats pour « ${searchQuery} »`
                     : selectedDept
                     ? selectedDept
-                    : 'All Products'}
+                    : 'Tous les produits'}
                 </h3>
               </div>
               <span className="text-sm text-gray-500">
-                {searching ? 'Recherche… · ' : ''}
+                {visual.loading ? `${VISUAL_COPY.busy} · ` : searching ? 'Recherche… · ' : ''}
                 {displayProducts.length.toLocaleString()} {displayProducts.length === 1 ? 'résultat' : 'résultats'}
                 {searchQuery.trim().length >= 2 ? ' (serveur)' : ''}
               </span>
             </div>
 
-            {loading ? (
+            {visual.active && !visual.loading && displayProducts.length > 0 && (visual.notice || visual.error) && (
+              <p className="mb-4 text-sm text-gray-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3" role="status">
+                {visual.error ? `${visual.error} ${VISUAL_COPY.textFallback}` : visual.notice}
+              </p>
+            )}
+
+            {(visual.loading || (loading && !visual.active)) ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
@@ -820,7 +885,11 @@ function ShopApp() {
             ) : displayProducts.length === 0 ? (
               <div className="text-center py-24">
                 <p className="text-xl text-gray-400 font-medium mb-2">
-                  {searchQuery || hasActiveFilters ? 'No products match your search.' : 'No products yet. Be the first to sell!'}
+                  {visual.active
+                    ? (visual.error ?? visual.notice ?? VISUAL_COPY.noMatch)
+                    : searchQuery || hasActiveFilters
+                    ? 'Aucun produit ne correspond à votre recherche.'
+                    : VISUAL_COPY.emptyShop}
                 </p>
                 {(searchQuery || hasActiveFilters || selectedDept) && (
                   <button
@@ -830,7 +899,7 @@ function ShopApp() {
                     Clear all filters
                   </button>
                 )}
-                {!searchQuery && !hasActiveFilters && !selectedDept && user && vendorStatus === 'approved' && (
+                {!visual.active && !searchQuery && !hasActiveFilters && !selectedDept && user && vendorStatus === 'approved' && (
                   <button
                     onClick={handleAddProductClick}
                     className="mt-4 bg-brand hover:bg-brand-mid text-white px-6 py-3 rounded-lg font-semibold transition-colors"
@@ -838,7 +907,7 @@ function ShopApp() {
                     Ajouter un produit
                   </button>
                 )}
-                {!searchQuery && !hasActiveFilters && !selectedDept && user && vendorStatus !== 'approved' && (
+                {!visual.active && !searchQuery && !hasActiveFilters && !selectedDept && user && vendorStatus !== 'approved' && (
                   <button
                     onClick={handleBecomeSellerClick}
                     className="mt-4 bg-brand hover:bg-brand-mid text-white px-6 py-3 rounded-lg font-semibold transition-colors"

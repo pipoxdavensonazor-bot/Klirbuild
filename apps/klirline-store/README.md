@@ -12,7 +12,62 @@ cp apps/klirline-store/.env.example apps/klirline-store/.env
 npm run store:dev
 ```
 
-Without Supabase env vars the app runs in **demo catalog** mode (curated products, no live auth/cart).
+Without Supabase env vars the app runs in **demo catalog** mode (curated products, no live auth/cart). Photo search does not show that demo set: an empty live catalog says « Aucun produit vu pour le moment. »
+
+## Recherche par photo (CLIP)
+
+The camera button in the search bar sends a JPEG/PNG/WebP to the `visual-search` Edge Function (`FormData` field `image`, 2 MB). The browser does not store the photo. No `service_role` key is shipped to the client, and no `VITE_*` variable carries a model token.
+
+**Apply the migration before deploying the function** (SQL editor or `supabase db push`). Do not run it from this repo’s CI against production unless you mean to:
+
+`apps/klirline-store/supabase/migrations/20261106120000_visual_search_clip.sql`
+
+It enables `vector`, creates `product_image_embeddings`, the invoker RPC `search_products_by_image(embedding vector(512), lim int)`, and the service-role rate limit `consume_visual_search_rate_limit` (same hashed-window pattern as checkout).
+
+```bash
+npx supabase functions deploy visual-search --project-ref whybbqeeqpkbkatnkjjc
+```
+
+### Runtime CLIP (Deno)
+
+`RawImage.fromBlob` does not work on this runtime. Deno reports `process.release.name === "node"`, so `@huggingface/transformers` selects `sharp` and `onnxruntime-node`. Edge Functions cannot load those native bindings, and `OffscreenCanvas.getContext("2d")` is null. The function therefore:
+
+1. Decodes JPEG (`jpeg-js`), PNG (`fast-png`) or WebP (`@jsquash/webp`).
+2. Builds the CLIP tensor with `supabase/functions/_shared/clip-math.mjs` (224px, OpenAI mean/std). It does not call `RawImage`.
+3. Hides `process` only while importing `transformers.min.js`, downloads that bundle plus the ORT WASM into `/tmp/klir-clip`, and runs `Xenova/clip-vit-base-patch32` dtype `q8` (512 dims).
+4. If that fails, calls a remote Hugging Face endpoint **only** when both server secrets exist.
+
+| Secret | Required when |
+| --- | --- |
+| `HF_TOKEN` or `HUGGINGFACE_API_TOKEN` | Remote fallback |
+| `HF_CLIP_INFERENCE_URL` | HTTPS endpoint that returns a 512-float CLIP image embedding |
+| `HF_CLIP_INFERENCE_FORMAT` | `bytes` (raw image, default) or `json-base64` (`{"inputs":"<base64>"}`) |
+| `VISUAL_SEARCH_INFERENCE` | `auto` (default), `local`, or `remote` |
+
+`openai/clip-vit-base-patch32` is not served by the public Hugging Face router. The URL must be an Inference Endpoint or Space you control. A paid key is not bundled; without local WASM **and** without those secrets the API returns `503` `code: clip_runtime` and the shop falls back to text search.
+
+Public matches are only `seller_id IS NOT NULL AND published = true`, similarity ≥ 0.20. The UI calls a hit reliable at ≥ 0.28. CLIP confuses similar colors and shapes; it is not an exact product match.
+
+### Index seller images
+
+When the live catalog has published seller photos (service role stays on the machine that runs the script, never in `VITE_*`):
+
+```bash
+cd apps/klirline-store
+npm install --no-save @huggingface/transformers jpeg-js fast-png @jsquash/webp
+SUPABASE_URL="https://whybbqeeqpkbkatnkjjc.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="…" \
+node scripts/index-product-images.mjs
+```
+
+`--limit 0` indexes every published seller product (default cap 500). `--remote` uses the same `HF_TOKEN` / `HF_CLIP_INFERENCE_URL` as the Edge Function. Reindex if you switch engines: local q8 WASM and a remote preprocessor are not identical.
+
+A local seed check embeds **at most 12** rows with `seller_id` null. It does not publish them and does not set `seller_id`, so they stay out of public search:
+
+```bash
+SUPABASE_URL="…" SUPABASE_SERVICE_ROLE_KEY="…" \
+node scripts/index-product-images.mjs --include-seeds --limit 12
+```
 
 ## Edge secrets checklist (Supabase — not Cloudflare)
 
