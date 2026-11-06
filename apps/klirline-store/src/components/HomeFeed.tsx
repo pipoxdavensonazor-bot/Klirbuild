@@ -6,6 +6,7 @@ import { getPersonalizedRails } from '../lib/activity';
 import { useI18n } from '../i18n';
 import { BRAND, labelDepartment } from '../lib/brand';
 import { HAITI_MONUMENTS, HAITI_MONUMENT_CREDIT } from '../lib/haiti-media';
+import { VISUAL_COPY } from '../lib/visualSearch';
 
 interface HomeFeedProps {
   products: Product[];
@@ -256,6 +257,12 @@ export function HomeFeed({
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {!loading && products.length === 0 && (
+        <section className="bg-white/90 rounded-xl border border-white/60 px-4 sm:px-5 py-8 text-center">
+          <p className="text-lg text-gray-500 font-medium">{VISUAL_COPY.emptyShop}</p>
         </section>
       )}
 

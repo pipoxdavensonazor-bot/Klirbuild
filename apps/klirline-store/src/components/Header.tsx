@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Search, ChevronDown, User, LogOut, Plus, BarChart2,
-  ShoppingBag, Heart, MapPin, Menu, X, ChevronRight, ShieldCheck, Store,
+  ShoppingBag, Heart, MapPin, Menu, X, ChevronRight, ShieldCheck, Store, Camera,
 } from 'lucide-react';
+import { PhotoSearchModal } from './PhotoSearchModal';
 import { useAuth } from '../contexts/AuthContext';
 import { DEPARTMENTS, getDisplayPrice, type Product } from '../lib/supabase';
 import { BRAND, NAV_DEPT_MAP, PAYMENTS, SOFT_LAUNCH, labelDepartment } from '../lib/brand';
@@ -30,6 +31,7 @@ interface HeaderProps {
   vendorStatus: VendorStatus;
   searchProducts?: Product[];
   onProductSuggestionClick?: (product: Product) => void;
+  onPhotoSearch?: (file: File) => Promise<{ error: string | null }>;
 }
 
 export const Header = ({
@@ -39,6 +41,7 @@ export const Header = ({
   selectedDept, onDeptChange, onAdminClick, isAdmin, vendorStatus,
   searchProducts = [],
   onProductSuggestionClick,
+  onPhotoSearch,
 }: HeaderProps) => {
   const { user, signOut } = useAuth();
   const { t, locale, setLocale } = useI18n();
@@ -46,6 +49,7 @@ export const Header = ({
   const [deptOpen, setDeptOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const accountRef = useRef<HTMLDivElement>(null);
   const deptRef = useRef<HTMLDivElement>(null);
@@ -160,6 +164,17 @@ export const Header = ({
                 aria-expanded={suggestionsOpen && suggestions.length > 0}
                 aria-autocomplete="list"
               />
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestionsOpen(false);
+                  setPhotoOpen(true);
+                }}
+                className="bg-white text-brand-dark px-2.5 sm:px-3 border-l border-gray-200 hover:bg-gray-100 flex-shrink-0"
+                aria-label="Rechercher par photo"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
               <button
                 type="button"
                 onClick={commitSearch}
@@ -397,6 +412,12 @@ export const Header = ({
           )}
         </div>
       </div>
+
+      <PhotoSearchModal
+        open={photoOpen}
+        onClose={() => setPhotoOpen(false)}
+        onSearch={onPhotoSearch ?? (async () => ({ error: 'Recherche par photo indisponible.' }))}
+      />
 
       {/* ── Mobile slide-down menu ────────────────────────────────────────── */}
       {mobileMenuOpen && (

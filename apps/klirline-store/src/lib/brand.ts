@@ -25,10 +25,12 @@ export const BRAND = {
  * MonCash is on — Digicel Rest API wired in moncash-payment (see docs/moncash/).
  * Set VITE_ENABLE_MONCASH=false to hide it. NatCash stays off until secrets exist.
  */
+const viteEnv = import.meta.env ?? {};
+
 export const PAYMENTS = {
   stripe: true,
-  moncash: import.meta.env.VITE_ENABLE_MONCASH !== 'false',
-  natcash: import.meta.env.VITE_ENABLE_NATCASH === 'true',
+  moncash: viteEnv.VITE_ENABLE_MONCASH !== 'false',
+  natcash: viteEnv.VITE_ENABLE_NATCASH === 'true',
 } as const;
 
 export const SOFT_LAUNCH = true;
