@@ -6,9 +6,13 @@
 
   - Stores one embedding per (product, image_url). Does not publish rows
     and does not assign seller_id.
-  - search_products_by_image is SECURITY INVOKER. Anon/authenticated only
-    see embeddings of products they can already read, and the SQL filters
-    again.
+  - search_products_by_image is SECURITY INVOKER (not DEFINER). Anon and
+    authenticated only see embeddings of products they can already read,
+    and the SQL filters again. Ranking uses a narrow materialized CTE
+    (id, sponsored, similarity) and applies LIMIT before description /
+    images / about_items / variants are read, so a toasted row over ~8 KB
+    does not raise ERRCODE 54000. Grants are anon, authenticated, and
+    service_role execute only.
   - consume_visual_search_rate_limit is service-role only, same shape as
     checkout-create (hashed keys, sliding windows, no cron).
 
@@ -106,58 +110,73 @@ STABLE
 SECURITY INVOKER
 SET search_path = public, extensions
 AS $$
-  WITH ranked AS (
-    SELECT
-      p.id,
-      p.name,
-      p.description,
-      p.price,
-      p.original_price,
-      p.deal_price,
-      p.deal_ends_at,
-      p.image_url,
-      p.images,
-      p.about_items,
-      p.variants,
-      p.category_id,
-      c.name AS category_name,
-      p.seller_id,
-      p.seller_department,
-      p.published,
-      p.rating,
-      p.review_count,
-      p.in_stock,
-      p.badge,
-      p.featured,
+  /*
+    Narrow pass first. A CTE that projects description / images / about_items /
+    variants builds an untoasted tuple. Past ~8 KB PostgreSQL raises
+    ERRCODE 54000 (program_limit_exceeded) even when the anon policies would
+    allow the row. Rank and LIMIT only ids, similarity, and the boolean
+    sponsored flag, then read the wide columns for that small set.
+
+    SECURITY INVOKER on purpose: RLS on product_image_embeddings, products,
+    and categories stays in force. The WHERE repeats seller_id / published so
+    a BYPASSRLS caller (service_role) still cannot see unpublished or
+    seller-less rows through this RPC. Grants are unchanged.
+  */
+  WITH best_per_product AS MATERIALIZED (
+    SELECT DISTINCT ON (e.product_id)
+      e.product_id,
       p.sponsored,
-      p.view_count,
-      p.brand,
-      p.created_at,
-      (1 - (e.embedding <=> search_products_by_image.embedding))::double precision AS similarity,
-      row_number() OVER (
-        PARTITION BY p.id
-        ORDER BY e.embedding <=> search_products_by_image.embedding
-      ) AS rn
+      (1 - (e.embedding <=> search_products_by_image.embedding))::double precision AS similarity
     FROM public.product_image_embeddings e
     JOIN public.products p ON p.id = e.product_id
-    LEFT JOIN public.categories c ON c.id = p.category_id
     WHERE p.seller_id IS NOT NULL
       AND p.published = true
       AND (1 - (e.embedding <=> search_products_by_image.embedding)) >= 0.20
+    ORDER BY e.product_id, e.embedding <=> search_products_by_image.embedding
+  ),
+  limited AS MATERIALIZED (
+    SELECT product_id, sponsored, similarity
+    FROM best_per_product
+    ORDER BY similarity DESC, sponsored DESC
+    LIMIT LEAST(GREATEST(COALESCE(lim, 24), 1), 48)
   )
   SELECT
-    id, name, description, price, original_price, deal_price, deal_ends_at,
-    image_url, images, about_items, variants, category_id, category_name,
-    seller_id, seller_department, published, rating, review_count, in_stock,
-    badge, featured, sponsored, view_count, brand, created_at, similarity
-  FROM ranked
-  WHERE rn = 1
-  ORDER BY similarity DESC, sponsored DESC NULLS LAST
-  LIMIT LEAST(GREATEST(COALESCE(lim, 24), 1), 48);
+    p.id,
+    p.name,
+    p.description,
+    p.price,
+    p.original_price,
+    p.deal_price,
+    p.deal_ends_at,
+    p.image_url,
+    p.images,
+    p.about_items,
+    p.variants,
+    p.category_id,
+    c.name AS category_name,
+    p.seller_id,
+    p.seller_department,
+    p.published,
+    p.rating,
+    p.review_count,
+    p.in_stock,
+    p.badge,
+    p.featured,
+    p.sponsored,
+    p.view_count,
+    p.brand,
+    p.created_at,
+    limited.similarity
+  FROM limited
+  JOIN public.products p ON p.id = limited.product_id
+  LEFT JOIN public.categories c ON c.id = p.category_id
+  WHERE p.seller_id IS NOT NULL
+    AND p.published = true
+  ORDER BY limited.similarity DESC, p.sponsored DESC;
 $$;
 
 COMMENT ON FUNCTION public.search_products_by_image(vector, integer) IS
-  'Nearest published seller products for a CLIP image embedding. SECURITY INVOKER.';
+  'Nearest published seller products for a CLIP image embedding. SECURITY INVOKER. Wide columns are read only after LIMIT so a toasted row cannot trip ERRCODE 54000.';
 
 REVOKE ALL ON FUNCTION public.search_products_by_image(vector, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.search_products_by_image(vector, integer) TO anon, authenticated;
