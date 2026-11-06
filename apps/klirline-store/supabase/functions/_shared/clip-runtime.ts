@@ -1,20 +1,20 @@
 /**
  * CLIP image embedding for the visual-search Edge Function.
  *
- * Verified on Deno 2.9.8 (not a promise):
- * - `npm:@huggingface/transformers` loads the Node build. Deno reports
- *   `process.release.name === "node"`, so the library picks `sharp` and
- *   `onnxruntime-node`. Supabase Edge cannot load those native bindings.
- * - `RawImage.fromBlob` / `fromURL` throw (`sharp` is not a function).
- *   `OffscreenCanvas.getContext("2d")` is null, so canvas pixels are unavailable.
- * - The self-contained `transformers.min.js` WASM build returns a 512-d
- *   `image_embeds` vector when three conditions hold:
- *   1. `process` is hidden only while the module evaluates,
- *   2. the JS bundle and `ort-wasm-simd-threaded.jsep.*` are local files
- *      (an https wasm URL is rejected by Deno's Node loader),
- *   3. the caller passes a float tensor, not a RawImage.
- * - If that still fails (memory, /tmp, cold start), inference falls back to
- *   HF_TOKEN + HF_CLIP_INFERENCE_URL. Those are server secrets, never VITE_*.
+ * Edge exposes process.release.name === "node", so npm:@huggingface/transformers
+ * would pick onnxruntime-node / sharp (unavailable). OffscreenCanvas 2D is null.
+ *
+ * Local path on Supabase Edge 1.77.9 / Deno 2.1.4 (live v9):
+ * - Do NOT install onnxruntime-web on Symbol.for("onnxruntime"): Edge may already
+ *   expose a native ORT there, and overwriting it with ort-web then fails because
+ *   ort-wasm-simd-threaded.jsep.mjs is a dynamic remote import outside the eszip.
+ * - Hide process only while importing transformers.min.js (literal URL) so
+ *   IS_NODE_ENV is false when the symbol is absent.
+ * - Keep the ONNX env object already on the module. Use device:"auto" so a
+ *   preinstalled ORT symbol (empty supportedDevices) does not throw on device:"wasm".
+ * - Pass a float32 tensor from our decoder, never RawImage. image_embeds must be 512-d.
+ *
+ * Remote fallback: HF_TOKEN + HF_CLIP_INFERENCE_URL (never VITE_*).
  */
 import jpeg from "npm:jpeg-js@0.4.4";
 import { decode as decodePng } from "npm:fast-png@6.4.0";
@@ -28,13 +28,17 @@ import {
 } from "./clip-math.mjs";
 
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-const CLIP_DIR = "/tmp/klir-clip";
-const CDN = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist";
-const RUNTIME_FILES = [
-  "transformers.min.js",
-  "ort-wasm-simd-threaded.jsep.mjs",
-  "ort-wasm-simd-threaded.jsep.wasm",
-] as const;
+const CLIP_TF_WASM =
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/";
+
+/** Keep wasmPaths Edge already set. CDN only when the native ORT symbol is absent or the path is empty. */
+export function clipWasmPaths(
+  hasOrtSymbol: boolean,
+  current: string | null | undefined,
+): string {
+  if (!hasOrtSymbol || current == null) return CLIP_TF_WASM;
+  return current;
+}
 
 export class PhotoInputError extends Error {
   constructor(message: string) {
@@ -96,7 +100,6 @@ export async function decodeImage(bytes: Uint8Array, mime: SniffedImage): Promis
   }
 }
 
-let preparing: Promise<void> | null = null;
 let transformersMod: TransformersModule | null = null;
 let loadingTransformers: Promise<TransformersModule> | null = null;
 let modelPromise: Promise<ClipModel> | null = null;
@@ -109,8 +112,7 @@ type TransformersModule = {
   env: {
     useBrowserCache: boolean;
     allowLocalModels: boolean;
-    cacheDir?: string;
-    backends: { onnx: { wasm: { wasmPaths?: string; numThreads?: number } } };
+    backends: { onnx: { wasm?: { wasmPaths?: string; numThreads?: number; proxy?: boolean } } };
   };
   Tensor: new (type: string, data: Float32Array, dims: number[]) => unknown;
   CLIPVisionModelWithProjection: {
@@ -118,49 +120,25 @@ type TransformersModule = {
   };
 };
 
-async function ensureRuntime(): Promise<void> {
-  preparing ??= (async () => {
-    await Deno.mkdir(CLIP_DIR, { recursive: true });
-    for (const name of RUNTIME_FILES) {
-      const path = `${CLIP_DIR}/${name}`;
-      try {
-        const stat = await Deno.stat(path);
-        if (stat.size > 1000) continue;
-      } catch {
-        /* download */
-      }
-      const res = await fetch(`${CDN}/${name}`);
-      if (!res.ok) throw new Error(`Téléchargement CLIP impossible (${name})`);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.byteLength < 1000 || buf.byteLength > 40_000_000) {
-        throw new Error(`Fichier CLIP inattendu (${name})`);
-      }
-      await Deno.writeFile(path, buf);
-    }
-  })();
-  try {
-    await preparing;
-  } catch (error) {
-    preparing = null;
-    throw error;
-  }
-}
-
 async function loadTransformers(): Promise<TransformersModule> {
   if (transformersMod) return transformersMod;
   loadingTransformers ??= (async () => {
-    await ensureRuntime();
+    const ortSym = Symbol.for("onnxruntime");
     const saved = (globalThis as { process?: unknown }).process;
-    // See file header: Deno masquerades as Node and selects native sharp / ORT.
-    // Hide process only while this module evaluates.
     delete (globalThis as { process?: unknown }).process;
     try {
-      const imported = await import(`file://${CLIP_DIR}/transformers.min.js`) as TransformersModule;
+      const imported = await import(
+        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js"
+      ) as TransformersModule;
       imported.env.useBrowserCache = false;
       imported.env.allowLocalModels = false;
-      imported.env.cacheDir = `${CLIP_DIR}/models`;
-      imported.env.backends.onnx.wasm.wasmPaths = `${CLIP_DIR}/`;
-      imported.env.backends.onnx.wasm.numThreads = 1;
+      const wasm = imported.env.backends?.onnx?.wasm;
+      if (wasm) {
+        wasm.numThreads = 1;
+        wasm.proxy = false;
+        const nextPaths = clipWasmPaths(ortSym in globalThis, wasm.wasmPaths);
+        if (nextPaths != null) wasm.wasmPaths = nextPaths;
+      }
       transformersMod = imported;
       return imported;
     } finally {
@@ -182,7 +160,7 @@ export async function embedImageLocally(bytes: Uint8Array, mime: SniffedImage): 
     const mod = await loadTransformers();
     modelPromise ??= mod.CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL, {
       dtype: CLIP_DTYPE,
-      device: "wasm",
+      device: "auto",
     });
     const model = await modelPromise;
     const tensor = new mod.Tensor("float32", pixels, [1, 3, 224, 224]);

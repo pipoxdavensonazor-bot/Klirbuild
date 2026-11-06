@@ -26,7 +26,8 @@ const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
 const RATE_LIMIT_MIGRATION = "20261106120000_visual_search_clip.sql";
 const CLIP_HINT =
   "Le runtime Edge ne peut pas utiliser RawImage (Deno se présente comme Node : sharp et onnxruntime-node sont indisponibles, et OffscreenCanvas 2D est vide). " +
-  "Le chemin local tente CLIP ViT-B/32 q8 via transformers.min.js + WASM dans /tmp. " +
+  "Le chemin local masque process le temps d'importer transformers.min.js 3.8.1 et réutilise l'ORT déjà fourni par Edge, sans le remplacer. " +
+  "La photo est décodée en tenseur float32 ; CLIP ViT-B/32 q8 (device auto) doit renvoyer 512 dimensions. " +
   "S'il échoue, définissez les secrets serveur HF_TOKEN et HF_CLIP_INFERENCE_URL (endpoint HTTPS qui renvoie un vecteur CLIP de 512). " +
   "N'utilisez jamais une variable VITE_*.";
 

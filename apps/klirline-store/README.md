@@ -34,8 +34,11 @@ npx supabase functions deploy visual-search --project-ref whybbqeeqpkbkatnkjjc
 
 1. Decodes JPEG (`jpeg-js`), PNG (`fast-png`) or WebP (`@jsquash/webp`).
 2. Builds the CLIP tensor with `supabase/functions/_shared/clip-math.mjs` (224px, OpenAI mean/std). It does not call `RawImage`.
-3. Hides `process` only while importing `transformers.min.js`, downloads that bundle plus the ORT WASM into `/tmp/klir-clip`, and runs `Xenova/clip-vit-base-patch32` dtype `q8` (512 dims).
-4. If that fails, calls a remote Hugging Face endpoint **only** when both server secrets exist.
+3. Hides `process` only while the literal import of `transformers.min.js` @ 3.8.1 evaluates. It does not assign `Symbol.for("onnxruntime")`. Edge already exposes native ORT on that symbol; replacing it pulls `ort-wasm-simd-threaded.jsep.mjs` through a dynamic import that the eszip rejects.
+4. Keeps `env.backends.onnx`, runs `Xenova/clip-vit-base-patch32` dtype `q8` with `device: "auto"`, and accepts only a 512-d `image_embeds` vector.
+5. If that fails, calls a remote Hugging Face endpoint **only** when both server secrets exist.
+
+The git tree keeps `visual-search/index.ts` importing `../_shared/clip-runtime.ts` and `../_shared/clip-math.mjs`. A flat MCP upload places those three files side by side and rewrites the imports to `./`. Do not flatten the repository. No new secret is required for the local path. Do not run the seed indexer as part of this deploy.
 
 | Secret | Required when |
 | --- | --- |
