@@ -2,23 +2,18 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { sendOrderConfirmationEmail } from "../_shared/order-confirm-email.ts";
 import {
-  alertRedirect,
-  moncashCancelUrl,
-  decideMoncashSettlement,
-  gatewayModeMatches,
-  interpretSettleRace,
-  isOrderUuid,
-  moncashAmountHtg,
-  moncashEnvironment,
-  moncashHosts,
-  orderCurrencyIsHtg,
-  paymentRedirectUrl,
-  readNotifyTransactionId,
-  redactSensitive,
-  type MoncashPaymentView,
-  type OrderPaymentState,
-  type RejectReason,
-} from "../_shared/moncash-protocol.ts";
+  CONNECT_API_BASE,
+  CONNECT_RETURN_ORIGIN,
+  connectAmountHtg,
+  connectIdempotencyKey,
+  connectPaymentUrl,
+  connectReferenceId,
+  connectReturnUrl,
+  decideConnectStatus,
+  parseConnectWebhookEvent,
+  redactConnectSecrets,
+  verifyConnectWebhookSignature,
+} from "../_shared/moncash-connect.ts";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
   "https://klirline-store.pages.dev,https://store.klirline.com,https://klirline.com,https://www.klirline.com,http://localhost:5173,http://localhost:4173")
@@ -62,119 +57,29 @@ type OrderRow = {
 const ORDER_COLUMNS =
   "id, user_id, total, status, guest_token, payment_method, payment_currency, moncash_order_id, moncash_transaction_id, moncash_amount_htg";
 
-function toState(order: OrderRow): OrderPaymentState {
-  return {
-    id: order.id,
-    status: order.status,
-    total: order.total,
-    paymentMethod: order.payment_method,
-    paymentCurrency: order.payment_currency,
-    moncashOrderId: order.moncash_order_id,
-    moncashTransactionId: order.moncash_transaction_id,
-    moncashAmountHtg: order.moncash_amount_htg,
-  };
+function connectSecret(): string {
+  return Deno.env.get("MONCASH_CONNECT_SECRET_KEY")?.trim() ?? "";
 }
 
-function hosts() {
-  return moncashHosts(moncashEnvironment(Deno.env.get("MONCASH_ENV")));
+function webhookSecret(): string {
+  return Deno.env.get("MONCASH_CONNECT_WEBHOOK_SECRET")?.trim() ?? "";
 }
 
-async function getMoncashToken(): Promise<string> {
-  const clientId = Deno.env.get("MONCASH_CLIENT_ID");
-  const clientSecret = Deno.env.get("MONCASH_CLIENT_SECRET");
-  if (!clientId || !clientSecret) {
-    console.error("moncash credentials missing");
-    throw new Error("moncash_unconfigured");
-  }
-
-  const { rest } = hosts();
-  const res = await fetch(`${rest}/oauth/token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "scope=read,write&grant_type=client_credentials",
-  });
-  if (!res.ok) {
-    console.error("moncash auth http", res.status);
-    throw new Error("moncash_auth");
-  }
-  const data = await res.json();
-  if (typeof data?.access_token !== "string" || !data.access_token) {
-    console.error("moncash auth missing access_token");
-    throw new Error("moncash_auth");
-  }
-  return data.access_token as string;
-}
-
-type Upstream =
-  | { kind: "ok"; body: Record<string, unknown> }
-  | { kind: "absent" }
-  | { kind: "auth" }
-  | { kind: "unavailable" };
-
-async function moncashPost(
-  path: string,
-  token: string,
-  body: Record<string, unknown>,
-): Promise<Upstream> {
-  const { rest } = hosts();
-  let res: Response;
+function connectOrigin(): string {
+  const raw = Deno.env.get("MONCASH_CONNECT_ORIGIN")?.trim() || CONNECT_RETURN_ORIGIN;
   try {
-    res = await fetch(`${rest}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    console.error(
-      "moncash fetch",
-      path,
-      redactSensitive(err instanceof Error ? err.message : "network").slice(0, 180),
-    );
-    return { kind: "unavailable" };
-  }
-
-  if (res.status === 401 || res.status === 403) {
-    console.error("moncash http", path, res.status);
-    return { kind: "auth" };
-  }
-  if (res.status === 400 || res.status === 404) {
-    console.error("moncash absent", path, res.status);
-    return { kind: "absent" };
-  }
-  if (!res.ok) {
-    console.error("moncash http", path, res.status);
-    return { kind: "unavailable" };
-  }
-
-  try {
-    const parsed = await res.json();
-    if (!parsed || typeof parsed !== "object") return { kind: "unavailable" };
-    return { kind: "ok", body: parsed as Record<string, unknown> };
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return CONNECT_RETURN_ORIGIN;
+    return url.origin;
   } catch {
-    console.error("moncash invalid json", path);
-    return { kind: "unavailable" };
+    return CONNECT_RETURN_ORIGIN;
   }
-}
-
-function paymentOf(body: Record<string, unknown> | null): MoncashPaymentView | null {
-  const payment = body?.payment;
-  if (!payment || typeof payment !== "object") return null;
-  return payment as MoncashPaymentView;
 }
 
 async function optionalUser(req: Request) {
   const authHeader = req.headers.get("Authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!jwt || jwt === Deno.env.get("SUPABASE_ANON_KEY")) return null;
-
   const userClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -207,105 +112,120 @@ async function loadOrder(admin: Admin, orderId: string): Promise<OrderRow | null
   return data as OrderRow;
 }
 
-const USER_ERRORS: Record<RejectReason, string> = {
-  not_successful: "Paiement MonCash non confirmé.",
-  amount_mismatch: "Le montant MonCash ne correspond pas à la commande.",
-  currency: "MonCash n'accepte que le HTG.",
-  order_mismatch: "La référence MonCash ne correspond pas à la commande.",
-  method: "Cette commande n'est pas un paiement MonCash.",
-  duplicate_transaction: "Cette transaction MonCash est déjà enregistrée.",
-  missing_transaction: "Paiement MonCash non confirmé.",
-  not_payable: "Cette commande ne peut plus être payée.",
-  not_integer: "MonCash n'accepte qu'un montant entier en HTG.",
-};
+function expectedAmount(order: OrderRow): number | null {
+  const parsed = connectAmountHtg(order.moncash_amount_htg ?? order.total);
+  if (!parsed.ok) return null;
+  if (order.moncash_amount_htg != null && order.moncash_amount_htg !== parsed.amount) return null;
+  return parsed.amount;
+}
+
+type PayStatus =
+  | { kind: "ok"; reference: string; status: string; amount: number }
+  | { kind: "absent" }
+  | { kind: "auth" }
+  | { kind: "unavailable" };
+
+async function fetchPayStatus(referenceId: string): Promise<PayStatus> {
+  const secret = connectSecret();
+  if (!secret) return { kind: "auth" };
+  let res: Response;
+  try {
+    const url = new URL(`${CONNECT_API_BASE}/pay-status`);
+    url.searchParams.set("referenceId", referenceId);
+    res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        Accept: "application/json",
+        Origin: connectOrigin(),
+      },
+    });
+  } catch (err) {
+    console.error("connect pay-status", redactConnectSecrets(err instanceof Error ? err.message : "network"));
+    return { kind: "unavailable" };
+  }
+  if (res.status === 404) return { kind: "absent" };
+  if (res.status === 401 || res.status === 403) {
+    console.error("connect pay-status http", res.status);
+    return { kind: "auth" };
+  }
+  if (!res.ok) {
+    console.error("connect pay-status http", res.status);
+    return { kind: "unavailable" };
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = await res.json();
+  } catch {
+    return { kind: "unavailable" };
+  }
+  if (typeof body.reference !== "string" || typeof body.status !== "string") {
+    return { kind: "unavailable" };
+  }
+  if (typeof body.amount !== "number" || !Number.isInteger(body.amount)) {
+    return { kind: "unavailable" };
+  }
+  return { kind: "ok", reference: body.reference, status: body.status, amount: body.amount };
+}
 
 async function runSideEffects(admin: Admin, orderId: string) {
   const { error: fulfillErr } = await admin.rpc("create_order_fulfillments", {
     p_order_id: orderId,
   });
   if (fulfillErr) console.error("create_order_fulfillments failed", fulfillErr.message);
-
   try {
     const mail = await sendOrderConfirmationEmail(admin, orderId);
     if (!mail.sent) console.log("order confirm email skipped", mail.reason);
   } catch (err) {
-    console.error(
-      "order confirm email failed",
-      redactSensitive(err instanceof Error ? err.message : "email").slice(0, 180),
-    );
+    console.error("order confirm email failed", redactConnectSecrets(err instanceof Error ? err.message : "email"));
   }
 }
 
-/** Only the request that flips pending → completed runs fulfillment and email. */
-async function settle(
+async function settleCompleted(
   admin: Admin,
   order: OrderRow,
-  payment: MoncashPaymentView | null,
-): Promise<{ outcome: "settled" | "already" | "reject"; reason?: RejectReason }> {
-  const decision = decideMoncashSettlement(toState(order), payment);
-  if (decision.action === "reject") return { outcome: "reject", reason: decision.reason };
-  if (decision.action === "already") return { outcome: "already" };
-
-  const { data: updated, error: upErr } = await admin
+  amount: number,
+): Promise<"settled" | "already" | "rejected"> {
+  if (order.status === "completed" && (!order.payment_method || order.payment_method === "moncash")) {
+    return "already";
+  }
+  if (order.status !== "pending") return "rejected";
+  const { data: updated, error } = await admin
     .from("orders")
     .update({
       status: "completed",
       payment_method: "moncash",
       payment_currency: "HTG",
       moncash_order_id: order.id,
-      moncash_transaction_id: decision.transactionId,
-      moncash_amount_htg: decision.amount,
+      moncash_amount_htg: amount,
     })
     .eq("id", order.id)
     .eq("status", "pending")
-    .is("moncash_transaction_id", null)
     .select("id");
-
-  if (upErr) {
-    if (upErr.code === "23505") {
-      console.error("moncash duplicate transaction", order.id, decision.transactionId);
-      return { outcome: "reject", reason: "duplicate_transaction" };
-    }
-    console.error("moncash settle", upErr.code);
-    throw new Error("moncash_settle");
+  if (error) {
+    console.error("connect settle", error.code);
+    throw new Error("connect_settle");
   }
-
   if (Array.isArray(updated) && updated.length === 1) {
     await runSideEffects(admin, order.id);
-    return { outcome: "settled" };
+    return "settled";
   }
-
   const reread = await loadOrder(admin, order.id);
-  const race = interpretSettleRace(
-    false,
-    reread
-      ? { status: reread.status, moncashTransactionId: reread.moncash_transaction_id }
-      : null,
-    decision.transactionId,
-  );
-  if (race === "already") return { outcome: "already" };
-  if (race === "duplicate") {
-    console.error("moncash duplicate transaction", order.id, decision.transactionId);
-    return { outcome: "reject", reason: "duplicate_transaction" };
-  }
-  return { outcome: "reject", reason: "not_payable" };
+  if (reread?.status === "completed") return "already";
+  return "rejected";
 }
 
-function userResult(
-  cors: Record<string, string>,
-  result: { outcome: "settled" | "already" | "reject"; reason?: RejectReason },
-  orderId: string,
-) {
-  if (result.outcome === "reject") {
-    const reason = result.reason ?? "not_successful";
-    const status = reason === "not_successful" || reason === "missing_transaction" ? 400 : 409;
-    return json(status, { success: false, error: USER_ERRORS[reason] }, cors);
-  }
-  return json(200, {
-    success: true,
-    alreadyCompleted: result.outcome === "already",
-    orderId,
-  }, cors);
+async function markFailed(admin: Admin, order: OrderRow): Promise<void> {
+  if (order.status !== "pending") return;
+  await admin
+    .from("orders")
+    .update({ payment_method: "moncash", payment_currency: "HTG" })
+    .eq("id", order.id)
+    .eq("status", "pending");
+  await admin
+    .from("orders")
+    .update({ status: "failed" })
+    .eq("id", order.id)
+    .eq("status", "pending");
 }
 
 Deno.serve(async (req: Request) => {
@@ -313,16 +233,15 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 
   const path = new URL(req.url).pathname.replace(/\/$/, "") || "/";
-  const isNotify = path === "/notify" || path.endsWith("/notify");
+  const isWebhook = path === "/webhook" || path.endsWith("/webhook") || path === "/notify" || path.endsWith("/notify");
   const isCreate = path === "/create" || path.endsWith("/create");
   const isVerify = path === "/verify" || path.endsWith("/verify");
 
   try {
-    if (isNotify) return await handleNotify(req, cors);
+    if (isWebhook) return await handleWebhook(req, cors);
     if (req.method !== "POST" || (!isCreate && !isVerify)) {
       return json(404, { error: "Not found" }, cors);
     }
-
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -330,66 +249,74 @@ Deno.serve(async (req: Request) => {
     const user = await optionalUser(req);
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") return json(400, { error: "Requête invalide" }, cors);
-    const payload = body as { orderId?: unknown; guestToken?: unknown; transactionId?: unknown };
+    const payload = body as { orderId?: unknown; guestToken?: unknown };
     const guestToken = typeof payload.guestToken === "string" ? payload.guestToken : null;
-
     if (isCreate) return await handleCreate(admin, user, payload.orderId, guestToken, cors);
-    const transactionId = typeof payload.transactionId === "string" ? payload.transactionId : null;
-    return await handleVerify(admin, user, payload.orderId, guestToken, transactionId, cors);
+    return await handleVerify(admin, user, payload.orderId, guestToken, cors);
   } catch (err) {
-    const message = redactSensitive(err instanceof Error ? err.message : "error");
-    console.error("moncash handler", message.slice(0, 200));
-    const unavailable = message === "moncash_unconfigured" || message === "moncash_auth";
-    return json(unavailable ? 503 : 500, { error: "Paiement MonCash indisponible." }, cors);
+    console.error("connect handler", redactConnectSecrets(err instanceof Error ? err.message : "error").slice(0, 200));
+    return json(500, { error: "Paiement MonCash indisponible." }, cors);
   }
 });
 
-async function handleNotify(req: Request, cors: Record<string, string>) {
-  if (req.method !== "GET" && req.method !== "POST") {
-    return json(405, { error: "Method not allowed" }, cors);
+async function handleWebhook(req: Request, cors: Record<string, string>) {
+  if (req.method === "GET") {
+    return Response.redirect(`${CONNECT_RETURN_ORIGIN}/?checkout=moncash_return`, 302);
+  }
+  if (req.method !== "POST") return json(405, { error: "Method not allowed" }, cors);
+
+  const rawBody = await req.text();
+  const verified = await verifyConnectWebhookSignature({
+    rawBody,
+    signature: req.headers.get("X-MCC-Signature"),
+    signatureV2: req.headers.get("X-MCC-Signature-V2"),
+    timestamp: req.headers.get("X-MCC-Timestamp"),
+    secret: webhookSecret(),
+    nowSeconds: Math.floor(Date.now() / 1000),
+  });
+  if (!verified.ok) {
+    console.error("connect webhook", verified.reason);
+    return json(verified.reason === "secret" ? 503 : 401, { received: false }, cors);
   }
 
-  const transactionId = await readNotifyTransactionId(req);
-  const browser = req.method === "GET";
-  if (!transactionId) {
-    if (browser) return Response.redirect(moncashCancelUrl(), 302);
-    return json(400, { received: true, settled: false }, cors);
+  const event = parseConnectWebhookEvent(rawBody);
+  if (!event) return json(200, { received: true, settled: false }, cors);
+  if (event.event !== "payment.completed" && event.event !== "payment.failed") {
+    return json(200, { received: true, settled: false }, cors);
   }
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const token = await getMoncashToken();
-  const upstream = await moncashPost("/v1/RetrieveTransactionPayment", token, { transactionId });
-  if (upstream.kind !== "ok") {
-    if (browser) return Response.redirect(alertRedirect(null, transactionId), 302);
-    const status = upstream.kind === "absent" ? 200 : 503;
-    return json(status, { received: true, settled: false }, cors);
-  }
-
-  const reference = paymentOf(upstream.body)?.reference;
-  const orderId = typeof reference === "string" ? reference.trim() : "";
-  const order = isOrderUuid(orderId) ? await loadOrder(admin, orderId) : null;
-  if (!order) {
-    console.error("moncash notify unknown reference");
-    if (browser) return Response.redirect(alertRedirect(null, transactionId), 302);
+  const order = await loadOrder(admin, event.reference);
+  if (!order || (order.payment_method && order.payment_method !== "moncash")) {
     return json(200, { received: true, settled: false }, cors);
   }
+  const expected = expectedAmount(order);
+  if (expected == null) return json(200, { received: true, settled: false }, cors);
 
-  const result = await settle(admin, order, paymentOf(upstream.body));
-  if (browser) {
-    const target = result.outcome === "reject"
-      ? alertRedirect(null, transactionId)
-      : alertRedirect(order.id, transactionId);
-    return Response.redirect(target, 302);
+  const status = await fetchPayStatus(order.id);
+  if (status.kind === "auth" || status.kind === "unavailable") {
+    return json(503, { received: true, settled: false }, cors);
   }
-  if (result.outcome === "reject") return json(200, { received: true, settled: false }, cors);
-  return json(200, {
-    received: true,
-    settled: true,
-    alreadyCompleted: result.outcome === "already",
-  }, cors);
+  if (status.kind !== "ok") return json(200, { received: true, settled: false }, cors);
+
+  const decision = decideConnectStatus({
+    reference: status.reference,
+    status: status.status,
+    amount: status.amount,
+    expectedReference: order.id,
+    expectedAmount: expected,
+  });
+  if (decision === "settle") {
+    const result = await settleCompleted(admin, order, expected);
+    return json(200, { received: true, settled: result !== "rejected" }, cors);
+  }
+  if (decision === "failed" && event.event === "payment.failed") {
+    await markFailed(admin, order);
+  }
+  return json(200, { received: true, settled: false }, cors);
 }
 
 async function handleCreate(
@@ -399,58 +326,99 @@ async function handleCreate(
   guestToken: string | null,
   cors: Record<string, string>,
 ) {
-  if (typeof rawOrderId !== "string" || !isOrderUuid(rawOrderId)) {
+  if (typeof rawOrderId !== "string" || !connectReferenceId(rawOrderId)) {
     return json(400, { error: "orderId is required" }, cors);
   }
   const order = await loadOrder(admin, rawOrderId);
   if (!order) return json(404, { error: "Order not found" }, cors);
   if (!assertOrderAccess(order, user, guestToken)) return json(403, { error: "Forbidden" }, cors);
   if (order.payment_method && order.payment_method !== "moncash") {
-    return json(400, { error: USER_ERRORS.method }, cors);
+    return json(400, { error: "Cette commande n'est pas un paiement MonCash." }, cors);
   }
-  if (!orderCurrencyIsHtg(order.payment_currency)) {
-    return json(400, { error: USER_ERRORS.currency }, cors);
+  if (order.payment_currency && order.payment_currency !== "HTG") {
+    return json(400, { error: "MonCash Connect n'accepte que le HTG." }, cors);
   }
   if (order.status === "completed") return json(200, { alreadySettled: true, orderId: order.id }, cors);
   if (order.status !== "pending") return json(400, { error: "Order is not pending" }, cors);
 
-  const amount = moncashAmountHtg(order.total);
-  if (!amount.ok) return json(400, { error: USER_ERRORS.not_integer }, cors);
-  if (order.moncash_amount_htg != null && order.moncash_amount_htg !== amount.amount) {
-    return json(409, { error: USER_ERRORS.amount_mismatch }, cors);
+  const amount = connectAmountHtg(order.total);
+  if (!amount.ok) {
+    const error = amount.reason === "above_documented_max"
+      ? "MonCash Connect accepte un montant entier de 1 à 100 000 HTG."
+      : "MonCash Connect n'accepte qu'un montant entier en HTG.";
+    return json(400, { error }, cors);
+  }
+  const returnUrl = connectReturnUrl(order.id, connectOrigin());
+  const idempotencyKey = connectIdempotencyKey(order.id);
+  if (!returnUrl || !idempotencyKey) return json(400, { error: "Commande invalide" }, cors);
+
+  const existing = await fetchPayStatus(order.id);
+  if (existing.kind === "ok") {
+    const decision = decideConnectStatus({
+      reference: existing.reference,
+      status: existing.status,
+      amount: existing.amount,
+      expectedReference: order.id,
+      expectedAmount: amount.amount,
+    });
+    if (decision === "settle") {
+      await settleCompleted(admin, order, amount.amount);
+      return json(200, { alreadySettled: true, orderId: order.id }, cors);
+    }
+    if (decision === "mismatch") {
+      return json(409, { error: "Le montant MonCash ne correspond pas à la commande." }, cors);
+    }
+    if (decision === "failed") {
+      return json(400, { error: "Paiement MonCash non confirmé." }, cors);
+    }
+  }
+  if (existing.kind === "auth" || existing.kind === "unavailable") {
+    return json(503, { error: "Paiement MonCash indisponible." }, cors);
   }
 
-  const token = await getMoncashToken();
-  const existing = await moncashPost("/v1/RetrieveOrderPayment", token, { orderId: order.id });
-  if (existing.kind === "auth") throw new Error("moncash_auth");
-  if (existing.kind === "unavailable") throw new Error("moncash_unavailable");
-  if (existing.kind === "ok" && paymentOf(existing.body)?.message === "successful") {
-    const settled = await settle(admin, order, paymentOf(existing.body));
-    if (settled.outcome === "reject") return userResult(cors, settled, order.id);
-    return json(200, { alreadySettled: true, orderId: order.id }, cors);
+  const secret = connectSecret();
+  if (!secret) return json(503, { error: "Paiement MonCash indisponible." }, cors);
+  let res: Response;
+  try {
+    res = await fetch(`${CONNECT_API_BASE}/pay-create`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Origin: connectOrigin(),
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify({
+        amount: amount.amount,
+        referenceId: order.id,
+        returnUrl,
+      }),
+    });
+  } catch (err) {
+    console.error("connect pay-create", redactConnectSecrets(err instanceof Error ? err.message : "network"));
+    return json(503, { error: "Paiement MonCash indisponible." }, cors);
   }
-
-  const created = await moncashPost("/v1/CreatePayment", token, {
-    amount: amount.amount,
-    orderId: order.id,
-  });
-  if (created.kind !== "ok") {
-    throw new Error(created.kind === "auth" ? "moncash_auth" : "moncash_create");
+  if (res.status === 409 || res.status === 410) {
+    return json(409, { error: "Un paiement MonCash est déjà ouvert pour cette commande." }, cors);
   }
-
-  const env = moncashEnvironment(Deno.env.get("MONCASH_ENV"));
-  if (!gatewayModeMatches(created.body.mode, env)) {
-    console.error("moncash mode mismatch", env);
+  if (!res.ok) {
+    console.error("connect pay-create http", res.status);
+    return json(503, { error: "Paiement MonCash indisponible." }, cors);
+  }
+  let created: Record<string, unknown>;
+  try {
+    created = await res.json();
+  } catch {
     return json(502, { error: "Paiement MonCash indisponible." }, cors);
   }
-
-  const tokenBag = created.body.payment_token;
-  const rawToken = tokenBag && typeof tokenBag === "object"
-    ? (tokenBag as { token?: unknown }).token
-    : null;
-  const paymentUrl = paymentRedirectUrl(hosts().gateway, typeof rawToken === "string" ? rawToken : "");
+  if (created.reference !== order.id) {
+    console.error("connect pay-create reference mismatch");
+    return json(502, { error: "Paiement MonCash indisponible." }, cors);
+  }
+  const paymentUrl = connectPaymentUrl(created.paymentUrl);
   if (!paymentUrl) {
-    console.error("moncash create missing token");
+    console.error("connect pay-create undocumented payment host");
     return json(502, { error: "Paiement MonCash indisponible." }, cors);
   }
 
@@ -466,10 +434,8 @@ async function handleCreate(
     .eq("status", "pending")
     .select("id");
   if (markErr || !Array.isArray(marked) || marked.length !== 1) {
-    console.error("moncash create mark", markErr?.code ?? "no_row");
     return json(409, { error: "Order is not pending" }, cors);
   }
-
   return json(200, { paymentUrl }, cors);
 }
 
@@ -478,58 +444,44 @@ async function handleVerify(
   user: { id: string } | null,
   rawOrderId: unknown,
   guestToken: string | null,
-  rawTransactionId: string | null,
   cors: Record<string, string>,
 ) {
-  if (typeof rawOrderId === "string" && isOrderUuid(rawOrderId)) {
-    const order = await loadOrder(admin, rawOrderId);
-    if (!order) return json(404, { error: "Order not found" }, cors);
-    if (!assertOrderAccess(order, user, guestToken)) return json(403, { error: "Forbidden" }, cors);
-    if (order.status === "completed" && (!order.payment_method || order.payment_method === "moncash")) {
-      return json(200, { success: true, alreadyCompleted: true, orderId: order.id }, cors);
-    }
-
-    const token = await getMoncashToken();
-    const upstream = await moncashPost("/v1/RetrieveOrderPayment", token, { orderId: order.id });
-    if (upstream.kind === "auth") throw new Error("moncash_auth");
-    if (upstream.kind === "unavailable") throw new Error("moncash_unavailable");
-    const payment = upstream.kind === "ok" ? paymentOf(upstream.body) : null;
-    if (
-      rawTransactionId &&
-      payment?.transaction_id != null &&
-      String(payment.transaction_id) !== rawTransactionId.trim()
-    ) {
-      return json(400, { success: false, error: USER_ERRORS.not_successful }, cors);
-    }
-    const result = await settle(admin, order, payment);
-    return userResult(cors, result, order.id);
-  }
-
-  const transactionId = rawTransactionId?.trim() ?? "";
-  if (!/^[0-9]{4,32}$/.test(transactionId)) {
+  if (typeof rawOrderId !== "string" || !connectReferenceId(rawOrderId)) {
     return json(400, { error: "orderId is required" }, cors);
   }
-
-  const token = await getMoncashToken();
-  const upstream = await moncashPost("/v1/RetrieveTransactionPayment", token, { transactionId });
-  if (upstream.kind === "auth") throw new Error("moncash_auth");
-  if (upstream.kind === "unavailable") throw new Error("moncash_unavailable");
-  const payment = upstream.kind === "ok" ? paymentOf(upstream.body) : null;
-  const reference = typeof payment?.reference === "string" ? payment.reference.trim() : "";
-  if (!isOrderUuid(reference)) {
-    return json(400, { success: false, error: USER_ERRORS.not_successful }, cors);
-  }
-  const order = await loadOrder(admin, reference);
-  if (!order || !assertOrderAccess(order, user, guestToken)) {
-    return json(400, { success: false, error: USER_ERRORS.not_successful }, cors);
-  }
-  if (
-    order.status === "completed" &&
-    (!order.payment_method || order.payment_method === "moncash") &&
-    (!order.moncash_transaction_id || order.moncash_transaction_id === transactionId)
-  ) {
+  const order = await loadOrder(admin, rawOrderId);
+  if (!order) return json(404, { error: "Order not found" }, cors);
+  if (!assertOrderAccess(order, user, guestToken)) return json(403, { error: "Forbidden" }, cors);
+  if (order.status === "completed" && (!order.payment_method || order.payment_method === "moncash")) {
     return json(200, { success: true, alreadyCompleted: true, orderId: order.id }, cors);
   }
-  const result = await settle(admin, order, payment);
-  return userResult(cors, result, order.id);
+  const expected = expectedAmount(order);
+  if (expected == null) {
+    return json(400, { success: false, error: "MonCash Connect n'accepte qu'un montant entier en HTG." }, cors);
+  }
+  const status = await fetchPayStatus(order.id);
+  if (status.kind === "auth" || status.kind === "unavailable") {
+    return json(503, { success: false, error: "Paiement MonCash indisponible." }, cors);
+  }
+  if (status.kind !== "ok") {
+    return json(400, { success: false, error: "Paiement MonCash non confirmé." }, cors);
+  }
+  const decision = decideConnectStatus({
+    reference: status.reference,
+    status: status.status,
+    amount: status.amount,
+    expectedReference: order.id,
+    expectedAmount: expected,
+  });
+  if (decision === "settle") {
+    const result = await settleCompleted(admin, order, expected);
+    if (result === "rejected") {
+      return json(409, { success: false, error: "Cette commande ne peut plus être payée." }, cors);
+    }
+    return json(200, { success: true, alreadyCompleted: result === "already", orderId: order.id }, cors);
+  }
+  if (decision === "mismatch") {
+    return json(409, { success: false, error: "Le montant MonCash ne correspond pas à la commande." }, cors);
+  }
+  return json(400, { success: false, error: "Paiement MonCash non confirmé." }, cors);
 }

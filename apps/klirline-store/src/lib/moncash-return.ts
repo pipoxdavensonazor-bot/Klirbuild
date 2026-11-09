@@ -1,6 +1,7 @@
 /**
  * Identifiers carried on the MonCash browser return.
- * The query string is not a payment receipt — the server confirms via Retrieve*.
+ * The query string is not a payment receipt. `reference` is the id MonCash Connect
+ * appends; the server confirms with GET /v1/pay-status.
  */
 
 const CHECKOUTS = new Set(["moncash_return", "moncash_success"]);
@@ -24,7 +25,7 @@ export function readMoncashBrowserReturn(
   const checkout = params.get("checkout");
   if (!checkout || !CHECKOUTS.has(checkout)) return null;
 
-  const queryOrder = params.get("order_id");
+  const queryOrder = params.get("order_id") || params.get("reference");
   const pendingOrder = pending?.method === "moncash" ? pending.orderId ?? null : null;
   const orderId = [queryOrder, pendingOrder].find((value) =>
     typeof value === "string" && ORDER_UUID.test(value)

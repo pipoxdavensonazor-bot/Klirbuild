@@ -108,7 +108,7 @@ Paste in **Supabase → Project Settings → Edge Functions → Secrets** (proje
 | `RESEND_API_KEY` / `RESEND_FROM` | Order + stock emails (`Klirline Store <noreply@klirline.ca>`) |
 | `STRIPE_SECRET_KEY` | Use **`sk_test_…`** for E2E — [Stripe API keys](https://dashboard.stripe.com/acct_1OunsBEnAIvP8C7u/apikeys) |
 | `STRIPE_WEBHOOK_SECRET` | `checkout.session.completed` webhook |
-| `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` / `MONCASH_ENV` | Digicel. `MONCASH_ENV` absent = sandbox. Secrets serveur, pas `VITE_*`. |
+| `MONCASH_CONNECT_SECRET_KEY` / `MONCASH_CONNECT_WEBHOOK_SECRET` | Encaissement Connect. Secrets serveur, pas `VITE_*`, pas les clés Digicel. |
 
 ```bash
 # from apps/klirline-store — uses local .env VITE_SUPABASE_* only; never prints secrets
@@ -166,29 +166,32 @@ Redeploy the edge function after pulling:
 npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 ```
 
-## MonCash (Digicel) — sandbox par défaut, live préparé
+## MonCash Connect — encaissement
 
-Documentation : [`docs/moncash/MONCASH.md`](./docs/moncash/MONCASH.md).  
-PDF REST : https://sandbox.moncashbutton.digicelgroup.com/Moncash-business/resources/doc/RestAPI_MonCash_doc.pdf
+L'encaissement n'est pas l'OAuth Digicel. Référence : https://moncashconnect.com/en/docs
 
-La doc REST ne décrit pas de signature de webhook. Aucun secret de webhook n’est lu. Un paiement n’est `completed` qu’après `RetrieveOrderPayment` ou `RetrieveTransactionPayment` (`message` = `successful`, référence = commande, coût = montant entier HTG).
+Secrets Edge, distincts de `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` :
 
-Secrets Edge (noms seulement, valeurs dans Supabase, jamais `VITE_*`) :
+- `MONCASH_CONNECT_SECRET_KEY` (secret, Bearer)
+- `MONCASH_CONNECT_WEBHOOK_SECRET` (secret, HMAC)
+- `MONCASH_CONNECT_ORIGIN` optionnel, défaut `https://klirline.com`
 
-- `MONCASH_CLIENT_ID` (secret)
-- `MONCASH_CLIENT_SECRET` (secret)
-- `MONCASH_ENV` = `live` pour la prod, sinon sandbox
+Webhook à enregistrer dans le projet Connect :  
+`https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/webhook`
 
-Return URL : `https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/notify`  
-Alert URL : `https://klirline.com/?checkout=moncash_return`
+`returnUrl` code : `https://klirline.com/?checkout=moncash_return&order_id=<uuid>`  
+Le navigateur ne marque pas la commande payée. Confirmation : `GET /v1/pay-status` ou webhook signé puis le même statut.
 
 ```bash
+npx supabase functions deploy checkout-create --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 ```
 
-Avant ce deploy : appliquer `supabase/migrations/20261109173000_moncash_live_confirmation.sql`. Ne pas passer `MONCASH_ENV=live` sans identifiants live. `seller-payout` ignore `MONCASH_ENV` et lit `MONCASH_PAYOUT_ENV` (défaut sandbox). Déployer `seller-payout` avant d'activer le live, sinon l'ancienne fonction suivrait le drapeau d'encaissement.
+Avant le deploy : `supabase/migrations/20261109173000_moncash_live_confirmation.sql`. Montant entier 1 à 100 000 HTG (plafond de la référence API ; le guide sandbox indique 1 000 000).
 
-Front : MonCash activé par défaut. `VITE_ENABLE_MONCASH=false` le masque. Cette variable n’est pas un secret et ne choisit pas sandbox/live.
+Front : MonCash activé par défaut. `VITE_ENABLE_MONCASH=false` le masque. Cette variable ne contient pas la clé Connect.
+
+Les versements `seller-payout` restent Digicel et lisent `MONCASH_PAYOUT_ENV` (défaut sandbox), pas la clé Connect.
 
 ## Stripe (carte + Link)
 
@@ -277,8 +280,8 @@ Required Edge secrets (Dashboard → Edge Functions → Secrets):
 
 - `MONCASH_CLIENT_ID`
 - `MONCASH_CLIENT_SECRET`
-- `MONCASH_ENV` = `live` pour l'encaissement seulement, sinon sandbox
-- `MONCASH_PAYOUT_ENV` non défini : versements restent sandbox
+- `MONCASH_CONNECT_SECRET_KEY` / `MONCASH_CONNECT_WEBHOOK_SECRET` : encaissement Connect. `MONCASH_ENV` ne choisit pas cet hôte.
+- `MONCASH_PAYOUT_ENV` non défini : versements Digicel restent sandbox
 - `ALLOWED_ORIGINS` = `https://klirline.com,https://www.klirline.com,https://klirline-store.pages.dev,http://localhost:5173`
 
 Set secret `ALLOWED_ORIGINS` (comma-separated), e.g.:

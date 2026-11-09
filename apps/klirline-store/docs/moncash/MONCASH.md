@@ -1,97 +1,66 @@
-# MonCash (Digicel) — KlirMarket
+# MonCash — KlirMarket
 
-Source REST officielle (PDF, relue le 2026-11-09) :  
-https://sandbox.moncashbutton.digicelgroup.com/Moncash-business/resources/doc/RestAPI_MonCash_doc.pdf
+L'encaissement acheteur utilise **MonCash Connect**, pas l'OAuth Digicel.
 
-Le PDF documente oauth, `CreatePayment`, `RetrieveOrderPayment` et `RetrieveTransactionPayment`.  
-Il ne documente **pas** de signature de webhook, ni de secret de webhook, ni de champ devise.  
-Ne pas inventer de signature. La preuve de paiement est la réponse Retrieve* (`payment.message` exactement `successful`), jamais l’URL de retour.
+Référence API (lue le 2026-11-09) : https://moncashconnect.com/en/docs  
+Sandbox : https://moncashconnect.com/docs/sandbox
 
-Ancien bouton chiffré (protocole RSA, **non utilisé** par KlirMarket) :  
-https://sandbox.moncashbutton.digicelgroup.com/Moncash-business/resources/doc/MC_Button_Doc.pdf  
-Ce PDF dit que le Return URL reçoit `transactionId` en HTTP GET.
+MonCash Connect n'est pas Digicel. Les clés `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` ne sont pas envoyées à `api.moncashconnect.com`. Un HTTP 401 Digicel ne dit rien sur ces clés Connect.
 
-Copie locale du PDF REST : [`RestAPI_MonCash_doc.pdf`](./RestAPI_MonCash_doc.pdf).
+## Encaissement
 
-## Hôtes
+`POST https://api.moncashconnect.com/v1/pay-create`  
+`Authorization: Bearer <MONCASH_CONNECT_SECRET_KEY>`  
+Corps : `{ amount, referenceId, returnUrl }`  
+Réponse documentée : `{ paymentUrl, reference, expiresAt }`
 
-| Env | REST | Gateway |
-| --- | --- | --- |
-| Sandbox (défaut) | `https://sandbox.moncashbutton.digicelgroup.com/Api` | `https://sandbox.moncashbutton.digicelgroup.com/Moncash-middleware` |
-| Live | `https://moncashbutton.digicelgroup.com/Api` | `https://moncashbutton.digicelgroup.com/Moncash-middleware` |
+`GET https://api.moncashconnect.com/v1/pay-status?referenceId=` avec le même Bearer.  
+Payé seulement si `status` est `completed`, `reference` est l'UUID de commande et `amount` est l'entier HTG attendu. L'URL de retour ne suffit pas.
 
-`MONCASH_ENV=live` uniquement pour l'encaissement. Toute autre valeur, y compris absente, reste en sandbox. Les versements vendeurs ne lisent pas ce drapeau.
+Webhook `POST` signé :
 
-Portails (pages de connexion, aucun appel marchand depuis ce dépôt) :
+`https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/webhook`
 
-- Sandbox : https://sandbox.moncashbutton.digicelgroup.com/Moncash-business/
-- Live : https://moncashbutton.digicelgroup.com/Moncash-business/
+- `X-MCC-Signature` : `sha256=` + HMAC-SHA256 du corps brut
+- `X-MCC-Signature-V2` : `sha256=` + HMAC-SHA256 de `` `${timestamp}.${corps brut}` `` (préféré s'il est présent)
+- `X-MCC-Timestamp` : secondes Unix, écart max 5 minutes
+- Événements de la référence API : `payment.completed`, `payment.failed`
 
-## Secrets Edge (serveur uniquement)
+Même hôte sandbox et live. Le mode est la clé : `sk_test_proj_…` ou `sk_proj_…`. Pas de changement de code.
 
-Projet Supabase `whybbqeeqpkbkatnkjjc`. Jamais dans `VITE_*`, le frontend, Git ou les logs.
+`returnUrl` envoyé : `https://klirline.com/?checkout=moncash_return&order_id=<uuid>`  
+Le guide sandbox dit que Connect ajoute `reference` (et `error` / `cancelled`). Ces paramètres ne marquent pas la commande payée.
+
+Montant : entier HTG. La référence API borne `pay-create` de 1 à 100 000. Le guide sandbox dit 1 à 1 000 000. Le code suit la référence API et refuse au-dessus de 100 000. `referenceId` : `[A-Za-z0-9_-]`, 100 caractères. L'UUID de commande convient. `Idempotency-Key` = cet UUID.
+
+URLs de paiement acceptées, celles des exemples publiés : `https://pay.moncashconnect.com/…` et `https://moncashconnect.com/sim/…`. Un autre hôte est refusé.
+
+Le guide sandbox contredit aussi la référence : `pay-status?reference=` sans authentification, événement `payment.cancelled`, champ `livemode`. Ces formes ne sont pas codées. `moncashTransactionId` est documenté comme toujours null : le rapprochement se fait sur `reference`.
+
+## Secrets à recueillir (noms seulement)
 
 | Nom | Secret | Rôle |
 | --- | --- | --- |
-| `MONCASH_CLIENT_ID` | oui | Basic auth oauth de l'encaissement |
-| `MONCASH_CLIENT_SECRET` | oui | Basic auth oauth de l'encaissement |
-| `MONCASH_ENV` | non (mais serveur) | `live` pour encaisser. Absent = sandbox. Ignoré par les versements |
-| `MONCASH_PAYOUT_ENV` | non (mais serveur) | Versements seulement. Absent = sandbox. `live` n'est pas posé par cette livraison |
-| `MONCASH_PAYOUT_CLIENT_ID` | oui | Optionnel. Requis pour un versement live. Conserve le sandbox actuel si on remplace les clés d'encaissement |
-| `MONCASH_PAYOUT_CLIENT_SECRET` | oui | Idem |
+| `MONCASH_CONNECT_SECRET_KEY` | oui | Bearer `sk_test_proj_…` puis `sk_proj_…` |
+| `MONCASH_CONNECT_WEBHOOK_SECRET` | oui | HMAC `whsec_…` |
+| `MONCASH_CONNECT_ORIGIN` | non | Défaut `https://klirline.com`. Doit être dans les domaines autorisés du projet, ou la liste doit rester vide |
 
-Il n’y a pas de `MONCASH_WEBHOOK_SECRET` dans la doc REST.
+À coller dans le projet Connect, pas dans le portail Digicel :
 
-Jeton oauth : `expires_in` 59 secondes dans l’exemple. Un jeton neuf par appel.  
-Jeton de paiement : l’exemple CreatePayment expire environ 10 minutes après `created`.
+- Webhook : `https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/webhook`
+- Domaine autorisé : `https://klirline.com` si la liste n'est pas vide
 
-## URLs à coller dans le portail MonCash
+`moncash-payment` se déploie avec `--no-verify-jwt`. Cette préparation ne déploie pas.
 
-Le PDF bouton Digicel liste Return Url et Alert Url parmi les données marchand. Il dit que la notification va au Return URL en HTTP GET avec `transactionId`. Le chiffrement RSA de ce paramètre concerne l'ancien bouton `BusinessKey`, pas l'API REST oauth. Le PDF REST ne décrit ni ces URLs, ni une signature, ni un chiffrement.
+## Versements vendeurs (Digicel, inchangés de cible)
 
-Action portail, d'abord sandbox, puis le business live :
+`seller-payout` reste sur l'API Digicel `POST /v1/Transfert`. Il ne lit pas `MONCASH_ENV` et n'appelle pas Connect. `MONCASH_PAYOUT_ENV` absent = sandbox. Un transfert live exige `MONCASH_PAYOUT_CLIENT_ID` et `MONCASH_PAYOUT_CLIENT_SECRET`. Ne pas poser `MONCASH_PAYOUT_ENV=live` pour activer l'encaissement. Pas de cron.
 
-1. Website : `https://klirline.com`
-2. Return URL : `https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/notify`
-3. Alert URL : `https://klirline.com/?checkout=moncash_return`
+## Déploiement parent, sans secret dans ce dépôt
 
-Le code n'accepte qu'un `transactionId` numérique en clair, puis confirme par Retrieve*. Une valeur chiffrée est ignorée et ne marque rien payé. Vérifier sur un paiement sandbox que l'identifiant reçu est numérique avant le live.
+1. SQL `supabase/migrations/20261109173000_moncash_live_confirmation.sql` sur `whybbqeeqpkbkatnkjjc`
+2. `checkout-create` et `moncash-payment --no-verify-jwt`
+3. Frontend qui envoie le retour vers `moncash-payment/verify`
+4. Poser les deux secrets Connect. `sk_test_proj_` tant que le sandbox n'est pas validé, puis échanger les deux valeurs pour le live
 
-Le GET `notify` confirme via `RetrieveTransactionPayment`, puis redirige vers l'Alert URL.  
-Le POST `notify` répond en JSON `{ received, settled }` sans marquer payé si Retrieve* ne confirme pas.  
-Le front appelle `moncash-payment/verify`, qui refait Retrieve* (ou relit une commande déjà confirmée par le serveur).
-
-Déployer `moncash-payment` avec `--no-verify-jwt`, sinon la passerelle Supabase refuse l'appel MonCash sans JWT. Cette préparation ne déploie pas.
-
-## Versements vendeurs
-
-`seller-payout` n'a pas de cron : le Transfert part seulement sur action vendeur ou admin. L'hôte vient de `MONCASH_PAYOUT_ENV`, jamais de `MONCASH_ENV`.
-
-- Valeur absente : sandbox, état actuel.
-- `live` sans `MONCASH_PAYOUT_CLIENT_ID` et `MONCASH_PAYOUT_CLIENT_SECRET` : refus. Les clés d'encaissement ne servent pas à un transfert live.
-- Sandbox sans clés dédiées : repli sur `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET`.
-
-Avant de remplacer la paire d'encaissement par les clés live, copier la paire sandbox dans `MONCASH_PAYOUT_CLIENT_*` si les versements sandbox doivent continuer. Ne pas poser `MONCASH_PAYOUT_ENV=live` pour cette activation. Le compte préfinancé sert au Transfert, pas à l'encaissement.
-
-## Passage live — encore bloqué
-
-1. Appliquer `supabase/migrations/20261109173000_moncash_live_confirmation.sql` sur `whybbqeeqpkbkatnkjjc`.
-2. Déployer `seller-payout` (isolation) avant de changer `MONCASH_ENV`.
-3. Déployer `checkout-create` et `moncash-payment` (`--no-verify-jwt` pour ce dernier).
-4. Publier le frontend qui gère `checkout=moncash_return`.
-5. Poser les identifiants live d'encaissement. Ils ne sont pas dans ce dépôt.
-6. Mettre `MONCASH_ENV=live` seulement ensuite.
-7. Enregistrer Return URL et Alert URL sur le business live.
-
-
-## Montant et devise
-
-- Devise : HTG uniquement. L’API n’a pas de paramètre devise ni de conversion.
-- Montant CreatePayment : entier de gourdes. Un total avec centimes est refusé (pas d’arrondi silencieux).
-- `payment.reference` doit être l’UUID de la commande.
-- `payment.cost` doit égaler le montant entier envoyé.
-- `payment.message` doit être exactement `successful`.
-- La même `transaction_id` ne peut pas solder deux commandes.
-- Une commande déjà `completed` ne relance pas le séquestre ni l’e-mail. Une seconde transaction est refusée, sans remboursement automatique.
-
-Le PDF REST ne publie pas de minimum ou maximum marchand. Le plafond 100 000 HTG du portefeuille MonCash Plus et les plafonds P2P de la FAQ ne sont pas des champs de CreatePayment ; le code ne les utilise pas comme rejet.
+Le connecteur Supabase de KlirlineCore est refusé (permission denied). Ce dépôt ne le contourne pas.

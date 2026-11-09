@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { moncashAmountHtg } from "../_shared/moncash-protocol.ts";
+import { connectAmountHtg } from "../_shared/moncash-connect.ts";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
   "https://klirline-store.pages.dev,https://store.klirline.com,https://klirline.com,https://www.klirline.com,http://localhost:5173,http://localhost:4173")
@@ -277,10 +277,14 @@ Deno.serve(async (req: Request) => {
     if (!Number.isFinite(total) || total <= 0) {
       return json(corsHeaders, 400, { error: "Total invalide" });
     }
-    if (payment_method === "moncash" && !moncashAmountHtg(total).ok) {
-      return json(corsHeaders, 400, {
-        error: "MonCash n'accepte qu'un montant entier en gourdes (HTG).",
-      });
+    if (payment_method === "moncash") {
+      const amount = connectAmountHtg(total);
+      if (!amount.ok) {
+        const error = amount.reason === "above_documented_max"
+          ? "MonCash Connect accepte un montant entier de 1 à 100 000 HTG."
+          : "MonCash Connect n'accepte qu'un montant entier en gourdes (HTG).";
+        return json(corsHeaders, 400, { error });
+      }
     }
 
     // Reject obvious client tampering when optional fields are still sent.
