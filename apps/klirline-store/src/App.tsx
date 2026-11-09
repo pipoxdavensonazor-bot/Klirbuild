@@ -38,6 +38,7 @@ import {
 } from './lib/routing';
 import { searchCatalog } from './lib/searchCatalog';
 import { searchProductsByPhoto } from './lib/searchByPhoto';
+import { readMoncashBrowserReturn } from './lib/moncash-return';
 import { VISUAL_COPY, type VisualSearchView } from './lib/visualSearch';
 import { applyHomeSeo } from './lib/seo';
 import { SlidersHorizontal, Clock, XCircle } from 'lucide-react';
@@ -85,6 +86,7 @@ function ShopApp() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [stripeReturn, setStripeReturn] = useState<{ orderId: string; sessionId: string | null; guestToken: string | null } | null>(null);
   const [natcashReturn, setNatcashReturn] = useState<{ orderId: string; guestToken: string | null } | null>(null);
+  const [moncashReturn, setMoncashReturn] = useState<ReturnType<typeof readMoncashBrowserReturn>>(null);
   const [walletResume, setWalletResume] = useState<{ orderId: string; method: 'moncash' | 'natcash' } | null>(null);
   const [sponsorCheckout, setSponsorCheckout] = useState(false);
   const [isVendorApplyOpen, setIsVendorApplyOpen] = useState(false);
@@ -167,21 +169,27 @@ function ShopApp() {
     }
     const checkout = params.get('checkout');
     const orderId = params.get('order_id');
+    let pendingWallet: { orderId?: string; method?: string } | null = null;
+    try {
+      const raw = sessionStorage.getItem('klirline_pending_wallet');
+      if (raw) pendingWallet = JSON.parse(raw) as { orderId?: string; method?: string };
+    } catch {
+      pendingWallet = null;
+    }
+    const guestToken = sessionStorage.getItem('klirline_guest_token');
+    const moncash = readMoncashBrowserReturn(params, pendingWallet, guestToken);
     if (checkout === 'stripe_success' && orderId) {
-      // Prefer sessionStorage; ignore guest_token query if present (legacy links)
-      const guestToken = sessionStorage.getItem('klirline_guest_token');
       setStripeReturn({ orderId, sessionId: params.get('session_id'), guestToken });
       setIsCheckoutOpen(true);
       setIsCartOpen(false);
       window.history.replaceState({}, '', window.location.pathname);
-    } else if ((checkout === 'natcash_success' || checkout === 'moncash_success') && orderId) {
-      const guestToken = sessionStorage.getItem('klirline_guest_token');
-      const method = checkout === 'moncash_success' ? 'moncash' : 'natcash';
-      if (method === 'natcash') {
-        setNatcashReturn({ orderId, guestToken });
-      } else {
-        setWalletResume({ orderId, method });
-      }
+    } else if (moncash && (moncash.orderId || moncash.transactionId)) {
+      setMoncashReturn(moncash);
+      setIsCheckoutOpen(true);
+      setIsCartOpen(false);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (checkout === 'natcash_success' && orderId) {
+      setNatcashReturn({ orderId, guestToken });
       setIsCheckoutOpen(true);
       setIsCartOpen(false);
       window.history.replaceState({}, '', window.location.pathname);
@@ -194,6 +202,7 @@ function ShopApp() {
       setView('dashboard');
       window.history.replaceState({}, '', window.location.pathname);
     } else if (checkout === 'stripe_cancel' || checkout === 'natcash_cancel' || checkout === 'moncash_cancel') {
+      sessionStorage.removeItem('klirline_pending_wallet');
       window.history.replaceState({}, '', window.location.pathname);
     } else {
       // Resume wallet after Digicel redirect / app reopen
@@ -645,7 +654,7 @@ function ShopApp() {
         />
         <CheckoutModal
           isOpen={isCheckoutOpen}
-          onClose={() => { setIsCheckoutOpen(false); setStripeReturn(null); setNatcashReturn(null); setWalletResume(null); }}
+          onClose={() => { setIsCheckoutOpen(false); setStripeReturn(null); setNatcashReturn(null); setMoncashReturn(null); setWalletResume(null); }}
           cartItems={cartItems}
           cartTotal={cartTotal}
           onSuccess={handleCheckoutSuccess}
@@ -653,6 +662,8 @@ function ShopApp() {
           onStripeReturnHandled={() => setStripeReturn(null)}
           natcashReturn={natcashReturn}
           onNatcashReturnHandled={() => setNatcashReturn(null)}
+          moncashReturn={moncashReturn}
+          onMoncashReturnHandled={() => setMoncashReturn(null)}
           walletResume={walletResume}
           onWalletResumeHandled={() => setWalletResume(null)}
         />
@@ -963,7 +974,7 @@ function ShopApp() {
 
       <CheckoutModal
         isOpen={isCheckoutOpen}
-        onClose={() => { setIsCheckoutOpen(false); setStripeReturn(null); setNatcashReturn(null); setWalletResume(null); }}
+        onClose={() => { setIsCheckoutOpen(false); setStripeReturn(null); setNatcashReturn(null); setMoncashReturn(null); setWalletResume(null); }}
         cartItems={cartItems}
         cartTotal={cartTotal}
         onSuccess={handleCheckoutSuccess}
@@ -971,6 +982,8 @@ function ShopApp() {
         onStripeReturnHandled={() => setStripeReturn(null)}
         natcashReturn={natcashReturn}
         onNatcashReturnHandled={() => setNatcashReturn(null)}
+        moncashReturn={moncashReturn}
+        onMoncashReturnHandled={() => setMoncashReturn(null)}
         walletResume={walletResume}
         onWalletResumeHandled={() => setWalletResume(null)}
       />
