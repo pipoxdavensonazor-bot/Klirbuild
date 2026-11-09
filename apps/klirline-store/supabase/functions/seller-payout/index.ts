@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  moncashHosts,
+  moncashPayoutEnvironment,
+  redactSensitive,
+  resolvePayoutCredentials,
+} from "../_shared/moncash-protocol.ts";
 
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ??
   "https://klirline-store.pages.dev,https://store.klirline.com,https://klirline.com,https://www.klirline.com,http://localhost:5173,http://localhost:4173")
@@ -18,35 +24,50 @@ function corsHeadersFor(req: Request): Record<string, string> {
   };
 }
 
-const IS_LIVE = Deno.env.get("MONCASH_ENV") === "live";
-const HOST_REST_API = IS_LIVE
-  ? "moncashbutton.digicelgroup.com/Api"
-  : "sandbox.moncashbutton.digicelgroup.com/Api";
-
-async function getMoncashToken(): Promise<string> {
-  const clientId = Deno.env.get("MONCASH_CLIENT_ID");
-  const clientSecret = Deno.env.get("MONCASH_CLIENT_SECRET");
-  if (!clientId || !clientSecret) {
+async function payoutRestBase(): Promise<{ rest: string; token: string }> {
+  const payoutEnv = moncashPayoutEnvironment(Deno.env.get("MONCASH_PAYOUT_ENV"));
+  const creds = resolvePayoutCredentials({
+    payoutEnv,
+    payoutClientId: Deno.env.get("MONCASH_PAYOUT_CLIENT_ID"),
+    payoutClientSecret: Deno.env.get("MONCASH_PAYOUT_CLIENT_SECRET"),
+    checkoutClientId: Deno.env.get("MONCASH_CLIENT_ID"),
+    checkoutClientSecret: Deno.env.get("MONCASH_CLIENT_SECRET"),
+  });
+  if (!creds.ok) {
+    console.error("moncash payout credentials", creds.reason, payoutEnv);
     throw new Error(
-      "MonCash credentials not configured. Add MONCASH_CLIENT_ID and MONCASH_CLIENT_SECRET to edge secrets.",
+      creds.reason === "live_requires_dedicated"
+        ? "moncash_payout_live_blocked"
+        : "moncash_payout_unconfigured",
     );
   }
-  const credentials = btoa(`${clientId}:${clientSecret}`);
-  const res = await fetch(`https://${HOST_REST_API}/oauth/token`, {
+
+  const { rest } = moncashHosts(payoutEnv);
+  const res = await fetch(`${rest}/oauth/token`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
+      Authorization: `Basic ${btoa(`${creds.clientId}:${creds.clientSecret}`)}`,
       Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "scope=read,write&grant_type=client_credentials",
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`MonCash auth failed (${res.status}): ${body}`);
+    console.error("moncash payout auth http", res.status, payoutEnv);
+    throw new Error("moncash_payout_auth");
   }
   const data = await res.json();
-  return data.access_token as string;
+  if (typeof data?.access_token !== "string" || !data.access_token) {
+    console.error("moncash payout auth missing access_token");
+    throw new Error("moncash_payout_auth");
+  }
+  return { rest, token: data.access_token as string };
+}
+
+function publicPayoutError(err: unknown): string {
+  const message = redactSensitive(err instanceof Error ? err.message : "error");
+  if (message.startsWith("Numéro MonCash")) return message;
+  return "Versement MonCash indisponible.";
 }
 
 function normalizeWallet(raw: string): string {
@@ -92,8 +113,8 @@ async function moncashTransfer(opts: {
   desc: string;
   reference: string;
 }): Promise<{ transactionId: string; raw: unknown }> {
-  const token = await getMoncashToken();
-  const res = await fetch(`https://${HOST_REST_API}/v1/Transfert`, {
+  const { rest, token } = await payoutRestBase();
+  const res = await fetch(`${rest}/v1/Transfert`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -112,7 +133,8 @@ async function moncashTransfer(opts: {
   try {
     data = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    throw new Error(`MonCash Transfer invalid JSON (${res.status}): ${text}`);
+    console.error("moncash payout invalid json", res.status);
+    throw new Error("moncash_payout_transfer");
   }
   const transfer = data.transfer as Record<string, unknown> | undefined;
   const message = String(transfer?.message ?? data.message ?? "");
@@ -121,9 +143,8 @@ async function moncashTransfer(opts: {
     (message.toLowerCase() === "successful" ||
       Number(data.status) === 200);
   if (!ok) {
-    throw new Error(
-      `MonCash Transfer failed (${res.status}): ${message || text}`,
-    );
+    console.error("moncash payout transfer http", res.status);
+    throw new Error("moncash_payout_transfer");
   }
   return {
     transactionId: String(transfer?.transaction_id ?? ""),
@@ -329,25 +350,24 @@ Deno.serve(async (req: Request) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     } catch (transferErr: unknown) {
-      const message =
-        transferErr instanceof Error ? transferErr.message : String(transferErr);
+      const safe = publicPayoutError(transferErr);
       await admin
         .from("order_fulfillments")
         .update({
-          payout_error: message.slice(0, 500),
+          payout_error: safe,
           payout_attempted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", fulfillment.id);
 
-      return new Response(JSON.stringify({ success: false, error: message }), {
+      return new Response(JSON.stringify({ success: false, error: safe }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
+    console.error("seller payout", publicPayoutError(err));
+    return new Response(JSON.stringify({ error: publicPayoutError(err) }), {
       status: 500,
       headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
     });

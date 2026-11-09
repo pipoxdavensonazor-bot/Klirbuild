@@ -12,10 +12,12 @@ import {
   moncashEnvironment,
   moncashHosts,
   moncashNotifyUrl,
+  moncashPayoutEnvironment,
   orderCurrencyIsHtg,
   paymentRedirectUrl,
   readNotifyTransactionId,
   redactSensitive,
+  resolvePayoutCredentials,
   type OrderPaymentState,
 } from "../../supabase/functions/_shared/moncash-protocol.ts";
 import { readMoncashBrowserReturn } from "./moncash-return.ts";
@@ -56,6 +58,36 @@ describe("moncash hosts and urls", () => {
     expect(moncashHosts("live").gateway).toBe(
       "https://moncashbutton.digicelgroup.com/Moncash-middleware",
     );
+  });
+
+  it("keeps seller payouts on sandbox unless MONCASH_PAYOUT_ENV is live", () => {
+    expect(moncashPayoutEnvironment(undefined)).toBe("sandbox");
+    expect(moncashPayoutEnvironment("live")).toBe("live");
+    expect(moncashPayoutEnvironment("LIVE")).toBe("sandbox");
+    const sandboxFallback = resolvePayoutCredentials({
+      payoutEnv: "sandbox",
+      checkoutClientId: "checkout-id",
+      checkoutClientSecret: "checkout-secret",
+    });
+    expect(sandboxFallback).toMatchObject({ ok: true, source: "checkout_sandbox_fallback" });
+    const blocked = resolvePayoutCredentials({
+      payoutEnv: "live",
+      checkoutClientId: "live-checkout-id",
+      checkoutClientSecret: "live-checkout-secret",
+    });
+    expect(blocked).toEqual({ ok: false, reason: "live_requires_dedicated" });
+    const dedicated = resolvePayoutCredentials({
+      payoutEnv: "live",
+      payoutClientId: "payout-id",
+      payoutClientSecret: "payout-secret",
+      checkoutClientId: "live-checkout-id",
+      checkoutClientSecret: "live-checkout-secret",
+    });
+    expect(dedicated).toMatchObject({
+      ok: true,
+      source: "payout",
+      clientId: "payout-id",
+    });
   });
 
   it("derives the KlirlineCore notify URL and the klirline.com alert URL", () => {

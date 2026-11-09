@@ -36,6 +36,56 @@ export function moncashEnvironment(raw: string | undefined | null): MoncashEnv {
   return raw === "live" ? "live" : "sandbox";
 }
 
+/**
+ * Versements vendeurs. Ne lit jamais MONCASH_ENV : passer l'encaissement en
+ * live ne doit pas envoyer POST /v1/Transfert sur l'hôte de production.
+ */
+export function moncashPayoutEnvironment(raw: string | undefined | null): MoncashEnv {
+  return raw === "live" ? "live" : "sandbox";
+}
+
+export type PayoutCredentialDecision =
+  | { ok: true; clientId: string; clientSecret: string; source: "payout" | "checkout_sandbox_fallback" }
+  | { ok: false; reason: "missing" | "live_requires_dedicated" };
+
+/**
+ * Live payouts require their own client id/secret. Sandbox payouts may keep
+ * using the current checkout pair so an unchanged sandbox deployment still
+ * works. Checkout live credentials are never selected for a live transfer.
+ */
+export function resolvePayoutCredentials(input: {
+  payoutEnv: MoncashEnv;
+  payoutClientId?: string | null;
+  payoutClientSecret?: string | null;
+  checkoutClientId?: string | null;
+  checkoutClientSecret?: string | null;
+}): PayoutCredentialDecision {
+  const payoutId = input.payoutClientId?.trim() ?? "";
+  const payoutSecret = input.payoutClientSecret?.trim() ?? "";
+  if (payoutId && payoutSecret) {
+    return {
+      ok: true,
+      clientId: payoutId,
+      clientSecret: payoutSecret,
+      source: "payout",
+    };
+  }
+  if (input.payoutEnv === "live") {
+    return { ok: false, reason: "live_requires_dedicated" };
+  }
+  const checkoutId = input.checkoutClientId?.trim() ?? "";
+  const checkoutSecret = input.checkoutClientSecret?.trim() ?? "";
+  if (checkoutId && checkoutSecret) {
+    return {
+      ok: true,
+      clientId: checkoutId,
+      clientSecret: checkoutSecret,
+      source: "checkout_sandbox_fallback",
+    };
+  }
+  return { ok: false, reason: "missing" };
+}
+
 export function moncashHosts(env: MoncashEnv): { rest: string; gateway: string } {
   if (env === "live") {
     return {

@@ -186,7 +186,7 @@ Alert URL : `https://klirline.com/?checkout=moncash_return`
 npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 ```
 
-Avant ce deploy : appliquer `supabase/migrations/20261109173000_moncash_live_confirmation.sql`. Ne pas passer `MONCASH_ENV=live` sans identifiants live. Le même `MONCASH_ENV` alimente `seller-payout`.
+Avant ce deploy : appliquer `supabase/migrations/20261109173000_moncash_live_confirmation.sql`. Ne pas passer `MONCASH_ENV=live` sans identifiants live. `seller-payout` ignore `MONCASH_ENV` et lit `MONCASH_PAYOUT_ENV` (défaut sandbox). Déployer `seller-payout` avant d'activer le live, sinon l'ancienne fonction suivrait le drapeau d'encaissement.
 
 Front : MonCash activé par défaut. `VITE_ENABLE_MONCASH=false` le masque. Cette variable n’est pas un secret et ne choisit pas sandbox/live.
 
@@ -247,7 +247,7 @@ Après livraison confirmée (ou J+7), le vendeur clique **Recevoir** → Digicel
 npx supabase functions deploy seller-payout --project-ref whybbqeeqpkbkatnkjjc
 ```
 
-Prérequis Digicel : compte marchand **préfinancé** (prefunded) activé pour Transfert — mêmes secrets `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` / `MONCASH_ENV`.
+Prérequis Digicel : compte marchand préfinancé pour Transfert. Hôte : `MONCASH_PAYOUT_ENV` (`live` seulement si ce secret vaut exactement `live`, sinon sandbox). Clés dédiées optionnelles : `MONCASH_PAYOUT_CLIENT_ID` / `MONCASH_PAYOUT_CLIENT_SECRET`. Sans elles, un versement live est refusé. En sandbox, repli sur `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET`.
 
 Migration : `supabase/migrations/20260727070000_seller_moncash_payouts.sql`
 
@@ -277,7 +277,8 @@ Required Edge secrets (Dashboard → Edge Functions → Secrets):
 
 - `MONCASH_CLIENT_ID`
 - `MONCASH_CLIENT_SECRET`
-- `MONCASH_ENV` = `sandbox` or `live`
+- `MONCASH_ENV` = `live` pour l'encaissement seulement, sinon sandbox
+- `MONCASH_PAYOUT_ENV` non défini : versements restent sandbox
 - `ALLOWED_ORIGINS` = `https://klirline.com,https://www.klirline.com,https://klirline-store.pages.dev,http://localhost:5173`
 
 Set secret `ALLOWED_ORIGINS` (comma-separated), e.g.:
