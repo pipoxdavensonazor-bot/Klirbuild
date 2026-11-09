@@ -10,6 +10,7 @@ import { KLIRLINE_COMMISSION_RATE, formatHtg, getShippingFee } from '../lib/comm
 import { PAYMENTS } from '../lib/brand';
 import { useI18n } from '../i18n';
 import { orderPaidWhatsAppUrl } from '../lib/whatsapp';
+import type { MoncashBrowserReturn } from '../lib/moncash-return';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ interface CheckoutModalProps {
   /** Returning from NatCash callback */
   natcashReturn?: { orderId: string; guestToken?: string | null } | null;
   onNatcashReturnHandled?: () => void;
+  /** Browser return from MonCash. The query is not a receipt; verify calls the server. */
+  moncashReturn?: MoncashBrowserReturn | null;
+  onMoncashReturnHandled?: () => void;
   /** Resume MonCash/NatCash after same-window redirect */
   walletResume?: { orderId: string; method: 'moncash' | 'natcash' } | null;
   onWalletResumeHandled?: () => void;
@@ -60,6 +64,8 @@ export const CheckoutModal = ({
   onStripeReturnHandled,
   natcashReturn = null,
   onNatcashReturnHandled,
+  moncashReturn = null,
+  onMoncashReturnHandled,
   walletResume = null,
   onWalletResumeHandled,
 }: CheckoutModalProps) => {
@@ -75,6 +81,7 @@ export const CheckoutModal = ({
   );
   const [guestEmail, setGuestEmail] = useState('');
   const [guestToken, setGuestToken] = useState<string | null>(null);
+  const [moncashTransactionId, setMoncashTransactionId] = useState<string | null>(null);
 
   const shippingFee = getShippingFee(ship.shipping_department);
   const grandTotal = cartTotal + shippingFee;
@@ -197,6 +204,58 @@ export const CheckoutModal = ({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, natcashReturn, session]);
+
+  // MonCash alert/return URL. Success is shown only after /verify confirms via Retrieve*.
+  useEffect(() => {
+    if (!isOpen || !moncashReturn) return;
+    if (!moncashReturn.orderId && !moncashReturn.transactionId) return;
+    const token = moncashReturn.guestToken || guestToken || sessionStorage.getItem('klirline_guest_token');
+    let cancelled = false;
+    (async () => {
+      if (moncashReturn.orderId) setOrderId(moncashReturn.orderId);
+      setMoncashTransactionId(moncashReturn.transactionId);
+      setPayMethod('moncash');
+      setStep('processing');
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/moncash-payment/verify`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: moncashReturn.orderId,
+              transactionId: moncashReturn.transactionId,
+              guestToken: token,
+            }),
+          },
+        );
+        const data = await res.json().catch(() => ({} as { success?: boolean; error?: string; orderId?: string }));
+        if (cancelled) return;
+        if (res.ok && data.success) {
+          sessionStorage.removeItem('klirline_guest_token');
+          sessionStorage.removeItem('klirline_pending_wallet');
+          if (typeof data.orderId === 'string') setOrderId(data.orderId);
+          await afterPaidSuccess(data.orderId || moncashReturn.orderId || '');
+        } else {
+          setErrorMsg(data.error || 'Paiement MonCash non confirmé.');
+          setStep('error');
+        }
+      } catch {
+        if (!cancelled) {
+          setErrorMsg('Paiement MonCash non confirmé.');
+          setStep('error');
+        }
+      } finally {
+        onMoncashReturnHandled?.();
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, moncashReturn, session]);
 
   // Resume wallet payment after same-window MonCash/NatCash redirect
   useEffect(() => {
@@ -362,7 +421,15 @@ export const CheckoutModal = ({
         throw new Error(payData.error || `Échec d’initialisation ${label}.`);
       }
 
+      if (payMethod === 'moncash' && payData.alreadySettled) {
+        await confirmPayment(newOrderId);
+        return;
+      }
+
       const { paymentUrl } = payData;
+      if (!paymentUrl) {
+        throw new Error(`Échec d’initialisation ${label}.`);
+      }
       // Same-window redirect (Capacitor-safe). Token already in sessionStorage.
       sessionStorage.setItem(
         'klirline_pending_wallet',
@@ -375,28 +442,33 @@ export const CheckoutModal = ({
     }
   };
 
-  const confirmPayment = async () => {
+  const confirmPayment = async (explicitOrderId?: string) => {
     setStep('processing');
     try {
       const fn =
         payMethod === 'natcash' ? 'natcash-payment/verify' : 'moncash-payment/verify';
       const label = payMethod === 'natcash' ? 'NatCash' : 'MonCash';
       const token = guestToken || sessionStorage.getItem('klirline_guest_token');
+      const id = explicitOrderId || orderId;
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`,
         {
           method: 'POST',
           headers: payHeaders(),
-          body: JSON.stringify({ orderId, guestToken: token }),
+          body: JSON.stringify({
+            orderId: id,
+            guestToken: token,
+            transactionId: payMethod === 'moncash' ? moncashTransactionId : undefined,
+          }),
         },
       );
 
-      const verifyData = await res.json();
+      const verifyData = await res.json().catch(() => ({} as { success?: boolean; error?: string }));
       if (res.ok && verifyData.success) {
         sessionStorage.removeItem('klirline_guest_token');
         sessionStorage.removeItem('klirline_pending_wallet');
-        await afterPaidSuccess(orderId);
+        await afterPaidSuccess(id);
         return;
       }
 
@@ -650,7 +722,7 @@ export const CheckoutModal = ({
                 Payez <span className="font-bold">{formatHtg(grandTotal)}</span> puis cliquez ci-dessous.
               </p>
               <button
-                onClick={confirmPayment}
+                onClick={() => { void confirmPayment(); }}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold transition-colors shadow-md mb-3"
               >
                 J’ai terminé le paiement

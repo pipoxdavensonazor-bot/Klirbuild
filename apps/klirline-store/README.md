@@ -108,7 +108,7 @@ Paste in **Supabase → Project Settings → Edge Functions → Secrets** (proje
 | `RESEND_API_KEY` / `RESEND_FROM` | Order + stock emails (`Klirline Store <noreply@klirline.ca>`) |
 | `STRIPE_SECRET_KEY` | Use **`sk_test_…`** for E2E — [Stripe API keys](https://dashboard.stripe.com/acct_1OunsBEnAIvP8C7u/apikeys) |
 | `STRIPE_WEBHOOK_SECRET` | `checkout.session.completed` webhook |
-| `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` / `MONCASH_ENV` | Digicel (after Stripe test) |
+| `MONCASH_CLIENT_ID` / `MONCASH_CLIENT_SECRET` / `MONCASH_ENV` | Digicel. `MONCASH_ENV` absent = sandbox. Secrets serveur, pas `VITE_*`. |
 
 ```bash
 # from apps/klirline-store — uses local .env VITE_SUPABASE_* only; never prints secrets
@@ -166,22 +166,29 @@ Redeploy the edge function after pulling:
 npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
 ```
 
-## MonCash (Digicel) — doc + flux
+## MonCash (Digicel) — sandbox par défaut, live préparé
 
-Documentation Digicel Rest API (copie locale) :
+Documentation : [`docs/moncash/MONCASH.md`](./docs/moncash/MONCASH.md).  
+PDF REST : https://sandbox.moncashbutton.digicelgroup.com/Moncash-business/resources/doc/RestAPI_MonCash_doc.pdf
 
-- [`docs/moncash/MONCASH.md`](./docs/moncash/MONCASH.md) — résumé hosts / oauth / CreatePayment / verify / Transfert
-- [`docs/moncash/RestAPI_MonCash_doc.pdf`](./docs/moncash/RestAPI_MonCash_doc.pdf) — PDF officiel Digicel
+La doc REST ne décrit pas de signature de webhook. Aucun secret de webhook n’est lu. Un paiement n’est `completed` qu’après `RetrieveOrderPayment` ou `RetrieveTransactionPayment` (`message` = `successful`, référence = commande, coût = montant entier HTG).
 
-Flux acheteur (`moncash-payment`) aligné sur la doc :
+Secrets Edge (noms seulement, valeurs dans Supabase, jamais `VITE_*`) :
 
-1. `POST /oauth/token` (Basic client_id:secret)
-2. `POST /v1/CreatePayment` `{ amount, orderId }` → redirect `…/Payment/Redirect?token=…`
-3. `POST /v1/RetrieveOrderPayment` (ou `RetrieveTransactionPayment` si `transactionId`)
+- `MONCASH_CLIENT_ID` (secret)
+- `MONCASH_CLIENT_SECRET` (secret)
+- `MONCASH_ENV` = `live` pour la prod, sinon sandbox
 
-Front : MonCash **activé** par défaut. Mettre `VITE_ENABLE_MONCASH=false` au build pour le masquer.
+Return URL : `https://whybbqeeqpkbkatnkjjc.supabase.co/functions/v1/moncash-payment/notify`  
+Alert URL : `https://klirline.com/?checkout=moncash_return`
 
-Secrets Edge : `MONCASH_CLIENT_ID`, `MONCASH_CLIENT_SECRET`, `MONCASH_ENV=sandbox|live`.
+```bash
+npx supabase functions deploy moncash-payment --project-ref whybbqeeqpkbkatnkjjc --no-verify-jwt
+```
+
+Avant ce deploy : appliquer `supabase/migrations/20261109173000_moncash_live_confirmation.sql`. Ne pas passer `MONCASH_ENV=live` sans identifiants live. Le même `MONCASH_ENV` alimente `seller-payout`.
+
+Front : MonCash activé par défaut. `VITE_ENABLE_MONCASH=false` le masque. Cette variable n’est pas un secret et ne choisit pas sandbox/live.
 
 ## Stripe (carte + Link)
 
