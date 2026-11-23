@@ -313,20 +313,24 @@ export function SocialPublishComposer({
             {mediaUrls.length ? (
               <div className="flex flex-wrap gap-2">
                 {mediaUrls.map((url) => {
-                  const src = toSafeMediaSrc(url);
-                  if (!src) return null;
+                  const label = toSafeMediaSrc(url);
+                  if (!label) return null;
                   return (
-                  <div key={src} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      className="h-16 w-16 rounded-md border object-cover"
-                    />
+                  <div
+                    key={label}
+                    className="relative max-w-[14rem] rounded-md border border-[#d1d9e0] bg-white px-2 py-1.5 pr-6"
+                  >
+                    <span className="block truncate text-[11px] leading-tight text-[#374151]">
+                      {label}
+                    </span>
                     <button
                       type="button"
                       className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1 text-[10px] text-white"
-                      onClick={() => setMediaUrls((prev) => prev.filter((u) => toSafeMediaSrc(u) !== src))}
+                      onClick={() =>
+                        setMediaUrls((prev) =>
+                          prev.filter((u) => toSafeMediaSrc(u) !== label)
+                        )
+                      }
                     >
                       ×
                     </button>
