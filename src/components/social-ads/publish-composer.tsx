@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
 import { PLATFORM_LABELS, type SocialAccount, type SocialPlatform } from "@/lib/reports/types";
 import { catalogPlatformById } from "@/lib/social-ads/zernio-connections-catalog";
+import { isSafeMediaUrl } from "@/lib/auth/safe-url";
 import { cn } from "@/lib/utils";
 
 type AudienceSlot = { day: string; hour: number; score: number; label: string };
@@ -94,7 +95,7 @@ export function SocialPublishComposer({
 
   async function addImageUrl() {
     const url = imageUrl.trim();
-    if (!url || mediaUrls.includes(url)) return;
+    if (!url || !isSafeMediaUrl(url) || mediaUrls.includes(url)) return;
     setMediaUrls((prev) => [...prev, url]);
     setImageUrl("");
   }
@@ -115,7 +116,9 @@ export function SocialPublishComposer({
         onPublished?.(data.error);
         return;
       }
-      if (data.url) setMediaUrls((prev) => [...prev, data.url as string]);
+      if (typeof data.url === "string" && isSafeMediaUrl(data.url)) {
+        setMediaUrls((prev) => [...prev, data.url as string]);
+      }
     } finally {
       setUploading(false);
     }
@@ -308,7 +311,7 @@ export function SocialPublishComposer({
             </div>
             {mediaUrls.length ? (
               <div className="flex flex-wrap gap-2">
-                {mediaUrls.map((url) => (
+                {mediaUrls.filter(isSafeMediaUrl).map((url) => (
                   <div key={url} className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
