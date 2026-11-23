@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       if (!customerId) break;
       const companyId = await findCompanyIdByStripeCustomer(customerId);
       if (!companyId) {
-        console.warn("[stripe/webhook] client Stripe sans entreprise", customerId);
+        console.warn("[stripe/webhook] client Stripe sans entreprise");
         break;
       }
       await updateBillingStatus(
