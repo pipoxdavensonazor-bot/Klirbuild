@@ -6,7 +6,7 @@ import {
   loginOrRegisterGoogleUser,
 } from "@/lib/auth/google-oauth";
 import { sessionResponse } from "@/lib/auth/auth-service";
-import { verifySignedOAuthState } from "@/lib/auth/oauth-state";
+import { verifySignedRedirectState } from "@/lib/auth/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const error = url.searchParams.get("error");
   const stateRaw = url.searchParams.get("state");
 
-  const state = verifySignedOAuthState(stateRaw);
+  const state = verifySignedRedirectState(stateRaw);
   if (!state.ok) {
     return NextResponse.redirect(
       `${appBaseUrl()}/login?error=${encodeURIComponent(state.error)}`

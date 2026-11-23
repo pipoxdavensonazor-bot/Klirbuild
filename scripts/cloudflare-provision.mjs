@@ -7,7 +7,7 @@
  * Usage:
  *   DATABASE_URL="postgresql://..." npm run cf:provision
  */
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 
 function run(command) {
   console.log(`\n> ${command}`);
@@ -44,8 +44,15 @@ if (!databaseUrl) {
   );
 } else {
   try {
-    const out = execSync(
-      `npx wrangler hyperdrive create klirbuild-db --connection-string=${JSON.stringify(databaseUrl)}`,
+    const out = execFileSync(
+      "npx",
+      [
+        "wrangler",
+        "hyperdrive",
+        "create",
+        "klirbuild-db",
+        `--connection-string=${databaseUrl}`,
+      ],
       { encoding: "utf8" }
     );
     console.log(out);

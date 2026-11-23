@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { googleAuthUrl, isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
-import { createSignedOAuthState } from "@/lib/auth/oauth-state";
+import { createSignedRedirectState } from "@/lib/auth/oauth-state";
 import { sanitizeNextPath } from "@/lib/auth/safe-next";
 
 export const runtime = "nodejs";
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const state = createSignedOAuthState(next);
+    const state = createSignedRedirectState(next);
     return NextResponse.redirect(googleAuthUrl(state));
   } catch (err) {
     const msg =
