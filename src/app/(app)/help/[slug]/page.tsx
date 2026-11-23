@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VideoEmbed } from "@/components/help/video-embed";
-import { getTutorial, tutorials } from "@/lib/help/tutorials";
+import { getTutorial, tutorials, tutorialVideoUrl } from "@/lib/help/tutorials";
 
 export function generateStaticParams() {
   return tutorials.map((t) => ({ slug: t.slug }));
@@ -43,7 +43,12 @@ export default async function HelpTutorialPage({
       />
 
       <div className="mb-8">
-        <VideoEmbed url={tutorial.videoUrl} title={tutorial.title} />
+        <VideoEmbed
+          url={tutorialVideoUrl(tutorial)}
+          title={tutorial.title}
+          captions={tutorial.video?.captions}
+          poster={tutorial.video?.poster}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
