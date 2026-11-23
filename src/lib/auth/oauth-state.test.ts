@@ -1,9 +1,9 @@
 import { createHmac } from "crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  createSignedOAuthState,
+  createSignedRedirectState,
   sanitizeOAuthNext,
-  verifySignedOAuthState,
+  verifySignedRedirectState,
 } from "@/lib/auth/oauth-state";
 
 describe("oauth signed state", () => {
@@ -24,8 +24,8 @@ describe("oauth signed state", () => {
 
   it("signe et vérifie un state valide", () => {
     process.env.BETTER_AUTH_SECRET = "test-secret-at-least-32-characters!!";
-    const state = createSignedOAuthState("/billing");
-    const verified = verifySignedOAuthState(state);
+    const state = createSignedRedirectState("/billing");
+    const verified = verifySignedRedirectState(state);
     expect(verified.ok).toBe(true);
     if (verified.ok) {
       expect(verified.payload.next).toBe("/billing");
@@ -36,10 +36,10 @@ describe("oauth signed state", () => {
 
   it("refuse une signature altérée", () => {
     process.env.BETTER_AUTH_SECRET = "test-secret-at-least-32-characters!!";
-    const state = createSignedOAuthState("/dashboard");
+    const state = createSignedRedirectState("/dashboard");
     const [body, sig] = state.split(".");
     const flipped = sig!.endsWith("A") ? `${sig!.slice(0, -1)}B` : `${sig!.slice(0, -1)}A`;
-    const verified = verifySignedOAuthState(`${body}.${flipped}`);
+    const verified = verifySignedRedirectState(`${body}.${flipped}`);
     expect(verified).toEqual({ ok: false, error: "State OAuth falsifié." });
   });
 
@@ -48,7 +48,7 @@ describe("oauth signed state", () => {
     const legacy = Buffer.from(JSON.stringify({ next: "/dashboard" })).toString(
       "base64url"
     );
-    const verified = verifySignedOAuthState(legacy);
+    const verified = verifySignedRedirectState(legacy);
     expect(verified.ok).toBe(false);
   });
 
@@ -70,7 +70,7 @@ describe("oauth signed state", () => {
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
-    const verified = verifySignedOAuthState(`${body}.${sig}`);
+    const verified = verifySignedRedirectState(`${body}.${sig}`);
     expect(verified).toEqual({ ok: false, error: "State OAuth expiré." });
   });
 });

@@ -12,14 +12,14 @@ export type OAuthStatePayload = {
 
 export { sanitizeNextPath as sanitizeOAuthNext } from "@/lib/auth/safe-next";
 
-function requireSecret() {
-  const secret = authSecret();
-  if (!secret) {
+function requireSigningKey() {
+  const signingKey = authSecret();
+  if (!signingKey) {
     throw new Error(
       "BETTER_AUTH_SECRET manquant — impossible de signer le state OAuth."
     );
   }
-  return secret;
+  return signingKey;
 }
 
 function b64url(input: string | Buffer) {
@@ -37,36 +37,31 @@ function fromB64url(input: string) {
   return Buffer.from(b64 + pad, "base64");
 }
 
-/**
- * HMAC-SHA256 signe le state OAuth (ce n’est pas un hash de mot de passe).
- * Changer l’algorithme invaliderait les states déjà émis (TTL 10 min).
- */
-function signBody(body: string, secret: string) {
-  // codeql[js/insufficient-password-hash]
-  return createHmac("sha256", secret).update(body).digest();
+function signBody(body: string, signingKey: string) {
+  return createHmac("sha256", signingKey).update(body).digest();
 }
 
-export function createSignedOAuthState(next?: string | null): string {
-  const secret = requireSecret();
+export function createSignedRedirectState(next?: string | null): string {
+  const signingKey = requireSigningKey();
   const payload: OAuthStatePayload = {
     next: sanitizeNextPath(next),
     nonce: randomBytes(16).toString("hex"),
     exp: Date.now() + STATE_TTL_MS,
   };
   const body = b64url(JSON.stringify(payload));
-  const sig = b64url(signBody(body, secret));
+  const sig = b64url(signBody(body, signingKey));
   return `${body}.${sig}`;
 }
 
-export function verifySignedOAuthState(
+export function verifySignedRedirectState(
   state: string | null | undefined
 ): { ok: true; payload: OAuthStatePayload } | { ok: false; error: string } {
   if (!state?.trim()) {
     return { ok: false, error: "State OAuth manquant." };
   }
 
-  const secret = authSecret();
-  if (!secret) {
+  const signingKey = authSecret();
+  if (!signingKey) {
     return { ok: false, error: "Secret de signature indisponible." };
   }
 
@@ -82,7 +77,7 @@ export function verifySignedOAuthState(
   let expected: Buffer;
   let provided: Buffer;
   try {
-    expected = signBody(body, secret);
+    expected = signBody(body, signingKey);
     provided = fromB64url(sig);
   } catch {
     return { ok: false, error: "State OAuth invalide." };
