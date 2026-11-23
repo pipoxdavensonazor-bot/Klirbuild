@@ -1,5 +1,21 @@
 name: CodeQL
 
+# Variante B : l'analyse CodeQL tourne toujours, mais le SARIF n'est
+# plus envoyé à l'API Code scanning (indisponible sur ce dépôt privé
+# d'un compte personnel, sans GitHub Code Security).
+# Les résultats sont conservés en artifact Actions. Le job échoue s'il
+# existe une alerte high ou critical (security-severity >= 7, ou level
+# "error" si le score est absent).
+#
+# Ne pas utiliser upload: false — l'action l'interprète comme
+# failure-only et retente un envoi SARIF.
+#
+# Pour rétablir l'upload natif (alertes GitHub) : remettre
+# upload: always, retirer le script ci-dessous, et rouvrir
+# permissions.security-events: write — seulement après transfert du
+# dépôt vers une organisation Team/Enterprise + Code Security, ou si
+# le dépôt devient public.
+
 on:
   push:
     branches: [master, main]
@@ -21,7 +37,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
 
     strategy:
       fail-fast: false
@@ -41,3 +56,117 @@ jobs:
       - uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
+          upload: never
+          output: ${{ runner.temp }}/codeql-sarif
+
+      - name: Upload CodeQL SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: ${{ runner.temp }}/codeql-sarif
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail on high or critical findings
+        env:
+          SARIF_DIR: ${{ runner.temp }}/codeql-sarif
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          const dir = process.env.SARIF_DIR;
+          if (!dir || !fs.existsSync(dir)) {
+            console.error("Aucun dossier SARIF:", dir);
+            process.exit(1);
+          }
+          const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sarif"));
+          if (!files.length) {
+            console.error("Aucun fichier SARIF dans", dir);
+            process.exit(1);
+          }
+
+          function severityFrom(rule, result) {
+            const raw =
+              rule?.properties?.["security-severity"] ??
+              result?.properties?.["security-severity"];
+            const n = raw != null && raw !== "" ? Number(raw) : NaN;
+            if (Number.isFinite(n)) {
+              if (n >= 9) return { label: "critical", n };
+              if (n >= 7) return { label: "high", n };
+              if (n >= 4) return { label: "medium", n };
+              return { label: "low", n };
+            }
+            const level = (
+              result.level ||
+              rule?.defaultConfiguration?.level ||
+              "warning"
+            ).toLowerCase();
+            if (level === "error") return { label: "high", n: null };
+            if (level === "note") return { label: "low", n: null };
+            return { label: "medium", n: null };
+          }
+
+          const findings = [];
+          for (const f of files) {
+            const sarif = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+            for (const run of sarif.runs || []) {
+              const rules = new Map();
+              for (const rule of run.tool?.driver?.rules || []) {
+                rules.set(rule.id, rule);
+              }
+              for (const ext of run.tool?.extensions || []) {
+                for (const rule of ext.rules || []) {
+                  rules.set(rule.id, rule);
+                }
+              }
+              for (const result of run.results || []) {
+                const ruleId = result.ruleId || result.rule?.id;
+                const rule = (ruleId && rules.get(ruleId)) || {};
+                const sev = severityFrom(rule, result);
+                const loc = result.locations?.[0]?.physicalLocation;
+                findings.push({
+                  file: loc?.artifactLocation?.uri || "?",
+                  line: loc?.region?.startLine || "?",
+                  ruleId: ruleId || "?",
+                  severity: sev.label,
+                  score: sev.n,
+                  message: (result.message && result.message.text) || "",
+                });
+              }
+            }
+          }
+
+          const counts = {};
+          for (const x of findings) {
+            counts[x.severity] = (counts[x.severity] || 0) + 1;
+          }
+          console.log("CodeQL:", findings.length, "alerte(s) —", counts);
+          for (const x of findings) {
+            const score = x.score != null ? " " + x.score : "";
+            console.log(
+              "- [" +
+                x.severity +
+                score +
+                "] " +
+                x.ruleId +
+                " " +
+                x.file +
+                ":" +
+                x.line +
+                " — " +
+                x.message
+            );
+          }
+
+          const blockers = findings.filter(
+            (x) => x.severity === "critical" || x.severity === "high"
+          );
+          if (blockers.length) {
+            console.error(
+              "\nÉchec: " + blockers.length + " alerte(s) high/critical."
+            );
+            process.exit(1);
+          }
+          console.log("Aucune alerte high/critical.");
+          NODE

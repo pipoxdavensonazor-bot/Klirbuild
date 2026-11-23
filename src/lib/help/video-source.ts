@@ -2,6 +2,13 @@ export type VideoSource =
   | { type: "youtube" | "loom" | "vimeo"; src: string }
   | { type: "mp4"; src: string };
 
+/** Hôte exact ou sous-domaine (évite evil-youtube.com et youtube.com.evil.com). */
+function isHostOrSubdomain(hostname: string, domain: string): boolean {
+  const host = hostname.replace(/\.$/, "").toLowerCase();
+  const base = domain.toLowerCase();
+  return host === base || host.endsWith("." + base);
+}
+
 /** Reconnaît une vidéo hébergée dans l'app (/help-videos/…), un MP4/WebM direct, YouTube, Loom ou Vimeo. */
 export function parseVideoSource(url: string): VideoSource | null {
   const raw = url.trim();
@@ -17,17 +24,19 @@ export function parseVideoSource(url: string): VideoSource | null {
     const u = new URL(raw);
     if (u.protocol !== "https:" && u.protocol !== "http:") return null;
 
-    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
+    const youtube = isHostOrSubdomain(u.hostname, "youtube.com");
+    const youtuBe = isHostOrSubdomain(u.hostname, "youtu.be");
+    if (youtube || youtuBe) {
       let id = u.searchParams.get("v");
-      if (!id && u.hostname.includes("youtu.be")) id = u.pathname.slice(1);
+      if (!id && youtuBe) id = u.pathname.slice(1);
       if (!id) return null;
       return { type: "youtube", src: `https://www.youtube-nocookie.com/embed/${id}?rel=0` };
     }
-    if (u.hostname.includes("loom.com")) {
+    if (isHostOrSubdomain(u.hostname, "loom.com")) {
       const id = u.pathname.split("/").filter(Boolean).pop();
       return id ? { type: "loom", src: `https://www.loom.com/embed/${id}` } : null;
     }
-    if (u.hostname.includes("vimeo.com")) {
+    if (isHostOrSubdomain(u.hostname, "vimeo.com")) {
       const id = u.pathname.split("/").filter(Boolean).pop();
       return id ? { type: "vimeo", src: `https://player.vimeo.com/video/${id}` } : null;
     }

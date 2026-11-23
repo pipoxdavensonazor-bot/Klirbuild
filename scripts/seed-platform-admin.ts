@@ -21,13 +21,18 @@ if (!PASSWORD || PASSWORD.length < 12 || PASSWORD === "KlirAdmin!2026" || PASSWO
   );
 }
 
+function isSupabasePoolerHost(hostname: string): boolean {
+  const host = hostname.replace(/\.$/, "").toLowerCase();
+  return host === "pooler.supabase.com" || host.endsWith(".pooler.supabase.com");
+}
+
 function connectionString() {
   const raw = process.env.DATABASE_URL?.trim();
   if (!raw) throw new Error("DATABASE_URL manquant");
   // Prefer session pooler host if env still points at stale aws-0 / 6543
   try {
     const u = new URL(raw);
-    if (u.hostname.includes("aws-0-") && u.hostname.includes("pooler.supabase.com")) {
+    if (isSupabasePoolerHost(u.hostname) && u.hostname.includes("aws-0-")) {
       u.hostname = u.hostname.replace("aws-0-", "aws-1-");
     }
     if (u.port === "6543") u.port = "5432";
