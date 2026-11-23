@@ -5,6 +5,7 @@
 
 // @ts-expect-error `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
+import { serveHelpMedia } from "../src/lib/help/help-media";
 
 const CRON_BY_EXPRESSION: Record<string, string> = {
   "0 13 * * *": "/api/cron/automations",
@@ -32,7 +33,12 @@ async function invokeCron(env: CloudflareEnv, path: string) {
 }
 
 const worker = {
-  fetch: handler.fetch as ExportedHandlerFetchHandler<CloudflareEnv>,
+  async fetch(request: Request, env: CloudflareEnv, ctx: ExecutionContext) {
+    // Tutoriels vidéo (R2) : servis avant Next, avec support Range pour Safari / iOS.
+    const media = await serveHelpMedia(request, env.HELP_VIDEOS);
+    if (media) return media;
+    return (handler.fetch as ExportedHandlerFetchHandler<CloudflareEnv>)(request, env, ctx);
+  },
 
   async scheduled(controller: ScheduledController, env: CloudflareEnv, ctx: ExecutionContext) {
     const path = CRON_BY_EXPRESSION[controller.cron] ?? "/api/cron/automations";
