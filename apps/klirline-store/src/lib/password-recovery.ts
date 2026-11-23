@@ -75,6 +75,19 @@ export function decideResetPhase(input: {
   return 'checking';
 }
 
+/**
+ * token_hash to send to Supabase verifyOtp, or null when the link is not a
+ * token-hash-only recovery link (PKCE code and implicit access_token links are
+ * completed by supabase-js itself). Returning a value never grants access: the
+ * reset form only opens once Supabase accepts the token server-side.
+ */
+export function recoveryTokenHashToVerify(snapshot: AuthRedirectSnapshot): string | null {
+  if (!snapshot.tokenHash) return null;
+  if (snapshot.type !== 'recovery') return null;
+  if (snapshot.code || snapshot.accessToken) return null;
+  return snapshot.tokenHash;
+}
+
 export function validateNewPassword(
   password: string,
   confirmation: string,

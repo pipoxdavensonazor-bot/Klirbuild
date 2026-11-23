@@ -5,6 +5,7 @@ import { useI18n } from '../i18n';
 import {
   decideResetPhase,
   readAuthRedirectSnapshot,
+  recoveryTokenHashToVerify,
   validateNewPassword,
   type AuthRedirectSnapshot,
   type ResetPhase,
@@ -47,6 +48,23 @@ function phaseFor(snapshot: AuthRedirectSnapshot): Exclude<ResetPhase, 'success'
   });
 }
 
+/**
+ * Sends a token-hash recovery link to Supabase for server-side verification.
+ * Returns false (nothing sent) when the link carries no token_hash to verify.
+ */
+function startTokenHashVerification(
+  snapshot: AuthRedirectSnapshot,
+  settle: (next: Exclude<ResetPhase, 'success'>) => void,
+): boolean {
+  const tokenHash = recoveryTokenHashToVerify(snapshot);
+  if (!tokenHash) return false;
+  void verifyRecoveryTokenHash(tokenHash).then((result) => {
+    if (result.ok) settle('ready');
+    else settle(result.expired ? 'expired' : 'invalid');
+  });
+  return true;
+}
+
 export function ResetPasswordPage({ onDone }: ResetPasswordPageProps) {
   const { t, locale, setLocale } = useI18n();
   const { updatePassword } = useAuth();
@@ -85,22 +103,11 @@ export function ResetPasswordPage({ onDone }: ResetPasswordPageProps) {
     };
 
     const unsubscribe = subscribeAuthSignals(applySignals);
-    const tokenHash = snapshot.tokenHash;
-    const tokenHashOnly = Boolean(
-      tokenHash &&
-      snapshot.type === 'recovery' &&
-      !snapshot.code &&
-      !snapshot.accessToken,
-    );
+    // Token-hash links are confirmed by Supabase (verifyOtp); the form only
+    // opens when the server accepts the token. Other links wait for auth events.
+    const verifying = startTokenHashVerification(snapshot, settle);
 
-    if (tokenHashOnly && tokenHash) {
-      void verifyRecoveryTokenHash(tokenHash).then((result) => {
-        if (result.ok) settle('ready');
-        else settle(result.expired ? 'expired' : 'invalid');
-      });
-    }
-
-    const timer = tokenHashOnly
+    const timer = verifying
       ? undefined
       : window.setTimeout(() => settle('invalid'), 8000);
 
