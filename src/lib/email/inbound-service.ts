@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import { prisma } from "@/lib/db";
 import { recordInboundEmail } from "@/lib/email/email-service";
+import { normalizeAddress, resendReceivingUrl } from "@/lib/email/inbound-parse";
 
 export type ResendReceivedEvent = {
   type: string;
@@ -15,12 +16,6 @@ export type ResendReceivedEvent = {
     subject?: string;
   };
 };
-
-function normalizeAddress(raw: string) {
-  const trimmed = raw.trim();
-  const match = trimmed.match(/<([^>]+)>/);
-  return (match ? match[1] : trimmed).toLowerCase();
-}
 
 export function verifyResendWebhook(
   payload: string,
@@ -119,13 +114,16 @@ export async function fetchReceivedEmailContent(emailId: string): Promise<{
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) return {};
 
+  const url = resendReceivingUrl(emailId);
+  if (!url) return {};
+  if (url.protocol !== "https:" || url.hostname !== "api.resend.com") return {};
+
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch(
-        `https://api.resend.com/emails/receiving/${emailId}`,
-        { headers: { Authorization: `Bearer ${apiKey}` } }
-      );
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
       if (res.ok) {
         const data = (await res.json().catch(() => ({}))) as {
           text?: string | null;
@@ -138,12 +136,13 @@ export async function fetchReceivedEmailContent(emailId: string): Promise<{
         /* content may not be ready yet — retry */
       } else {
         console.warn(
-          `[inbound] Resend receiving ${emailId} HTTP ${res.status}`
+          "[inbound] Resend receiving request HTTP error",
+          res.status
         );
         return {};
       }
     } catch (error) {
-      console.warn(`[inbound] Resend receiving ${emailId} failed`, error);
+      console.warn("[inbound] Resend receiving request failed", error);
     }
     if (attempt < maxAttempts) await sleep(250 * attempt);
   }
