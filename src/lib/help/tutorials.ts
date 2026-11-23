@@ -5,6 +5,29 @@ export type TutorialStep = {
   href?: string;
 };
 
+export type TutorialVideo = {
+  /** ex. /help-videos/01-bienvenue-navigation.mp4 */
+  src: string;
+  /** Sous-titres WebVTT en français */
+  captions?: string;
+  /** Image d'aperçu JPG */
+  poster?: string;
+};
+
+/** Construit les chemins /help-videos/<nom>.mp4|.fr.vtt|.jpg d'un tutoriel. */
+export function helpVideo(name: string): TutorialVideo {
+  return {
+    src: `/help-videos/${name}.mp4`,
+    captions: `/help-videos/${name}.fr.vtt`,
+    poster: `/help-videos/${name}.jpg`,
+  };
+}
+
+/** Vidéo à afficher : fichier hébergé dans l'app en priorité, sinon URL de secours. */
+export function tutorialVideoUrl(t: Pick<Tutorial, "video" | "videoUrl">) {
+  return t.video?.src ?? t.videoUrl?.trim() ?? "";
+}
+
 export type Tutorial = {
   slug: string;
   title: string;
@@ -12,17 +35,23 @@ export type Tutorial = {
   duration: string;
   category: "demarrage" | "metier" | "terrain" | "avance";
   order: number;
-  /** YouTube, Loom, Vimeo ou URL MP4 — laisser vide tant que la vidéo n'est pas publiée */
+  /**
+   * Vidéo hébergée dans l'app (bucket R2 `klirbuild-help-videos`, servi sur /help-videos/*).
+   * Laisser absent tant que le fichier n'est pas en ligne.
+   */
+  video?: TutorialVideo;
+  /** Secours : URL YouTube / Loom / Vimeo / MP4 fournie par variable d'environnement */
   videoUrl?: string;
   steps: TutorialStep[];
   relatedHrefs: string[];
 };
 
 /**
- * Pour ajouter une vidéo générée (HeyGen, Synthesia, Loom, YouTube) :
- * 1. Publiez la vidéo sur YouTube (non listé) ou Loom
- * 2. Collez l'URL complète dans `videoUrl` ci-dessous
- * 3. Redéployez — le lecteur s'affiche automatiquement
+ * Tutoriels vidéo hébergés dans KlirBuild :
+ * 1. Déposez <nom>.mp4, <nom>.fr.vtt et <nom>.jpg dans le bucket R2 `klirbuild-help-videos`
+ *    (npx wrangler r2 object put klirbuild-help-videos/<fichier> --file=… --remote)
+ * 2. Renseignez `video: helpVideo("<nom>")` sur le tutoriel ci-dessous
+ * 3. Remplacer une vidéo existante (même nom) ne demande pas de redéploiement.
  */
 export const tutorials: Tutorial[] = [
   {
@@ -33,6 +62,7 @@ export const tutorials: Tutorial[] = [
     duration: "4 min",
     category: "demarrage",
     order: 1,
+    video: helpVideo("01-bienvenue-navigation"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_1,
     relatedHrefs: ["/dashboard", "/ai"],
     steps: [
@@ -64,12 +94,6 @@ export const tutorials: Tutorial[] = [
         body: "Le bouton flottant Klir AI est disponible partout pour poser des questions sur vos données.",
         href: "/ai",
       },
-      {
-        time: "2:40",
-        title: "Marché, rôle et plan",
-        body: "En haut de l'écran, simulez un marché (QC, US…), un rôle ou un plan pour voir ce que chaque employé verra.",
-        href: "/markets",
-      },
     ],
   },
   {
@@ -80,19 +104,20 @@ export const tutorials: Tutorial[] = [
     duration: "5 min",
     category: "demarrage",
     order: 2,
+    video: helpVideo("02-creer-entreprise"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_2,
     relatedHrefs: ["/register", "/settings"],
     steps: [
       {
         time: "0:00",
         title: "Inscription",
-        body: "Sur /register, renseignez nom, courriel pro, nom d'entreprise et mot de passe. Cliquez sur Créer votre entreprise.",
+        body: "Sur /register, renseignez nom, courriel pro, nom d'entreprise et mot de passe. Cliquez sur « Commencer l'essai 14 jours ».",
         href: "/register",
       },
       {
         time: "1:00",
         title: "Paramètres entreprise",
-        body: "Dans Settings → Company : nom légal, courriel de contact et fuseau horaire.",
+        body: "Dans Paramètres → Company : nom affiché aux clients, courriel principal, téléphone, site web et numéro d'entreprise. Cliquez sur « Enregistrer l'entreprise ».",
         href: "/settings",
       },
       {
@@ -123,13 +148,14 @@ export const tutorials: Tutorial[] = [
     duration: "6 min",
     category: "demarrage",
     order: 3,
+    video: helpVideo("03-inviter-equipe-roles"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_3,
     relatedHrefs: ["/settings", "/team-chat"],
     steps: [
       {
         time: "0:00",
         title: "Inviter un employé",
-        body: "Settings → Users : entrez le courriel, choisissez un rôle, puis Envoyez l'invitation.",
+        body: "Paramètres → Users : entrez le courriel, choisissez un rôle, puis cliquez sur « Send invite ».",
         href: "/settings",
       },
       {
@@ -168,6 +194,7 @@ export const tutorials: Tutorial[] = [
     duration: "10 min",
     category: "metier",
     order: 4,
+    video: helpVideo("04-cycle-client-facturation"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_4,
     relatedHrefs: ["/crm", "/quotes", "/invoices", "/payments"],
     steps: [
@@ -200,6 +227,7 @@ export const tutorials: Tutorial[] = [
     duration: "8 min",
     category: "metier",
     order: 5,
+    video: helpVideo("05-gerer-chantiers"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_5,
     relatedHrefs: ["/projects", "/construction/jobs", "/tasks"],
     steps: [
@@ -232,6 +260,7 @@ export const tutorials: Tutorial[] = [
     duration: "5 min",
     category: "terrain",
     order: 6,
+    video: helpVideo("06-terrain-pointage-chat"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_6,
     relatedHrefs: ["/timeclock", "/locations", "/team-chat"],
     steps: [
@@ -275,6 +304,7 @@ export const tutorials: Tutorial[] = [
     duration: "5 min",
     category: "avance",
     order: 8,
+    video: helpVideo("08-ia-automatisations"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_8,
     relatedHrefs: ["/ai", "/automations", "/auto-pilot"],
     steps: [
@@ -290,6 +320,7 @@ export const tutorials: Tutorial[] = [
     duration: "3 min",
     category: "demarrage",
     order: 9,
+    video: helpVideo("09-abonnement-plans"),
     videoUrl: process.env.NEXT_PUBLIC_HELP_VIDEO_9,
     relatedHrefs: ["/billing"],
     steps: [
