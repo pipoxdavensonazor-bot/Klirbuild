@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api-client";
 import { PLATFORM_LABELS, type SocialAccount, type SocialPlatform } from "@/lib/reports/types";
 import { catalogPlatformById } from "@/lib/social-ads/zernio-connections-catalog";
-import { isSafeMediaUrl } from "@/lib/auth/safe-url";
+import { toSafeMediaSrc } from "@/lib/auth/safe-url";
 import { cn } from "@/lib/utils";
 
 type AudienceSlot = { day: string; hour: number; score: number; label: string };
@@ -94,9 +94,9 @@ export function SocialPublishComposer({
   }
 
   async function addImageUrl() {
-    const url = imageUrl.trim();
-    if (!url || !isSafeMediaUrl(url) || mediaUrls.includes(url)) return;
-    setMediaUrls((prev) => [...prev, url]);
+    const safe = toSafeMediaSrc(imageUrl);
+    if (!safe || mediaUrls.includes(safe)) return;
+    setMediaUrls((prev) => [...prev, safe]);
     setImageUrl("");
   }
 
@@ -116,8 +116,9 @@ export function SocialPublishComposer({
         onPublished?.(data.error);
         return;
       }
-      if (typeof data.url === "string" && isSafeMediaUrl(data.url)) {
-        setMediaUrls((prev) => [...prev, data.url as string]);
+      const safeUpload = typeof data.url === "string" ? toSafeMediaSrc(data.url) : null;
+      if (safeUpload) {
+        setMediaUrls((prev) => [...prev, safeUpload]);
       }
     } finally {
       setUploading(false);
@@ -311,23 +312,27 @@ export function SocialPublishComposer({
             </div>
             {mediaUrls.length ? (
               <div className="flex flex-wrap gap-2">
-                {mediaUrls.filter(isSafeMediaUrl).map((url) => (
-                  <div key={url} className="relative">
+                {mediaUrls.map((url) => {
+                  const src = toSafeMediaSrc(url);
+                  if (!src) return null;
+                  return (
+                  <div key={src} className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={url}
+                      src={src}
                       alt=""
                       className="h-16 w-16 rounded-md border object-cover"
                     />
                     <button
                       type="button"
                       className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1 text-[10px] text-white"
-                      onClick={() => setMediaUrls((prev) => prev.filter((u) => u !== url))}
+                      onClick={() => setMediaUrls((prev) => prev.filter((u) => toSafeMediaSrc(u) !== src))}
                     >
                       ×
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>
