@@ -35,11 +35,36 @@ const DEFAULT: CompanySubscription = {
   updatedAt: new Date().toISOString(),
 };
 
+function isFsCode(err: unknown, code: string): boolean {
+  return Boolean(err && typeof err === "object" && "code" in err && (err as NodeJS.ErrnoException).code === code);
+}
+
+/** Écriture atomique : fichier temporaire puis rename (évite une course exists/write). */
+function writeFileAtomic(filePath: string, contents: string) {
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, contents, "utf8");
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
+}
+
 function ensureStore() {
   try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(STORE_PATH)) {
-      fs.writeFileSync(STORE_PATH, JSON.stringify(DEFAULT, null, 2), "utf8");
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    try {
+      fs.writeFileSync(STORE_PATH, JSON.stringify(DEFAULT, null, 2), {
+        encoding: "utf8",
+        flag: "wx",
+      });
+    } catch (err) {
+      if (!isFsCode(err, "EEXIST")) throw err;
     }
   } catch {
     /* Vercel/serverless: filesystem read-only — use in-memory defaults */
@@ -49,10 +74,8 @@ function ensureStore() {
 export function readSubscription(companyId = DEMO_COMPANY_ID): CompanySubscription {
   try {
     ensureStore();
-    if (fs.existsSync(STORE_PATH)) {
-      const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as CompanySubscription;
-      if (raw.companyId === companyId) return raw;
-    }
+    const raw = JSON.parse(fs.readFileSync(STORE_PATH, "utf8")) as CompanySubscription;
+    if (raw.companyId === companyId) return raw;
   } catch {
     /* fall through */
   }
@@ -61,12 +84,10 @@ export function readSubscription(companyId = DEMO_COMPANY_ID): CompanySubscripti
 
 export function writeSubscription(data: CompanySubscription) {
   try {
-    ensureStore();
-    if (!fs.existsSync(DATA_DIR)) return;
-    fs.writeFileSync(
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    writeFileAtomic(
       STORE_PATH,
-      JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2),
-      "utf8"
+      JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2)
     );
   } catch {
     /* ignore on serverless */
