@@ -36,6 +36,14 @@
       "id": "74dc80ec7629448bac677d745101df05"
     }
   ],
+  // Tutoriels vidéo du centre d'aide (MP4 / VTT / JPG), servis sur /help-videos/* par workers/app.ts.
+  // Créer avec : npx wrangler r2 bucket create klirbuild-help-videos
+  "r2_buckets": [
+    {
+      "binding": "HELP_VIDEOS",
+      "bucket_name": "klirbuild-help-videos"
+    }
+  ],
   // Create with: npx wrangler hyperdrive create klirbuild-db --connection-string="$DATABASE_URL"
   // then set "id" below and uncomment.
   // "hyperdrive": [

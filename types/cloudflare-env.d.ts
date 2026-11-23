@@ -7,6 +7,7 @@ interface __BaseEnv_CloudflareEnv {
 	NEXT_INC_CACHE_KV: KVNamespace;
 	IMAGES: ImagesBinding;
 	ASSETS: Fetcher;
+	HELP_VIDEOS: R2Bucket;
 	NEXT_PUBLIC_APP_URL: "https://klirline.app";
 	UPLOADS_KV_ENABLED: "true";
 	WORKER_SELF_REFERENCE: Service<typeof import("../workers/app").default>;
