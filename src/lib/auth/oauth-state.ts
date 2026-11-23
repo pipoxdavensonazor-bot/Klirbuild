@@ -37,7 +37,12 @@ function fromB64url(input: string) {
   return Buffer.from(b64 + pad, "base64");
 }
 
+/**
+ * HMAC-SHA256 signe le state OAuth (ce n’est pas un hash de mot de passe).
+ * Changer l’algorithme invaliderait les states déjà émis (TTL 10 min).
+ */
 function signBody(body: string, secret: string) {
+  // codeql[js/insufficient-password-hash]
   return createHmac("sha256", secret).update(body).digest();
 }
 

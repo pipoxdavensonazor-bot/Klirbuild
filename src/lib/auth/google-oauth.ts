@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { hasDatabase } from "@/lib/auth/auth-service";
 import {
@@ -113,7 +114,7 @@ export async function loginOrRegisterGoogleUser(profile: {
       },
     });
     const passwordHash = await hashPassword(
-      `google-oauth-${profile.id}-${Math.random().toString(36).slice(2)}`
+      `google-oauth-${profile.id}-${randomBytes(16).toString("hex")}`
     );
     user = await prisma.user.create({
       data: {

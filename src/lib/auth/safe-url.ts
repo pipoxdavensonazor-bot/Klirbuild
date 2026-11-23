@@ -9,3 +9,13 @@ export function isSafeHttpUrl(raw: string): boolean {
     return false;
   }
 }
+
+/** URL affichable en <img src> : http(s) ou chemin relatif d’origine (`/…`, pas `//`). */
+export function isSafeMediaUrl(raw: string): boolean {
+  const value = raw.trim();
+  if (!value) return false;
+  if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) {
+    return !value.includes(":");
+  }
+  return isSafeHttpUrl(value);
+}
