@@ -1,0 +1,38 @@
+/** Security response headers. Deduped: never append if already set. */
+
+export const SECURITY_HEADERS: Record<string, string> = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  /**
+   * Pragmatic CSP (not Report-Only): allows Next/TipTap, Google Fonts,
+   * images/media from https, YouTube/Vimeo embeds. frame-ancestors none
+   * reinforces X-Frame-Options.
+   */
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://www.googletagservices.com https://www.google.com https://partner.googleadservices.com https://tpc.googlesyndication.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    "connect-src 'self' https:",
+    "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com https://maps.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.googletagmanager.com https://tour.bonnevisite.com https://www.tourbuzz.net https://cdn-player.trivaxis.com https://cdn-tour-na.trivaxis.com",
+    "upgrade-insecure-requests",
+  ].join("; "),
+};
+
+export function applySecurityHeaders(headers: Headers) {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    // Avoid duplicated values when Cloudflare or another layer already set the header
+    if (!headers.has(key)) {
+      headers.set(key, value);
+    }
+  }
+}
